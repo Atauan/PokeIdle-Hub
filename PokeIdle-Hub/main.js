@@ -163,7 +163,7 @@ function startUpdateChecks() {
 
 const LOGIN_URLS = {
   twitch: 'https://www.twitch.tv/login',
-  kick: 'https://kick.com/',
+  kick: 'https://kick.com/login',
 };
 
 // Só abre no Edge endereços destes sites, e só com caracteres seguros
@@ -217,12 +217,28 @@ function setupSession(part) {
     let cancel = false;
     try {
       const u = new URL(details.url);
-      if (['www.facebook.com', 'facebook.com', 'use1-turn.fpjs.io', 'fpjs.io'].includes(u.hostname) ||
+      if (['www.facebook.com', 'facebook.com'].includes(u.hostname) ||
           (u.hostname === 's.amazon-adsystem.com' && details.resourceType === 'subFrame')) {
         cancel = true;
       }
     } catch (_) { /* página em navegação/fechada: preserva a requisição */ }
     callback({ cancel });
+  });
+  // Sanitiza cabeçalhos sec-ch-ua para permitir login social do Google sem bloqueio de "app não seguro"
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = details.requestHeaders || {};
+    headers['User-Agent'] = CHROME_UA;
+    if (headers['sec-ch-ua']) {
+      headers['sec-ch-ua'] = headers['sec-ch-ua']
+        .replace(/,?\s*"Electron";v="[^"]*"/gi, '')
+        .replace(/"Electron";v="[^"]*",?\s*/gi, '');
+    }
+    if (headers['sec-ch-ua-full-version-list']) {
+      headers['sec-ch-ua-full-version-list'] = headers['sec-ch-ua-full-version-list']
+        .replace(/,?\s*"Electron";v="[^"]*"/gi, '')
+        .replace(/"Electron";v="[^"]*",?\s*/gi, '');
+    }
+    callback({ requestHeaders: headers });
   });
   ses.registerPreloadScript({ id: 'pf-game-channels', type: 'frame', filePath: path.join(__dirname, 'game-channels.js') });
   ses.registerPreloadScript({ id: 'pf-game-session', type: 'frame', filePath: path.join(__dirname, 'game-session.js') });
@@ -295,6 +311,7 @@ app.on('web-contents-created', (_e, contents) => {
       if (link) { e.preventDefault(); addLive(link); }
     });
     contents.on('did-create-window', (child) => {
+      child.webContents.setUserAgent(CHROME_UA);
       if (!isGame(contents)) return;
       // Pop-up aberto em branco e depois mandado para a live
       child.webContents.on('will-navigate', (e, url) => {
