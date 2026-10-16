@@ -52,6 +52,10 @@ const S = {
     const lim = load('pf.accountLimits', {});
     return lim && typeof lim === 'object' ? lim : {};
   })(),
+  universalLimits: (() => {
+    const u = load('pf.universalLimits', { kick: 2, twitch: 3 });
+    return u && typeof u === 'object' ? u : { kick: 2, twitch: 3 };
+  })(),
 };
 function persist() {
   save('pf.kick', S.kick); save('pf.twitch', S.twitch); save('pf.columns', S.columns);
@@ -66,6 +70,7 @@ function persist() {
   save('pf.hideVideos', S.hideVideos);
   save('pf.accountFavorites', S.accountFavorites);
   save('pf.accountLimits', S.accountLimits);
+  save('pf.universalLimits', S.universalLimits);
 }
 
 window.PF = window.PF || {};
@@ -624,17 +629,39 @@ function getAccountLimits(accId) {
     S.accountLimits = {};
   }
   const saved = S.accountLimits[accId];
+  const defaultKick = typeof S.universalLimits?.kick === 'number' ? S.universalLimits.kick : 2;
+  const defaultTwitch = typeof S.universalLimits?.twitch === 'number' ? S.universalLimits.twitch : 3;
   return {
-    kick: typeof saved?.kick === 'number' ? saved.kick : 2,
-    twitch: typeof saved?.twitch === 'number' ? saved.twitch : 3,
+    kick: typeof saved?.kick === 'number' ? saved.kick : defaultKick,
+    twitch: typeof saved?.twitch === 'number' ? saved.twitch : defaultTwitch,
   };
+}
+
+function applyUniversalLimit(platform, val) {
+  const limitVal = parseInt(val, 10);
+  if (isNaN(limitVal)) return;
+  if (!S.universalLimits) S.universalLimits = { kick: 2, twitch: 3 };
+  S.universalLimits[platform] = limitVal;
+
+  const accounts = S.accounts && S.accounts.length ? S.accounts : [{ id: 'main', name: 'Conta 1', main: true }];
+  for (const acc of accounts) {
+    if (!S.accountLimits[acc.id]) {
+      S.accountLimits[acc.id] = getAccountLimits(acc.id);
+    }
+    S.accountLimits[acc.id][platform] = limitVal;
+  }
+  persist();
+  syncTiles();
+  const name = platform === 'kick' ? 'Kick' : 'Twitch';
+  const text = limitVal >= 99 ? 'Ilimitado' : (limitVal === 0 ? 'Desativado' : `${limitVal} live(s)`);
+  toast(`Máx ${name} universal definido para ${text} em todas as contas.`);
 }
 
 function changeAccountLimit(accId, platform, delta) {
   if (!accId || !platform) return;
   const current = getAccountLimits(accId);
   const minVal = 0;
-  const maxVal = 20;
+  const maxVal = 99;
   const newVal = Math.max(minVal, Math.min(maxVal, current[platform] + delta));
   if (newVal === current[platform]) return;
 
@@ -1079,6 +1106,10 @@ function renderLiveControls() {
   $('#live-summary').textContent = liveChecking || liveRefreshing ? 'Verificando canais…'
     : manualDiscoveryPending ? 'Abra o Pokeidle para carregar os canais'
       : `${S.autoLives ? '' : 'Automático desligado · '}${count} abertas${unknown ? ` · ${unknown} sem confirmação` : ''}`;
+  const ukick = $('#universal-limit-kick');
+  if (ukick && S.universalLimits) ukick.value = String(S.universalLimits.kick ?? 2);
+  const utwitch = $('#universal-limit-twitch');
+  if (utwitch && S.universalLimits) utwitch.value = String(S.universalLimits.twitch ?? 3);
   $('#empty-title').textContent = items.length ? 'Nenhuma live aberta no momento'
     : 'Entre no Pokeidle para carregar os canais';
   $('#empty-detail').textContent = !items.length
@@ -1692,6 +1723,12 @@ function setupBar() {
   $('#live-poll').addEventListener('change', (e) => {
     S.livePoll = Number(e.target.value) || 60;
     persist(); scheduleLiveChecks();
+  });
+  $('#universal-limit-kick')?.addEventListener('change', (e) => {
+    applyUniversalLimit('kick', e.target.value);
+  });
+  $('#universal-limit-twitch')?.addEventListener('change', (e) => {
+    applyUniversalLimit('twitch', e.target.value);
   });
   $('#check-lives').addEventListener('click', () => { void checkLivesNow(); });
   $$('#tabs button[data-tab="lives"], #tabs button[data-tab="alerts"], #tabs button[data-tab="afk"]')

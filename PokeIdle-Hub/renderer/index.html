@@ -108,6 +108,32 @@
           </select>
         </label>
         <span id="live-summary" class="muted" role="status"></span>
+        <div class="universal-limits" title="Limite universal de lives por conta (aplica a todas)">
+          <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
+            <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
+              <option value="0">0 (desativado)</option>
+              <option value="1">1 live</option>
+              <option value="2">2 lives</option>
+              <option value="3">3 lives</option>
+              <option value="4">4 lives</option>
+              <option value="5">5 lives</option>
+              <option value="6">6 lives</option>
+              <option value="99">Ilimitado</option>
+            </select>
+          </label>
+          <label class="inline" title="Quantidade máxima de lives da Twitch por conta">Máx Twitch:
+            <select id="universal-limit-twitch" aria-label="Limite universal Twitch por conta">
+              <option value="0">0 (desativado)</option>
+              <option value="1">1 live</option>
+              <option value="2">2 lives</option>
+              <option value="3">3 lives</option>
+              <option value="4">4 lives</option>
+              <option value="5">5 lives</option>
+              <option value="6">6 lives</option>
+              <option value="99">Ilimitado</option>
+            </select>
+          </label>
+        </div>
         <span class="spacer"></span>
         <button id="check-lives" title="Busca os canais do jogo e abre os online, mesmo com o automático desligado">Verificar agora</button>
       </div>
