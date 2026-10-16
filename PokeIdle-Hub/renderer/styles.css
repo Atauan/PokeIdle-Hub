@@ -377,13 +377,13 @@ webview { background: #0b0b0c; }
 }
 
 .account-col-header {
-  height: 34px;
+  min-height: 56px;
   flex: none;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  gap: 6px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 10px;
+  gap: 5px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   font-size: 12px;
@@ -524,6 +524,97 @@ button.badge-conn.btn-login {
 button.badge-conn.btn-login:hover {
   background: #d97706;
   color: #000;
+}
+
+/* Linha superior e Controles de Limites por Conta na Coluna de Lives */
+.account-col-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+.account-col-limits {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  width: 100%;
+}
+.account-col-limits-label {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex: none;
+}
+.limit-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #12131a;
+  border: 1px solid #282a36;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 22px;
+}
+.limit-stepper.kick {
+  border-color: rgba(83, 252, 24, 0.3);
+}
+.limit-stepper.twitch {
+  border-color: rgba(169, 112, 255, 0.3);
+}
+.limit-tag {
+  font-weight: 800;
+  font-size: 10px;
+  padding: 0 5px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  user-select: none;
+}
+.limit-tag.kick {
+  background: rgba(83, 252, 24, 0.15);
+  color: var(--kick);
+}
+.limit-tag.twitch {
+  background: rgba(169, 112, 255, 0.15);
+  color: var(--twitch);
+}
+.btn-limit-step {
+  background: transparent !important;
+  border: 0 !important;
+  color: #94a3b8 !important;
+  width: 20px;
+  height: 100%;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.btn-limit-step:hover {
+  background: #2a2d3d !important;
+  color: #fff !important;
+}
+.btn-limit-step:active {
+  background: #36394c !important;
+}
+.limit-val {
+  min-width: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f1f5f9;
+  padding: 0 2px;
+  user-select: none;
 }
 
 /* Modo Ocultar Vídeos (Poupar GPU/CPU) */

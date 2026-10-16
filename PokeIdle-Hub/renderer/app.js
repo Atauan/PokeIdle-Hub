@@ -48,6 +48,10 @@ const S = {
   target: 'kick',
   hideVideos: load('pf.hideVideos', false) === true,
   accountFavorites: load('pf.accountFavorites', {}),
+  accountLimits: (() => {
+    const lim = load('pf.accountLimits', {});
+    return lim && typeof lim === 'object' ? lim : {};
+  })(),
 };
 function persist() {
   save('pf.kick', S.kick); save('pf.twitch', S.twitch); save('pf.columns', S.columns);
@@ -61,6 +65,7 @@ function persist() {
   save('pf.ignoredGameChannels', S.ignoredGameChannels);
   save('pf.hideVideos', S.hideVideos);
   save('pf.accountFavorites', S.accountFavorites);
+  save('pf.accountLimits', S.accountLimits);
 }
 
 window.PF = window.PF || {};
@@ -614,6 +619,98 @@ async function followSingleTile(t, btn) {
   }
 }
 
+function getAccountLimits(accId) {
+  if (!S.accountLimits || typeof S.accountLimits !== 'object') {
+    S.accountLimits = {};
+  }
+  const saved = S.accountLimits[accId];
+  return {
+    kick: typeof saved?.kick === 'number' ? saved.kick : 2,
+    twitch: typeof saved?.twitch === 'number' ? saved.twitch : 3,
+  };
+}
+
+function changeAccountLimit(accId, platform, delta) {
+  if (!accId || !platform) return;
+  const current = getAccountLimits(accId);
+  const minVal = 0;
+  const maxVal = 20;
+  const newVal = Math.max(minVal, Math.min(maxVal, current[platform] + delta));
+  if (newVal === current[platform]) return;
+
+  if (!S.accountLimits[accId]) {
+    S.accountLimits[accId] = { ...current };
+  }
+  S.accountLimits[accId][platform] = newVal;
+  persist();
+  syncTiles();
+}
+
+function updateAccountHeaderLimits(acc, header, counts) {
+  let limitsWrap = header.querySelector('.account-col-limits');
+  if (!limitsWrap) {
+    limitsWrap = el('div', { class: 'account-col-limits' });
+    header.append(limitsWrap);
+  }
+  const lim = getAccountLimits(acc.id);
+  const kickOpen = counts?.kick ?? 0;
+  const twitchOpen = counts?.twitch ?? 0;
+
+  limitsWrap.replaceChildren(
+    el('span', { class: 'account-col-limits-label', text: 'Máx lives:' }),
+    el('div', {
+      class: 'limit-stepper kick',
+      title: `Limite Kick: ${lim.kick} (abertas nesta conta: ${kickOpen})`
+    },
+      el('span', { class: 'limit-tag kick', text: 'K' }),
+      el('button', {
+        class: 'btn-limit-step',
+        'aria-label': 'Diminuir limite Kick',
+        text: '−',
+        onclick: (e) => {
+          e.stopPropagation();
+          changeAccountLimit(acc.id, 'kick', -1);
+        }
+      }),
+      el('span', { class: 'limit-val', text: String(lim.kick) }),
+      el('button', {
+        class: 'btn-limit-step',
+        'aria-label': 'Aumentar limite Kick',
+        text: '+',
+        onclick: (e) => {
+          e.stopPropagation();
+          changeAccountLimit(acc.id, 'kick', 1);
+        }
+      })
+    ),
+    el('div', {
+      class: 'limit-stepper twitch',
+      title: `Limite Twitch: ${lim.twitch} (abertas nesta conta: ${twitchOpen})`
+    },
+      el('span', { class: 'limit-tag twitch', text: 'T' }),
+      el('button', {
+        class: 'btn-limit-step',
+        'aria-label': 'Diminuir limite Twitch',
+        text: '−',
+        onclick: (e) => {
+          e.stopPropagation();
+          changeAccountLimit(acc.id, 'twitch', -1);
+        }
+      }),
+      el('span', { class: 'limit-val', text: String(lim.twitch) }),
+      el('button', {
+        class: 'btn-limit-step',
+        'aria-label': 'Aumentar limite Twitch',
+        text: '+',
+        onclick: (e) => {
+          e.stopPropagation();
+          changeAccountLimit(acc.id, 'twitch', 1);
+        }
+      })
+    )
+  );
+}
+
 
 // ---- Chat aberto inteiro (para resgatar pontos: o modal precisa de espaço) ----
 // Só muda o CSS: o chat não recarrega ao abrir/fechar.
@@ -652,9 +749,48 @@ function syncTiles() {
   const visible = open.filter(e => !(S.twitchEconomy && e.p === 'twitch'));
 
   const accounts = S.accounts && S.accounts.length ? S.accounts : [{ id: 'main', name: 'Conta 1', main: true }];
+
+  // Calcular canais permitidos por conta respeitando limites de Kick e Twitch
+  const allowedByAccount = new Map();
+  const countsByAccount = new Map();
   const expectedKeys = new Set();
+
   for (const acc of accounts) {
-    for (const e of visible) {
+    const limits = getAccountLimits(acc.id);
+    const visibleKick = visible.filter(e => e.p === 'kick');
+    const visibleTwitch = visible.filter(e => e.p === 'twitch');
+
+    function comparePriority(a, b) {
+      const aFav = isAccountFavorite(a.i.channel, acc.id) ? 1 : 0;
+      const bFav = isAccountFavorite(b.i.channel, acc.id) ? 1 : 0;
+      if (bFav !== aFav) return bFav - aFav;
+
+      const aKey = `${acc.id}:${a.i.id}`;
+      const bKey = `${acc.id}:${b.i.id}`;
+      const aOpen = tiles.has(aKey) ? 1 : 0;
+      const bOpen = tiles.has(bKey) ? 1 : 0;
+      if (bOpen !== aOpen) return bOpen - aOpen;
+
+      return 0;
+    }
+
+    const sortedKick = [...visibleKick].sort(comparePriority);
+    const sortedTwitch = [...visibleTwitch].sort(comparePriority);
+
+    const allowedKick = sortedKick.slice(0, Math.max(0, limits.kick));
+    const allowedTwitch = sortedTwitch.slice(0, Math.max(0, limits.twitch));
+
+    // Fixar favoritos no topo visual da coluna
+    const allowed = [...allowedKick, ...allowedTwitch].sort((a, b) => {
+      const aFav = isAccountFavorite(a.i.channel, acc.id) ? 1 : 0;
+      const bFav = isAccountFavorite(b.i.channel, acc.id) ? 1 : 0;
+      return bFav - aFav;
+    });
+
+    allowedByAccount.set(acc.id, allowed);
+    countsByAccount.set(acc.id, { kick: allowedKick.length, twitch: allowedTwitch.length });
+
+    for (const e of allowed) {
       expectedKeys.add(`${acc.id}:${e.i.id}`);
     }
   }
@@ -682,13 +818,15 @@ function syncTiles() {
     for (const acc of accounts) {
       let colObj = accountCols.get(acc.id);
       if (!colObj) {
-        const header = el('div', { class: 'account-col-header' },
+        const topRow = el('div', { class: 'account-col-top' },
           el('div', { class: 'account-col-info' },
             el('span', { class: 'account-col-icon', text: '👤' }),
             el('span', { class: 'account-col-name', text: acc.name || 'Conta' }),
           ),
           el('div', { class: 'account-col-badges' }),
         );
+        const limitsRow = el('div', { class: 'account-col-limits' });
+        const header = el('div', { class: 'account-col-header' }, topRow, limitsRow);
         const body = el('div', { class: 'account-col-body' });
         const col = el('div', { class: 'account-column', 'data-acc-id': acc.id }, header, body);
         grid.append(col);
@@ -700,6 +838,7 @@ function syncTiles() {
         if (nameEl) nameEl.textContent = acc.name || 'Conta';
       }
       updateAccountHeaderBadges(acc, colObj.header);
+      updateAccountHeaderLimits(acc, colObj.header, countsByAccount.get(acc.id));
     }
   }
 
@@ -709,20 +848,20 @@ function syncTiles() {
 
   for (const acc of accounts) {
     const colObj = accountCols.get(acc.id);
-    const sortedVisible = [...visible].sort((a, b) => {
-      const aFav = isAccountFavorite(a.i.channel, acc.id) ? 1 : 0;
-      const bFav = isAccountFavorite(b.i.channel, acc.id) ? 1 : 0;
-      return bFav - aFav;
-    });
-    for (const e of sortedVisible) {
+    const allowed = allowedByAccount.get(acc.id) || [];
+    allowed.forEach((e, idx) => {
       const key = `${acc.id}:${e.i.id}`;
       let t = tiles.get(key);
       if (!t) {
         t = createTile(e.p, e.i, acc);
       }
-      if (colObj?.body) colObj.body.append(t.root);
-      else grid.append(t.root);
-    }
+      t.root.style.order = String(idx);
+      if (colObj?.body) {
+        if (t.root.parentElement !== colObj.body) colObj.body.append(t.root);
+      } else if (t.root.parentElement !== grid) {
+        grid.append(t.root);
+      }
+    });
   }
 
   syncTwitchEconomy(open.filter(e => e.p === 'twitch').map(e => e.i.channel));
@@ -1284,6 +1423,10 @@ async function removeAccount() {
   S.accounts = S.accounts.filter((x) => x.id !== a.id);
   if (S.accountFavorites && S.accountFavorites[a.id]) {
     delete S.accountFavorites[a.id];
+    persist();
+  }
+  if (S.accountLimits && S.accountLimits[a.id]) {
+    delete S.accountLimits[a.id];
     persist();
   }
   S.gameAccount = S.accounts[0].id;

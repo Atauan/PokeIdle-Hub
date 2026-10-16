@@ -199,21 +199,26 @@ A Aba Lives e a area mais pesada e funcional do aplicativo. Ela e dividida logic
 
 ### 4.4 Zona 4: Grade de Transmissoes e Cards Individuais (Tiles)
 
+#### Rolagem Vertical Independente e Proporcao 16:9
+- As transmissoes nao sao mais comprimidas verticalmente nem forcam a janela inteira a encolher os cards.
+- Cada conta possui uma coluna dedicada com rolagem vertical independente (`overflow-y: auto`), preservando proporcoes saudaveis de 16:9 para o video (altura minima de 270px com chat, 210px sem chat).
+
 #### Estrutura do Card de Live (`.tile`)
 Cada transmissao aberta na grade e representada por um card independente com a seguinte estrutura:
 
 1. **Cabecalho do Card (`.hdr`):**
-   - **Alca de arraste (`data-drag="move"`):** O usuario clica e arrasta para posicionar a live livremente pela tela.
+   - **Botao de Favorito (`.tile-fav-btn`):** Alterna o canal como favorito da conta atual (`☆` / `★`). Canais favoritados sao fixados e priorizados no topo da coluna da conta correspondente.
    - **Indicador de plataforma (`.dot`):** Circulo verde para Kick, roxo para Twitch.
    - **Nome do canal (`.name`):** Nome do streamer.
+   - **Espacador flexivel (`.sp`):** Empurra os botoes de acao para o canto direito.
+   - **Botao Individual de Seguir (`.tile-follow-btn`):** Permite seguir o canal especifico naquela conta (`+ Seguir` -> `Seguindo...` -> `✓ Seguido`). Valida previamente o login na plataforma e notifica o usuario caso seja necessario autenticar.
    - **Botao Silenciar Individual (`t.muteBtn`):** Alterna o som daquela live especifica (`🔇` mutado / `🔊` com som).
    - **Botao Recarregar (`⟳`):** Recarrega o player de video e a conexao de chat apenas deste canal.
    - **Botao Abrir no Edge (`🌐`):** Abre a pagina oficial do streamer no navegador padrao do sistema operacional.
    - **Botao Fechar/Remover (`✕`):** Fecha o bloco, remove da lista de canais monitorados e adiciona na lista de ignorados.
 
 2. **Area do Video (`.player`):**
-   - Webview com a transmissao do streamer.
-   - Skeleton animado de carregamento enquanto o player inicializa.
+   - Webview com a transmissao do streamer em proporcao natural 16:9.
    - Watchdog automatico: Se o video travar por 3 minutos consecutivos, o sistema recarrega a webview automaticamente.
 
 3. **Faixa Compacta de Chat (`.chat`):**
@@ -223,9 +228,7 @@ Cada transmissao aberta na grade e representada por um card independente com a s
    - **Fechar chat expandido:** Pressionando `Esc` ou clicando no fundo escuro (`#chat-backdrop`).
 
 4. **Alcas de Redimensionamento:**
-   - Borda direita (`.grip-r`): Redimensiona a largura do card.
-   - Borda inferior (`.grip-b`): Redimensiona a altura do card.
-   - Canto inferior direito (`.grip-c`): Redimensiona largura e altura simultaneamente na diagonal.
+   - Desativadas nas colunas padrao para manter o alinhamento responsivo da grade e rolagem saudavel, mas disponiveis se desvinculadas.
 
 ---
 
@@ -233,14 +236,17 @@ Cada transmissao aberta na grade e representada por um card independente com a s
 
 Quando o usuario possui contas cadastradas no PokeIdle Hub:
 - A tela organiza as lives em **colunas verticais dedicadas a cada conta**.
-- No topo de cada coluna de lives, e exibido um cabecalho com:
-  - Icone e nome da conta (`Conta 1`, `Conta Secundária`...).
-  - **Badge de Status Twitch:**
-    - Se conectada: Exibe `Twitch [OK]` em verde.
-    - Se nao conectada: Exibe o botao `+ Twitch`. Ao clicar, abre um popup de login isolado na particao daquela conta.
-  - **Badge de Status Kick:**
-    - Se conectada: Exibe `Kick [OK]` em verde.
-    - Se nao conectada: Exibe o botao `+ Kick` para login direto.
+- No topo de cada coluna de lives, e exibido um cabecalho estruturado em duas linhas:
+  1. **Linha Superior (`.account-col-top`):**
+     - Icone e nome da conta (`Conta 1`, `Conta Secundária`...).
+     - **Badges de Conexao:**
+       - Twitch: Se conectada, exibe badge `Twitch ✓`. Caso contrario, botao de acao `+ Twitch` para login popup isolado na particao da conta.
+       - Kick: Se conectada, exibe badge `Kick ✓`. Caso contrario, botao de acao `+ Kick`.
+  2. **Linha de Limites de Lives (`.account-col-limits`):**
+     - **Rotulo:** `Máx lives:`
+     - **Stepper Kick (`.limit-stepper.kick`):** Seletor `[ K ] [ - ] N [ + ]` para definir a cota maxima de lives Kick abertas nesta conta (padrao: 2).
+     - **Stepper Twitch (`.limit-stepper.twitch`):** Seletor `[ T ] [ - ] N [ + ]` para definir a cota maxima de lives Twitch abertas nesta conta (padrao: 3).
+     - **Regra de Priorizacao:** Dentro do limite configurado, o app prioriza automaticamente os canais favoritados pela conta, seguidos pelas lives ja abertas e por fim pela ordem de transmissao. Streams excedentes sao destruidas do DOM para poupar CPU, RAM e GPU.
 - Cada transmissao dentro daquela coluna roda na particao correspondente a conta (`persist:account_<id>`), garantindo que os drops e pontos sejam creditados na conta correta.
 
 ---
