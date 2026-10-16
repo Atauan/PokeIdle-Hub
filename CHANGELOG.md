@@ -7,15 +7,20 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 ## [Não publicado]
 
 ### Alterado
+
 - Auditoria completa e higienização integral do repositório: eliminação de todas as menções, caminhos e chaves legadas em arquivos de código, configurações, módulos Electron, scripts de release e documentação técnica; reescrita completa do README.md com autoria atribuída a Atauan Lima (@Atauan).
 - Estruturação completa para distribuição pública do **PokeIdle Hub**: renomeada a pasta interna da aplicação para `PokeIdle-Hub`, configurados os instaladores do Electron (`PokeIdle-Hub-Setup-*.exe`, `PokeIdle-Hub-Portable-*.exe`, `.dmg`, `.AppImage`, `.deb`) e atualizados os scripts de CI (`.github/workflows/pokeidle-hub.yml`, `.github/scripts/release.cjs`, `build.sh`) para publicação automatizada de releases oficiais.
 - Transição de marca do aplicativo para **PokeIdle Hub**, com atualização do `package.json`, títulos de janela e rodapé da interface.
 - Removidos do rodapé os botões de apoio a terceiros, mantendo a identificação e o botão de atualização oficial do PokeIdle Hub.
 
 ### Segurança
+
 - Redirecionado o mecanismo de verificação periódica exclusivamente para as releases oficiais do PokeIdle Hub (`Atauan/PokeIdle-Hub`), garantindo integridade e distribuição segura de novos patches.
 
 ### Adicionado
+
+- Ícones vetoriais profissionais da biblioteca oficial Lucide (licença MIT) armazenados 100% localmente em SVG (com referência em `docs/changes/2026-10-16-2053--icones-vetoriais-lucide-locais-e-organizacao-das-barras.md`), eliminando todos os emoticons e emojis infantis da Sidebar, barra de lives, barra de jogo e cartões de transmissão, com suporte a cores contextuais dinâmicas via CSS Mask, organização responsiva das barras de ferramentas sem corte de dropdowns e dimensionamento estável da grade de lives.
+- Sidebar lateral retrátil e desacoplamento da Game Bar com modo Tela Limpa (com referência em `docs/changes/2026-10-16-1940--sidebar-retratil-e-barras-contextuais.md`), reorganizando a navegação principal (Lives, Jogo, Alertas, AFK) em uma barra lateral colapsável com badges em tempo real (número de contas e lives online), liberando o cabeçalho superior para abas contextuais dedicadas às contas do Pokeidle e introduzindo alternância de tela cheia/limpa via botão ou atalho F10.
 - Seletores universais de limites de lives Kick e Twitch com aplicação imediata (com referência em `docs/changes/2026-10-16-1932--seletores-universais-limite-lives-kick-twitch.md`), permitindo definir a cota máxima global de transmissões por conta via dropdowns (`0`, `1` a `6`, `Ilimitado`) na barra de ferramentas, propagando a configuração instantaneamente para todas as contas conectadas.
 - Bloqueador nativo cirúrgico de telemetria, rastreadores e anúncios para lives (com referência em `docs/changes/2026-10-16-1852--bloqueador-nativo-adblock-telemetria-lives.md`), interceptando requisições em O(1) no Electron para descartar dezenas de megabytes de scripts pesados da Twitch e Kick sem dependências externas, acelerando a inicialização dos cards e economizando CPU e RAM.
 - Controles de limites de lives por conta com seletores independentes para Kick e Twitch (com referência em `docs/changes/2026-10-16-1826--limites-independentes-lives-kick-twitch-por-conta.md`), permitindo ajustar cotas máximas (`[ - N + ]`) no cabeçalho de cada coluna, priorizando canais favoritos e streams já ativas e liberando CPU, RAM e decodificação de vídeo na GPU ao fechar transmissões excedentes.
@@ -29,7 +34,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Importação direta de fichas do PokeIdle copiadas via "📋 Copiar p/ ChatGPT", habilitando modo de simulação com ranking das Top 3 rotas para XP e Top 3 para Lucro Líquido, calibragem de consumo de suprimentos (poções ideais pelo HP específico e pokébolas) e suporte a contas offline ou sem pokémon em campo.
 
 ### Corrigido
-- Remoção definitiva da máscara de carregamento (*skeleton loader*): desativada a renderização dos cartões cinzas vazios via `.skeleton { display: none !important }`, fazendo com que a tela do jogo e das transmissões carregue diretamente sem bloquear a visualização do usuário.
+
+- Remoção definitiva da máscara de carregamento (_skeleton loader_): desativada a renderização dos cartões cinzas vazios via `.skeleton { display: none !important }`, fazendo com que a tela do jogo e das transmissões carregue diretamente sem bloquear a visualização do usuário.
 - Migração automática de sessões e contas: adicionada rotina de auto-migração na inicialização que transfere as sessões salvas de Twitch, Kick e contas do Pokeidle para as partições oficiais do PokeIdle Hub (`pokeidlehub` e `pokeidlehub-acc-<id>`), restaurando o acesso de todos os perfis e contas sem perda de login ou histórico.
 - Compatibilidade de autenticação: liberadas as requisições de validação de dispositivo da Kick (FingerprintJS) e implementada a sanitização dos cabeçalhos Client Hints (sec-ch-ua) do Chromium, permitindo login na Kick e autenticação social com contas Google no Pokeidle sem o bloqueio de "app ou dispositivo não seguro"; ajustada a URL de login da Kick para abrir diretamente em kick.com/login.
 - Pré-carregados os canais parceiros da Twitch e Kick no catálogo padrão de inicialização e ativado o gerenciamento automático por padrão na interface, disparando consulta imediata na abertura do app; ampliado o timeout da checagem de lives para 15s e silenciados avisos ruidosos do Chromium (WebBluetooth desativado e bloqueio de rastreadores Facebook e TURN).
@@ -52,12 +58,14 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Restaurados os controles de lives e a verificação de conexões que haviam sido revertidos no `index.html` e `app.js`, incluindo o botão "👁 Ocultar Vídeos", badges de status de conexão no menu "Entrar ▾" da barra de lives e sincronização automática de login por partição de perfil.
 
 ### Adicionado
+
 - Adicionado painel de diagnóstico de lives com catálogo acumulado, canais recebidos por cada conta Pokeidle nesta sessão, tiles distribuídas por perfil e status online/offline/sem confirmação por canal; o resumo agora separa tiles visíveis do total aberto quando há filtros ativos.
 - Implementado sistema de favoritos (`⭐`) individual e independente por conta de usuário (`accountFavorites`), permitindo favoritar streamers especificamente para o perfil dono do tile sem afetar as demais contas.
 - Implementado o layout Opção B (Colunas Dedicadas por Perfil): ao visualizar todas as contas com 2 ou mais perfis ativos, a tela se divide em colunas verticais exclusivas por conta (ex.: coluna esquerda para Conta 1, coluna direita para Conta 2) com os favoritos de cada conta fixados no topo de sua respectiva coluna.
 - Adicionados controles de teto de lives por plataforma/conta (`Máx Twitch` e `Máx Kick`) e chave seletora "Manter abertas" na barra de ferramentas de lives.
 
 ### Alterado
+
 - Modularizado o renderer do PokeIdle Hub no padrão Monólito Modular (`renderer/src/core/` e `renderer/src/modules/`), blindando o motor de Lives e Logins contra regressões colaterais e reduzindo o `app.js` de ~1.560 para ~260 linhas.
 - Ajustada a interface do `/hunt for PokeIdle` para permitir rolagem vertical suave no painel (`overflow-y: auto`), permitindo visualizar todos os dados de consumíveis e histórico na aba Sessão.
 - Integrada a resolução oficial de nomes e preços de poções e itens através do catálogo `items.json` e fallback dos IDs 201 a 206, exibindo nomes amigáveis em vez de IDs brutos como `Poção (201)`.
@@ -65,6 +73,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Reestruturada a ordenação no modo `Catch` para priorizar hunts do nível atual do Pokémon ativo em empates de taxa máxima de captura (em vez de rotas de Nv 1).
 
 ### Adicionado
+
 - Implementada a aba "Sessão" no addon `/hunt for PokeIdle` com dashboard ao vivo de abates, XP, ouro bruto, custos de consumíveis, lucro líquido real, detalhamento de Pokébolas e Poções/Revives gastas, histórico cronológico de hunts visitadas e botão "Copiar para ChatGPT". Adicionado suporte a métricas em 3 janelas temporais (Tempo Real, 10 minutos e Última hora) contextualizadas para cada aba (XP/h, Ouro/h e Catch) no card "Hunt atual".
 - Implementada a Fase 3 de telemetria de sessão real, auto-calibração de ritmo e ETA de level up no addon `/hunt for PokeIdle`, sincronizando com `sessao-hunt:nick` do localStorage, comparando dados reais com o modelo teórico em campo e projetando tempo para o próximo nível com base na fórmula cúbica oficial de XP.
 - Implementada a Fase 2 de refinamento de dano probabilístico e breakpoints OHKO/2-Hit no addon `/hunt for PokeIdle`, modelando a dispersão real de dano (0,85 a 1,00) contra IVs de selvagens, com ajuste no TTK e selos visuais de 1-hit kill.
@@ -90,6 +99,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Análise inicial de desempenho e consolidação das diretrizes de arquitetura do projeto.
 
 ### Corrigido
+
 - Corrigida a falha em tempo de execução `ctx.mod.analyser.efetividadeHunt is not a function` na extensão `/hunt for PokeIdle`, implementando cálculo autônomo com a ampliação oficial da hunt documentada na Poképédia e suporte resiliente aos módulos do jogo.
 - Revertido throttling e descarte forçado de `<webview>` de vídeo da Fase 2 que quebrava o carregamento de streams, congelava os players no skeleton cinza e esmagava blocos em faixas de 72px com espaço preto abaixo.
 - Restaurada grade 16:9 dinâmica completa (`autoColumns`) cobrindo toda a janela disponível, sem compressões forçadas ou bloqueios de layout.
@@ -99,6 +109,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Corrigido o início da interface com classe ativa estática em `panel-lives`, prevenindo abertura de tela preta e garantindo renderização instantânea.
 
 ### Alterado
+
 - Otimização no Kick (Achado A01): cache do player e cancelamento do loop de busca do React Fiber assim que a qualidade 160p for ajustada, eliminando picos cíclicos de CPU a cada 3 segundos.
 - Destruição real de elementos `<webview>` para canais excedentes do teto de vídeo (fila de espera), cessando a decodificação Chromium de vídeo e liberando processamento de GPU.
 - Adicionada trava de limite de até 100 deltas na fila em memória do `/hunt` (Achado A02) durante carregamento assíncrono.

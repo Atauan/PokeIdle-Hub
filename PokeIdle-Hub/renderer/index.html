@@ -8,90 +8,138 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header id="bar">
-    <div class="seg" id="tabs" role="tablist" aria-label="Abas">
-      <button data-tab="lives" role="tab">Lives</button>
-      <span id="account-tabs"></span>
-      <button id="add-account" class="add-tab" title="Nova conta do Pokeidle (aba com login separado)" aria-label="Adicionar conta do Pokeidle">＋</button>
-      <button data-tab="alerts" role="tab">Alertas</button>
-      <button data-tab="afk" role="tab">Farm AFK</button>
-    </div>
-    <div class="sep"></div>
-
-    <div class="bar-part" id="bar-lives">
-      <div class="seg" id="target" aria-label="Plataforma padrão para novos canais">
-        <button data-target="kick">Kick</button>
-        <button data-target="twitch">Twitch</button>
+<div id="app-layout">
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">
+        <span class="icon-svg icon-game brand-icon"></span>
+        <span class="brand-title">PokeIdle</span>
       </div>
-      <input id="channel-input" type="text" aria-label="Canal ou link"
-             placeholder="Canal ou link (vários separados por vírgula)">
-      <button id="add-btn" class="primary">Adicionar</button>
-      <label class="inline">Colunas
-        <select id="columns" aria-label="Colunas"></select>
-      </label>
-      <button id="reset-layout" class="icon" title="Reorganizar: volta todos os blocos para a grade (arraste o título para mover, bordas/canto para redimensionar)" aria-label="Reorganizar blocos">▦</button>
-      <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats">💬</button>
-      <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives">👁 Ocultar Vídeos</button>
-      <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
-        <select id="quality" aria-label="Qualidade das lives">
-          <option value="160">Mínima (160p)</option>
-          <option value="360">Baixa (360p)</option>
-          <option value="480">Média (480p)</option>
-          <option value="0">Automática</option>
-        </select>
-      </label>
-      <button id="mute-all">Silenciar todos</button>
-      <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas">♥ Seguir Todos</button>
-      <button id="reload-all" class="icon" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo">⟳</button>
-      <div class="menu">
-        <button class="menu-btn">Limpar ▾</button>
-        <div class="menu-list right">
-          <button data-clear="kick">Kick</button>
-          <button data-clear="twitch">Twitch</button>
-          <button data-clear="all">Tudo</button>
+      <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Recolher / Expandir menu lateral" aria-label="Recolher barra lateral">◀</button>
+    </div>
+
+    <nav class="sidebar-nav" role="tablist" aria-label="Navegação principal">
+      <button class="nav-item" data-tab="lives" role="tab" title="Lives (Kick e Twitch)">
+        <span class="icon-svg icon-lives"></span>
+        <span class="nav-label">Lives</span>
+        <span class="nav-badge" id="badge-lives" hidden>0</span>
+      </button>
+
+      <button class="nav-item" data-tab="game" role="tab" title="Jogo (Pokeidle)">
+        <span class="icon-svg icon-game"></span>
+        <span class="nav-label">Jogo</span>
+        <span class="nav-badge" id="badge-accounts">1</span>
+      </button>
+
+      <button class="nav-item" data-tab="alerts" role="tab" title="Alertas do Mercado">
+        <span class="icon-svg icon-alerts"></span>
+        <span class="nav-label">Alertas</span>
+        <span class="nav-badge" id="badge-alerts" hidden>0</span>
+      </button>
+
+      <button class="nav-item" data-tab="afk" role="tab" title="Calculadora e Farm AFK">
+        <span class="icon-svg icon-afk"></span>
+        <span class="nav-label">Farm AFK</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-footer">
+      <button id="btn-toggle-bars" class="sidebar-footer-btn" title="Ocultar / Mostrar barras de ferramentas para ganhar espaço na tela">
+        <span class="icon-svg icon-focus"></span>
+        <span class="nav-label">Tela Limpa</span>
+      </button>
+    </div>
+  </aside>
+
+  <div id="main-content">
+    <div id="bars-floating-restore" title="Clique para reexibir as barras de ferramentas" hidden>
+      <span>▼ Mostrar Barras</span>
+    </div>
+
+    <header id="bar">
+      <div class="bar-part" id="bar-lives">
+        <div class="seg" id="target" aria-label="Plataforma padrão para novos canais">
+          <button data-target="kick">Kick</button>
+          <button data-target="twitch">Twitch</button>
+        </div>
+        <input id="channel-input" type="text" aria-label="Canal ou link"
+               placeholder="Canal ou link (vários separados por vírgula)">
+        <button id="add-btn" class="primary"><span class="icon-svg icon-add"></span> Adicionar</button>
+        <label class="inline">Colunas
+          <select id="columns" aria-label="Colunas"></select>
+        </label>
+        <button id="reset-layout" class="icon" title="Reorganizar: volta todos os blocos para a grade (arraste o título para mover, bordas/canto para redimensionar)" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
+        <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
+        <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
+        <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
+          <select id="quality" aria-label="Qualidade das lives">
+            <option value="160">Mínima (160p)</option>
+            <option value="360">Baixa (360p)</option>
+            <option value="480">Média (480p)</option>
+            <option value="0">Automática</option>
+          </select>
+        </label>
+        <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
+        <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir Todos</button>
+        <button id="reload-all" class="icon" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span></button>
+        <div class="menu">
+          <button class="menu-btn"><span class="icon-svg icon-trash"></span> Limpar ▾</button>
+          <div class="menu-list right">
+            <button data-clear="kick">Kick</button>
+            <button data-clear="twitch">Twitch</button>
+            <button data-clear="all">Tudo</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="bar-part" id="bar-game" hidden>
-      <label class="inline" title="Nome desta conta (aparece na aba)">👤
-        <input id="account-name" type="text" maxlength="30" aria-label="Nome da conta" placeholder="Nome da conta">
-      </label>
-      <span class="spacer"></span>
-      <div class="menu">
-        <button class="menu-btn" title="Conectar contas Twitch e Kick para esta conta do Pokeidle">Conectar Lives ▾</button>
-        <div class="menu-list" id="account-conn-menu">
-          <div class="conn-menu-item">
-            <button id="account-login-twitch" class="conn-action-btn">Entrar na Twitch</button>
-            <button id="account-clear-twitch" class="btn-clear-conn" title="Desconectar Twitch desta conta" hidden>✕</button>
-          </div>
-          <div class="conn-menu-item">
-            <button id="account-login-kick" class="conn-action-btn">Entrar na Kick</button>
-            <button id="account-clear-kick" class="btn-clear-conn" title="Desconectar Kick desta conta" hidden>✕</button>
+      <div class="bar-part" id="bar-game" hidden>
+        <div class="account-pills-wrapper">
+          <div class="seg" id="account-tabs" role="tablist" aria-label="Contas do Pokeidle"></div>
+          <button id="add-account" class="add-tab" title="Nova conta do Pokeidle (aba com login separado)" aria-label="Adicionar conta do Pokeidle"><span class="icon-svg icon-add"></span> Conta</button>
+        </div>
+        <div class="sep"></div>
+        <label class="inline" title="Nome desta conta (aparece na aba)">Conta:
+          <input id="account-name" type="text" maxlength="30" aria-label="Nome da conta" placeholder="Nome da conta">
+        </label>
+        <span class="spacer"></span>
+        <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
+        <button id="game-reload"><span class="icon-svg icon-reload"></span> Recarregar jogo</button>
+        <div class="menu">
+          <button class="menu-btn" title="Conectar contas Twitch e Kick para esta conta do Pokeidle"><span class="icon-svg icon-link"></span> Conectar Lives ▾</button>
+          <div class="menu-list" id="account-conn-menu">
+            <div class="conn-menu-item">
+              <button id="account-login-twitch" class="conn-action-btn">Entrar na Twitch</button>
+              <button id="account-clear-twitch" class="btn-clear-conn" title="Desconectar Twitch desta conta" hidden>✕</button>
+            </div>
+            <div class="conn-menu-item">
+              <button id="account-login-kick" class="conn-action-btn">Entrar na Kick</button>
+              <button id="account-clear-kick" class="btn-clear-conn" title="Desconectar Kick desta conta" hidden>✕</button>
+            </div>
           </div>
         </div>
+        <button id="game-login" title="Entrar nesta conta (abre janela de login; funciona com Google)"><span class="icon-svg icon-key"></span> Entrar</button>
+        <button id="game-edge"><span class="icon-svg icon-edge"></span> Abrir no Edge</button>
+        <button id="account-remove" title="Fecha esta aba e apaga o login dela"><span class="icon-svg icon-trash"></span> Remover conta</button>
       </div>
-      <button id="game-login" title="Entrar nesta conta (abre janela de login; funciona com Google)">🔑 Entrar</button>
-      <button id="game-reload">⟳ Recarregar jogo</button>
-      <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea">⊞ Ver Todas</button>
-      <button id="game-edge">🌐 Abrir no Edge</button>
-      <button id="account-remove" title="Fecha esta aba e apaga o login dela">🗑 Remover conta</button>
-    </div>
 
-    <div class="bar-part" id="bar-alerts" hidden>
-      <span class="muted">Alertas do Community Market do Pokeidle</span>
-    </div>
+      <div class="bar-part" id="bar-alerts" hidden>
+        <span class="muted">Alertas do Community Market do Pokeidle</span>
+      </div>
 
-    <div class="bar-part" id="bar-afk" hidden>
-      <span class="muted">Planejador de Farm Noturno &amp; Calculadora AFK</span>
-      <span class="spacer"></span>
-      <button id="afk-import-btn" title="Colar ficha de um Pokémon (copiada pelo botão 'Copiar p/ ChatGPT') para simular">📋 Colar Ficha (Importar)</button>
-      <label class="inline">Conta:
-        <select id="afk-account-select" aria-label="Conta do Pokeidle"></select>
-      </label>
-      <button id="afk-sync-btn" title="Lê os dados mais recentes do jogo nesta conta">⟳ Atualizar Dados</button>
-    </div>
-  </header>
+      <div class="bar-part" id="bar-afk" hidden>
+        <span class="muted">Planejador de Farm Noturno &amp; Calculadora AFK</span>
+        <span class="spacer"></span>
+        <button id="afk-import-btn" title="Colar ficha de um Pokémon (copiada pelo botão 'Copiar p/ ChatGPT') para simular">Colar Ficha (Importar)</button>
+        <label class="inline">Conta:
+          <select id="afk-account-select" aria-label="Conta do Pokeidle"></select>
+        </label>
+        <button id="afk-sync-btn" title="Lê os dados mais recentes do jogo nesta conta"><span class="icon-svg icon-reload"></span> Atualizar Dados</button>
+      </div>
+
+      <button id="btn-collapse-topbar" class="icon bar-collapse-btn" title="Ocultar barra de ferramentas superior para ganhar espaço vertical">▲</button>
+    </header>
 
   <main id="stage">
     <section id="panel-lives" class="panel">
@@ -228,11 +276,13 @@
     <section id="panel-afk" class="panel"></section>
   </main>
 
-  <footer id="update-bar" aria-label="Informações e atualizações do PokeIdle Hub">
-    <span id="app-version" class="muted">PokeIdle Hub</span>
-    <span class="spacer"></span>
-    <button id="check-updates">Verificar atualizações</button>
-  </footer>
+    <footer id="update-bar" aria-label="Informações e atualizações do PokeIdle Hub">
+      <span id="app-version" class="muted">PokeIdle Hub</span>
+      <span class="spacer"></span>
+      <button id="check-updates">Verificar atualizações</button>
+    </footer>
+  </div> <!-- fim #main-content -->
+</div> <!-- fim #app-layout -->
 
   <dialog id="update-dialog" aria-labelledby="update-title" aria-describedby="update-status">
     <div class="update-symbol" aria-hidden="true">↓</div>

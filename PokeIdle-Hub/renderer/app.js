@@ -252,12 +252,11 @@ function createTile(p, item, account) {
     class: `tile-fav-btn${isFav ? ' active' : ''}`,
     title: isFav ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)',
     'aria-label': 'Favoritar canal',
-    text: isFav ? '★' : '☆',
     onclick: (e) => {
       e.stopPropagation();
       toggleAccountFavorite(item.channel, acc.id);
     }
-  });
+  }, el('span', { class: `icon-svg ${isFav ? 'icon-star' : 'icon-star-outline'}` }));
   t.favBtn = favBtn;
 
   const followBtn = el('button', {
@@ -279,9 +278,12 @@ function createTile(p, item, account) {
     el('span', { class: 'sp' }),
     followBtn,
     t.muteBtn,
-    el('button', { title: 'Recarregar', 'aria-label': 'Recarregar', text: '⟳', onclick: () => reloadTile(t) }),
-    el('button', { title: 'Abrir no Edge', 'aria-label': 'Abrir no Edge', text: '🌐', onclick: () => window.pf.openEdge(`https://${P.host}/${item.channel}`) }),
-    el('button', { title: 'Remover canal', 'aria-label': 'Remover canal', text: '✕', onclick: () => removeItem(item.id) }),
+    el('button', { title: 'Recarregar', 'aria-label': 'Recarregar', onclick: () => reloadTile(t) },
+      el('span', { class: 'icon-svg icon-reload' })),
+    el('button', { title: 'Abrir no Edge', 'aria-label': 'Abrir no Edge', onclick: () => window.pf.openEdge(`https://${P.host}/${item.channel}`) },
+      el('span', { class: 'icon-svg icon-edge' })),
+    el('button', { title: 'Remover canal', 'aria-label': 'Remover canal', onclick: () => removeItem(item.id) },
+      el('span', { class: 'icon-svg icon-trash' })),
   );
 
   const part = accountPartition(acc);
@@ -349,7 +351,7 @@ function applyMute(key) {
   const t = tiles.get(key);
   if (!t || !t.item) return;
   const m = !!t.item.muted;
-  t.muteBtn.textContent = m ? '🔇' : '🔊';
+  t.muteBtn.innerHTML = `<span class="icon-svg ${m ? 'icon-mute' : 'icon-unmute'}"></span>`;
   t.muteBtn.title = m ? 'Ativar som' : 'Silenciar';
   t.muteBtn.setAttribute('aria-label', t.muteBtn.title);
   t.player.__muted = m;
@@ -506,7 +508,7 @@ async function followAllOpenChannels() {
   if (btn) {
     btn.classList.add('loading');
     btn.disabled = true;
-    btn.textContent = '♥ Seguindo...';
+    btn.innerHTML = '<span class="icon-svg icon-follow"></span> Seguindo...';
   }
 
   let seguidos = 0;
@@ -551,7 +553,7 @@ async function followAllOpenChannels() {
     if (btn) {
       btn.classList.remove('loading');
       btn.disabled = false;
-      btn.textContent = '♥ Seguir Todos';
+      btn.innerHTML = '<span class="icon-svg icon-follow"></span> Seguir Todos';
     }
   }
 }
@@ -578,7 +580,7 @@ function toggleAccountFavorite(channel, accId) {
     if (t.acc.id === accId && t.item.channel.toLowerCase() === c) {
       const isFav = isAccountFavorite(c, accId);
       if (t.favBtn) {
-        t.favBtn.textContent = isFav ? '★' : '☆';
+        t.favBtn.innerHTML = `<span class="icon-svg ${isFav ? 'icon-star' : 'icon-star-outline'}"></span>`;
         t.favBtn.classList.toggle('active', isFav);
         t.favBtn.title = isFav ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)';
       }
@@ -847,7 +849,7 @@ function syncTiles() {
       if (!colObj) {
         const topRow = el('div', { class: 'account-col-top' },
           el('div', { class: 'account-col-info' },
-            el('span', { class: 'account-col-icon', text: '👤' }),
+            el('span', { class: 'icon-svg icon-game account-col-icon' }),
             el('span', { class: 'account-col-name', text: acc.name || 'Conta' }),
           ),
           el('div', { class: 'account-col-badges' }),
@@ -1103,6 +1105,11 @@ function renderLiveControls() {
   $('#check-lives').disabled = liveChecking || liveRefreshing;
   const unknown = items.filter(({ i }) => liveStates.get(i.id)?.status === 'unknown').length;
   const count = items.filter(e => liveStates.get(e.i.id)?.open).length;
+  const badgeLives = $('#badge-lives');
+  if (badgeLives) {
+    badgeLives.textContent = String(count);
+    badgeLives.hidden = count === 0;
+  }
   $('#live-summary').textContent = liveChecking || liveRefreshing ? 'Verificando canais…'
     : manualDiscoveryPending ? 'Abra o Pokeidle para carregar os canais'
       : `${S.autoLives ? '' : 'Automático desligado · '}${count} abertas${unknown ? ` · ${unknown} sem confirmação` : ''}`;
@@ -1310,7 +1317,7 @@ function createGamePaneHeader(a, wv, isMarket) {
   },
     el('div', { class: 'game-pane-info' },
       el('span', { class: 'game-pane-dot' }),
-      el('span', { class: 'game-pane-icon', text: '🎮' }),
+      el('span', { class: 'icon-svg icon-game game-pane-icon' }),
       el('span', { class: 'game-pane-name', text: a.name || 'Conta' }),
       isMarket ? el('span', { class: 'game-pane-tag', text: 'Principal' }) : null
     ),
@@ -1318,21 +1325,19 @@ function createGamePaneHeader(a, wv, isMarket) {
       el('button', {
         class: 'game-pane-btn focus',
         title: 'Focar nesta conta em tela cheia',
-        text: '🗖 Focar',
         onclick: (e) => {
           e.stopPropagation();
           focarConta(a.id);
         },
-      }),
+      }, el('span', { class: 'icon-svg icon-single' }), ' Focar'),
       el('button', {
         class: 'game-pane-btn reload',
         title: 'Recarregar esta conta',
-        text: '⟳',
         onclick: (e) => {
           e.stopPropagation();
           reloadWebview(wv);
         },
-      })
+      }, el('span', { class: 'icon-svg icon-reload' }))
     )
   );
 }
@@ -1357,7 +1362,9 @@ function applyGameMosaic(enable) {
   }
   if (btn) {
     btn.classList.toggle('on', enable);
-    btn.textContent = enable ? '🗖 Conta Única' : '⊞ Ver Todas';
+    btn.innerHTML = enable
+      ? '<span class="icon-svg icon-single"></span> Conta Única'
+      : '<span class="icon-svg icon-mosaic"></span> Ver Todas';
     btn.title = enable
       ? 'Voltar para visualização em tela cheia da conta selecionada'
       : 'Alternar entre ver conta única ou todas as contas em grade simultânea';
@@ -1421,14 +1428,25 @@ function setupGame() {
 }
 
 function renderAccountTabs() {
+  const acc = currentAccount();
   $('#account-tabs').replaceChildren(...S.accounts.map((a) => el('button', {
-    class: 'acc', role: 'tab', 'data-tab': 'game', 'data-account': a.id, text: a.name || 'Sem nome', title: a.name || 'Sem nome',
+    class: 'acc' + (a.id === acc?.id ? ' on' : ''),
+    role: 'tab',
+    'data-tab': 'game',
+    'data-account': a.id,
+    text: a.name || 'Sem nome',
+    title: a.name || 'Sem nome',
     onclick: () => {
       S.gameAccount = a.id;
       if (S.gameMosaic) toggleGameMosaic(false);
       setTab('game');
     },
   })));
+  const badgeAccounts = $('#badge-accounts');
+  if (badgeAccounts) {
+    badgeAccounts.textContent = String(S.accounts.length);
+    badgeAccounts.hidden = S.accounts.length === 0;
+  }
   updateGamePaneHeaders();
 }
 
@@ -1644,15 +1662,20 @@ function setTab(tab) {
   S.tab = tab;
   persist();
   const acc = currentAccount();
-  $$('#tabs button[data-tab]').forEach((b) => {
-    const on = b.dataset.tab === tab && (tab !== 'game' || b.dataset.account === acc.id);
+  $$('.sidebar-nav .nav-item[data-tab]').forEach((b) => {
+    const on = b.dataset.tab === tab;
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', String(on));
   });
-  games.forEach((g, id) => g.pane.classList.toggle('on', id === acc.id));
+  $$('#account-tabs button[data-account]').forEach((b) => {
+    const on = b.dataset.account === acc?.id;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  games.forEach((g, id) => g.pane.classList.toggle('on', id === acc?.id));
   if (tab === 'game') {
     // Só reescreve se mudou (senão o cursor pula para o fim enquanto você digita)
-    if ($('#account-name').value !== (acc.name || '')) $('#account-name').value = acc.name || '';
+    if ($('#account-name').value !== (acc?.name || '')) $('#account-name').value = acc?.name || '';
     $('#account-remove').disabled = S.accounts.length <= 1;
     void updateGameBarConnections();
     applyGameMosaic(Boolean(S.gameMosaic));
@@ -1731,12 +1754,71 @@ function setupBar() {
     applyUniversalLimit('twitch', e.target.value);
   });
   $('#check-lives').addEventListener('click', () => { void checkLivesNow(); });
-  $$('#tabs button[data-tab="lives"], #tabs button[data-tab="alerts"], #tabs button[data-tab="afk"]')
-    .forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+
+  // Navegação da sidebar lateral
+  $$('.sidebar-nav .nav-item[data-tab]').forEach((b) => {
+    b.addEventListener('click', () => setTab(b.dataset.tab));
+  });
+
+  // Controle de recolher/expandir barra lateral
+  const sidebar = $('#sidebar');
+  const sidebarToggle = $('#sidebar-toggle');
+  const setSidebarCollapsed = (collapsed) => {
+    sidebar?.classList.toggle('collapsed', collapsed);
+    if (sidebarToggle) {
+      sidebarToggle.textContent = collapsed ? '▶' : '◀';
+      sidebarToggle.title = collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral';
+    }
+    save('pf.sidebarCollapsed', collapsed);
+    if (S.tab === 'lives') layout();
+  };
+  sidebarToggle?.addEventListener('click', () => {
+    const isCollapsed = sidebar?.classList.contains('collapsed');
+    setSidebarCollapsed(!isCollapsed);
+  });
+  if (load('pf.sidebarCollapsed', false)) {
+    setSidebarCollapsed(true);
+  }
+
+  // Controle de Tela Limpa (ocultar / mostrar barras de ferramentas)
+  const bar = $('#bar');
+  const updateBar = $('#update-bar');
+  const floatingRestore = $('#bars-floating-restore');
+  const setBarsCollapsed = (hide) => {
+    bar?.classList.toggle('bar-collapsed', hide);
+    updateBar?.classList.toggle('bar-collapsed', hide);
+    if (floatingRestore) floatingRestore.hidden = !hide;
+    save('pf.barsCollapsed', hide);
+    if (S.tab === 'lives') layout();
+  };
+  $('#btn-toggle-bars')?.addEventListener('click', () => {
+    const isHidden = bar?.classList.contains('bar-collapsed');
+    setBarsCollapsed(!isHidden);
+  });
+  $('#btn-collapse-topbar')?.addEventListener('click', () => {
+    setBarsCollapsed(true);
+  });
+  floatingRestore?.addEventListener('click', () => {
+    setBarsCollapsed(false);
+  });
+  if (load('pf.barsCollapsed', false)) {
+    setBarsCollapsed(true);
+  }
+
+  // Atalho de teclado F10 para alternar barras / tela limpa
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F10') {
+      e.preventDefault();
+      const isHidden = bar?.classList.contains('bar-collapsed');
+      setBarsCollapsed(!isHidden);
+    }
+  });
+
   $('#add-account').addEventListener('click', addAccount);
   $('#account-remove').addEventListener('click', () => { void removeAccount(); });
   $('#account-name').addEventListener('input', (e) => {
     const a = currentAccount();
+    if (!a) return;
     a.name = e.target.value.replace(/\s+/g, ' ').slice(0, 30);
     persist();
     renderAccountTabs();
@@ -1765,7 +1847,9 @@ function setupBar() {
   const toggleVideoBtn = $('#toggle-video-view');
   const paintHideVideos = () => {
     if (toggleVideoBtn) {
-      toggleVideoBtn.textContent = S.hideVideos ? '👁 Mostrar Vídeos' : '👁 Ocultar Vídeos';
+      toggleVideoBtn.innerHTML = S.hideVideos
+        ? '<span class="icon-svg icon-video-show"></span> Mostrar Vídeos'
+        : '<span class="icon-svg icon-video-hide"></span> Ocultar Vídeos';
       toggleVideoBtn.classList.toggle('active', !!S.hideVideos);
     }
     $('#grid').classList.toggle('hide-videos', !!S.hideVideos);
