@@ -1,0 +1,25 @@
+# Builds
+PokeIdle-Hub.app/
+KickMulti.app/
+PokeIdle-Hub/dist/
+PokeIdle-Hub/node_modules/
+PokeIdle-Hub/build/
+release-assets/
+dist/
+node_modules/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Arquivos temporários
+temp_*
+*.log
+
+# Artefatos locais e documentação interna
+_metadata/
+icons/
+docs/

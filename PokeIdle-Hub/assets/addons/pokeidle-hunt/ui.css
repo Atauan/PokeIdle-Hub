@@ -1,0 +1,164 @@
+/* PokeIdle Hunt — o botão /hunt no "Em campo" e o painel "Onde caçar?".
+   As cores são as variáveis do próprio jogo (com reserva), para parecer da casa. */
+
+/* O /hunt é o botão "Mega Evoluir" do jogo, mais curto: o mesmo dourado com o fio de luz em
+   cima (#ffe9a8 → #d09a17), a mesma moldura e o texto escuro. */
+.pih-btn {
+  display: inline-block; padding: 4px 10px; border: 0; border-radius: 6px; cursor: pointer;
+  background: linear-gradient(180deg, #ffe9a8 0 4px, #d09a17 4px 100%);
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 1px 0 var(--mad-luz2, #e7a86d);
+  color: #000; text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+  font: 700 12px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; white-space: nowrap;
+}
+.pih-btn:hover { filter: brightness(1.06); }
+.pih-btn.pih-carregando { animation: pih-pulso 1s ease-in-out infinite; }
+@keyframes pih-pulso { 50% { filter: brightness(1.2); } }
+
+/* A barra fica no fluxo do painel "Em campo", entre o título e o card: acompanha a largura da
+   caixa em qualquer tela e nunca cobre o pokémon. */
+.pih-btn.pih-barra {
+  display: block; width: clamp(110px, 55%, 240px); margin: 0 auto 8px; padding: 7px 10px;
+}
+.pih-btn[hidden] { display: none; }
+/* Reserva, quando o jogador apontou o pokémon à mão (layout desconhecido): flutua acima dele. */
+.pih-btn.pih-fixo { position: fixed; z-index: 38; margin: 0; }
+
+/* ---- painel -------------------------------------------------------------------------- */
+.pih-painel {
+  position: fixed; z-index: 38; width: min(640px, calc(100vw - 24px)); max-height: min(88vh, 820px);
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  font: 500 12.5px/1.35 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef);
+  background: linear-gradient(180deg, var(--mad-esc, #914850) 0 10px, var(--mad, #bd6951) 10px calc(100% - 10px), var(--mad-base, #722c3f) calc(100% - 10px));
+  border-radius: 9px; padding: 12px 14px 12px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), inset 0 3px 0 var(--mad-luz, #f1d3b7), 0 10px 30px #0009;
+}
+.pih-painel::-webkit-scrollbar { width: 6px; }
+.pih-painel::-webkit-scrollbar-track { background: var(--vao, #33202b); border-radius: 4px; }
+.pih-painel::-webkit-scrollbar-thumb { background: var(--mad-esc, #914850); border-radius: 4px; }
+.pih-painel::-webkit-scrollbar-thumb:hover { background: var(--rx-clr, #e77ad2); }
+.pih-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pih-cab .pih-btn { flex: none; cursor: default; }
+.pih-titulo { flex: 1; min-width: 0; }
+.pih-titulo h3 { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+.pih-credito { margin-left: 8px; font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--sobre-mad, #fff6ef); opacity: .38; }
+.pih-titulo small { display: block; color: var(--sobre-mad-dim, #f5cdb9); font-size: 12px; font-weight: 600; }
+.pih-fechar {
+  flex: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font: 800 15px/1 system-ui;
+  color: var(--sobre-mad, #fff6ef); background: var(--vao, #33202b); border: 0;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e);
+}
+.pih-vao {
+  background: var(--vao, #33202b); border-radius: 6px; padding: 8px 10px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 1px 0 var(--mad-luz2, #e7a86d);
+}
+.pih-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px 8px; margin-bottom: 8px; }
+.pih-stat b { display: block; font-size: 10px; color: var(--vao-dim, #c9a9b4); font-weight: 700; }
+.pih-stat span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pih-stat i { font-style: normal; color: var(--verde, #6fd08a); font-size: 10.5px; margin-left: 3px; }
+
+.pih-bonus { margin-bottom: 8px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.pih-bonus-total { margin-left: auto; font-weight: 800; color: var(--verde, #6fd08a); }
+.pih-eta { margin-bottom: 8px; font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.pih-sessao-real { margin-bottom: 8px; font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; border-left: 3px solid #7af0a0; }
+.pih-sessao-tag { font-weight: 700; color: #7af0a0; }
+.pih-ctrl { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-bottom: 8px; }
+.pih-seg { display: inline-flex; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e); }
+.pih-seg button {
+  border: 0; cursor: pointer; padding: 5px 10px; font: 700 12px/1 "Barlow", system-ui, sans-serif;
+  color: var(--sobre-mad-dim, #f5cdb9); background: var(--vao, #33202b);
+}
+.pih-seg button.on { color: var(--rx-luz, #ffdef0); background: linear-gradient(180deg, var(--rx-clr, #e77ad2), var(--rx-esc, #8d49b8)); }
+.pih-ctrl label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; font-weight: 600; }
+
+.pih-ajuda {
+  margin-left: auto; flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  font: 800 13px/1 Tahoma, Verdana, "Segoe UI", sans-serif; color: #000;
+  background: linear-gradient(180deg, #ffe9a8 0 3px, #d09a17 3px 100%);
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e);
+}
+.pih-ajuda:hover { filter: brightness(1.06); }
+.pih-ajuda[aria-expanded="true"] { filter: brightness(.9); }
+.pih-dica { margin: -2px 0 8px; font-size: 12px; }
+.pih-dica[hidden] { display: none; }
+.pih-melhor { margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+.pih-melhor .pih-coroa { font-size: 20px; }
+.pih-melhor strong { font-size: 15px; }
+.pih-melhor .pih-dim { color: var(--vao-dim, #c9a9b4); }
+
+.pih-lista { overflow: auto; padding: 0; min-height: 80px; }
+.pih-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pih-tab th {
+  position: sticky; top: 0; z-index: 1; background: var(--vao2, #462b39); color: var(--vao-dim, #c9a9b4);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; text-align: right; padding: 6px 8px; white-space: nowrap;
+}
+.pih-tab th:nth-child(-n+2), .pih-tab td:nth-child(-n+2) { text-align: left; }
+.pih-tab td { padding: 5px 8px; text-align: right; border-top: 1px solid var(--vao2, #462b39); white-space: nowrap; }
+.pih-tab tr.pih-top td { background: #6fd08a1f; }
+.pih-tab tr.pih-em-campo td { background: rgba(255, 210, 122, 0.12); }
+.pih-tab tr.pih-bloq td { opacity: .5; }
+.pih-tab td.pih-hunt { white-space: normal; }
+.pih-tab td.pih-hunt b { font-weight: 700; }
+.pih-tag-campo { display: inline-block; background: #5c351b; color: #ffd27a; font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-left: 4px; }
+.pih-tab td.pih-hunt small { display: block; color: var(--vao-dim, #c9a9b4); font-size: 10.5px; }
+.pih-pos { color: var(--vao-dim, #c9a9b4); width: 1%; }
+.pih-ok { color: var(--verde, #6fd08a); }
+.pih-alerta { color: var(--laranja, #f0a03c); }
+.pih-perigo { color: var(--vermelho-luz, #ffc9bd); }
+.pih-medido { color: var(--verde, #6fd08a); cursor: help; margin-right: 2px; }
+.pih-aprox { color: var(--vao-dim, #c9a9b4); cursor: help; }
+.pih-mais { width: 100%; margin-top: 6px; padding: 6px; cursor: pointer; border: 0; border-radius: 6px;
+  font: 700 12px/1 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef); background: var(--vao2, #462b39); }
+.pih-rodape { margin-top: 8px; font-size: 11px; color: var(--sobre-mad-dim, #f5cdb9); }
+.pih-carga { display: grid; place-items: center; gap: 8px; padding: 26px 0; color: var(--vao-dim, #c9a9b4); }
+.pih-carga::before {
+  content: ""; width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--vao2, #462b39); border-top-color: var(--rx-clr, #e77ad2); animation: pih-gira .7s linear infinite;
+}
+@keyframes pih-gira { to { transform: rotate(1turn); } }
+.pih-erro { color: var(--vermelho-luz, #ffc9bd); padding: 12px 0; }
+
+/* ---- aba sessão e telemetria -------------------------------------------------------- */
+.pih-btn-copiar {
+  background: linear-gradient(180deg, #ffe9a8 0 3px, #d09a17 3px 100%);
+  color: #000; font-size: 11px; padding: 4px 10px; cursor: pointer; border-radius: 4px;
+  border: 0; font-weight: 700; box-shadow: inset 0 0 0 1px #480e1e, 0 1px 2px #0004;
+  transition: filter .15s;
+}
+.pih-btn-copiar:hover { filter: brightness(1.1); }
+.pih-grid-sessao { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 8px; margin-bottom: 8px; }
+.pih-card-stat { background: var(--vao2, #462b39); border-radius: 5px; padding: 6px 8px; }
+.pih-card-stat b { display: block; font-size: 10px; color: var(--vao-dim, #c9a9b4); text-transform: uppercase; font-weight: 700; }
+.pih-card-stat span { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pih-card-stat small { display: block; font-size: 10.5px; color: var(--sobre-mad-dim, #f5cdb9); }
+.pih-sessao-secao { margin-bottom: 8px; }
+.pih-sessao-secao h4 { margin: 0 0 4px; font-size: 11px; font-weight: 700; color: var(--sobre-mad, #fff6ef); text-transform: uppercase; letter-spacing: .3px; }
+.pih-consumo-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.pih-chip { background: var(--vao2, #462b39); border-radius: 4px; padding: 3px 6px; font-size: 11px; }
+.pih-hist-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.pih-hist-tab th { text-align: right; font-size: 10px; color: var(--vao-dim, #c9a9b4); padding: 4px 6px; border-bottom: 1px solid var(--vao2, #462b39); }
+.pih-hist-tab th:first-child, .pih-hist-tab td:first-child { text-align: left; }
+.pih-hist-tab td { padding: 4px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: right; }
+.pih-btn-mini {
+  background: var(--vao2, #462b39); color: var(--sobre-mad, #fff6ef);
+  font-size: 10px; padding: 2px 6px; cursor: pointer; border-radius: 3px;
+  border: 1px solid var(--mad-linha, #480e1e); font-weight: 700;
+  transition: filter .15s;
+}
+.pih-btn-mini:hover { filter: brightness(1.2); }
+.pih-comparativo-card {
+  background: var(--vao, #33202b); border: 1px dashed var(--laranja, #f0a03c);
+  border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;
+}
+
+/* ---- aviso (verificação "onde está seu pokémon ativo?") ------------------------------- */
+.pih-aviso {
+  position: fixed; left: 16px; bottom: 44px; z-index: 38; max-width: 340px;
+  display: flex; gap: 10px; align-items: center;
+  font: 600 12.5px/1.35 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef);
+  background: var(--vao, #33202b); border-radius: 8px; padding: 10px 12px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 0 0 2px var(--mad-luz2, #e7a86d), 0 8px 20px #0008;
+}
+.pih-aviso .pih-btn { flex: none; font-size: 10.5px; cursor: default; }
+.pih-aviso button.pih-x { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 14px; }
+.pih-mirando, .pih-mirando * { cursor: crosshair !important; }
+.pih-alvo { outline: 3px dashed var(--seta, #ffd166) !important; outline-offset: 2px; }

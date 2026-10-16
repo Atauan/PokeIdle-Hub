@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/Atauan/PokeIdle-Hub",
+  "developers": [
+    {
+      "id": "atauan",
+      "name": "Atauan Lima",
+      "emoji": "🎮",
+      "title": "Desenvolvido por Atauan Lima",
+      "message": "PokeIdle Hub - Central definitiva de gestão multi-contas, automação, telemetria de hunt e planejamento AFK para Pokeidle.",
+      "github": "https://github.com/Atauan"
+    }
+  ]
+}

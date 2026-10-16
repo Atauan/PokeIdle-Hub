@@ -1,0 +1,123 @@
+{
+  "name": "pokeidle-hub",
+  "productName": "PokeIdle Hub",
+  "version": "3.1.0",
+  "description": "Central de gestão, automação, telemetria de hunt e planejamento AFK para Pokeidle",
+  "homepage": "https://github.com/Atauan/PokeIdle-Hub",
+  "desktopName": "pokeidlehub.desktop",
+  "main": "main.js",
+  "author": {
+    "name": "PokeIdle Hub",
+    "email": "pokeidlehub@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "donation-qr": "node tools/make-donation-qr.js",
+    "icon": "node tools/make-icon.js",
+    "start": "node tools/make-icon.js && electron .",
+    "dist:mac": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac",
+    "dist:win": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --win",
+    "dist:linux": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --linux",
+    "dist": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac --win --linux"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "qrcode": "1.5.4"
+  },
+  "build": {
+    "appId": "com.pokeidlehub.app",
+    "productName": "PokeIdle Hub",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "app-version.js",
+      "live-status.js",
+      "release-updates.js",
+      "game-channels.js",
+      "game-session.js",
+      "session-preload.js",
+      "about-preload.js",
+      "twitch-economy.js",
+      "kick-economy.js",
+      "preload.js",
+      "webview-preload.js",
+      "pokeidle-hunt.js",
+      "renderer/**",
+      "assets/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.png",
+      "identity": "-"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "PokeIdle-Hub-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "PokeIdle-Hub-Portable-${version}.exe"
+    },
+    "dmg": {
+      "artifactName": "PokeIdle-Hub-${version}-${arch}.dmg"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Game",
+      "icon": "build/icon.png",
+      "maintainer": "PokeIdle Hub <pokeidlehub@users.noreply.github.com>",
+      "syncDesktopName": true
+    },
+    "appImage": {
+      "artifactName": "PokeIdle-Hub-${version}-x64.AppImage"
+    },
+    "deb": {
+      "artifactName": "PokeIdle-Hub-${version}-amd64.deb"
+    }
+  }
+}
