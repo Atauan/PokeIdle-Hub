@@ -131,7 +131,11 @@ function showAbout() {
   });
   aboutWindow = window;
   window.setMenu(null);
-  const aboutLinks = new Set([donations.repository, ...donations.developers.flatMap(profile => [profile.github, profile.linkedin])]);
+  const aboutLinks = new Set([
+    donations.repository,
+    'https://github.com/RaullPereira/PokeFarm',
+    ...donations.developers.flatMap(profile => [profile.github, profile.linkedin]),
+  ]);
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (aboutLinks.has(url)) void shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
@@ -537,11 +541,36 @@ ipcMain.on('open-data-dir', (e) => {
   if (fromApp(e)) shell.openPath(app.getPath('userData'));
 });
 
+function migrateLegacySessions() {
+  try {
+    const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
+    if (!fs.existsSync(partitionsDir)) return;
+    const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === 'pokefarm') {
+        const dest = path.join(partitionsDir, 'pokeidlehub');
+        if (!fs.existsSync(dest)) {
+          fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
+        }
+      }
+      if (entry.name.startsWith('pokefarm-acc-')) {
+        const suffix = entry.name.slice('pokefarm-acc-'.length);
+        const dest = path.join(partitionsDir, `pokeidlehub-acc-${suffix}`);
+        if (!fs.existsSync(dest)) {
+          fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
+        }
+      }
+    }
+  } catch (_) { /* ignora erro de migração */ }
+}
+
 // MARK: Ciclo de vida
 
 app.on('second-instance', showWindow);
 
 app.whenReady().then(() => {
+  migrateLegacySessions();
   setupSession(PARTITION);
   // Mac/PC não dormem com o app aberto (inclusive com a tela bloqueada)
   powerSaveBlocker.start('prevent-app-suspension');

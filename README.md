@@ -121,10 +121,16 @@ O repositório inclui esteira automatizada configurada em [`.github/workflows/po
 └── README.md                     # Documentação geral do projeto
 ```
 
+## Créditos e Reconhecimentos
+
+O **PokeIdle Hub** é um projeto independente de código aberto mantido por **Atauan Lima** ([@Atauan](https://github.com/Atauan)), desenvolvido e continuado a partir da base pioneira do projeto [PokeFarm](https://github.com/RaullPereira/PokeFarm), originalmente idealizado por [Raul Pereira](https://github.com/RaullPereira) e seus colaboradores.
+
+Agradecemos aos criadores originais pela iniciativa pioneira e contribuição para a comunidade de jogadores do Pokeidle.
+
 ---
 
 ## Licença
 
 Distribuído sob a licença **MIT**. Consulte o arquivo [LICENSE](LICENSE) para obter mais informações.
 
-Criado e mantido por **Atauan Lima** ([@Atauan](https://github.com/Atauan)).
+Desenvolvido e mantido por **Atauan Lima** ([@Atauan](https://github.com/Atauan)).

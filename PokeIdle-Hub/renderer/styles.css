@@ -130,15 +130,7 @@ h3 { margin: 0; font-size: 13px; }
 #twitch-economy-help, #kick-economy-help { flex-basis: 100%; }
 webview.twitch-economy-session { position: fixed; left: -1000px; top: 0; width: 320px; height: 200px; pointer-events: none; }
 webview { background: #0b0b0c; }
-.skeleton { position: absolute; inset: 0; z-index: 3; background: #0f0f12; overflow: hidden;
-  pointer-events: none; transition: opacity .25s; }
-.skeleton.gone { opacity: 0; }
-.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
-  animation: pf-shimmer 1.4s infinite; }
-.skeleton.gone::after { animation: none; }
-@keyframes pf-shimmer { to { transform: translateX(100%); } }
-@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
+.skeleton { display: none !important; }
 .bone { position: absolute; background: #212126; border-radius: 6px; }
 
 .sk-video .screen { inset: 8px 8px 38px 8px; background: #17171b; }
