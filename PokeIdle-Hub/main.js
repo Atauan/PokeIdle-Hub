@@ -227,24 +227,67 @@ function addLive(link) {
 const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{8,40}$/;
 const configuredSessions = new Set();
 
+// Domínios conhecidos de telemetria, rastreamento e publicidade pesada da Twitch e Kick.
+// Bloquear essas requisições reduz drasticamente o consumo de banda, CPU e tempo de carga,
+// preservando intactos o vídeo HLS, chat WebSocket, pontuação de canal e logins.
+const BLOCKED_TRACKER_SUFFIXES = [
+  'amazon-adsystem.com',
+  'scorecardresearch.com',
+  'quantserve.com',
+  'doubleclick.net',
+  'googletagmanager.com',
+  'google-analytics.com',
+  'analytics.google.com',
+  'segment.io',
+  'sentry.io',
+  'browser.sentry-cdn.com',
+  'datadoghq.com',
+  'hotjar.com',
+  'amplitude.com',
+  'facebook.com',
+  'branch.io',
+  'appsflyer.com',
+];
+
+const BLOCKED_TRACKER_HOSTS = new Set([
+  'countess.twitch.tv',
+  'spade.twitch.tv',
+  'science.twitch.tv',
+  'telemetry.kick.com',
+  'analytics.kick.com',
+  'stats.kick.com',
+  'fls-na.amazon.com',
+  'imasdk.googleapis.com',
+  'pubads.g.doubleclick.net',
+]);
+
+function isTrackerOrAd(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const host = u.hostname.toLowerCase();
+    if (BLOCKED_TRACKER_HOSTS.has(host)) return true;
+    for (const suffix of BLOCKED_TRACKER_SUFFIXES) {
+      if (host === suffix || host.endsWith('.' + suffix)) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
 /** User-agent e scripts iguais em todas as sessões (a principal e a de cada conta). */
 function setupSession(part) {
   if (configuredSessions.has(part)) return;
   configuredSessions.add(part);
   const ses = session.fromPartition(part);
   ses.setUserAgent(CHROME_UA);
-  // Uma página de live pode abrir dezenas de iframes de sincronização de anúncios,
-  // cada um com seu renderer. Impede só esse frame conhecido, dentro das webviews
-  // de lives; players, chat, desafios de login e janelas de OAuth passam intactos.
+
+  // Bloqueio nativo cirúrgico de telemetria, rastreadores e scripts de anúncios pesados
   ses.webRequest.onBeforeRequest((details, callback) => {
     let cancel = false;
     try {
-      const u = new URL(details.url);
-      if (['www.facebook.com', 'facebook.com'].includes(u.hostname) ||
-          (u.hostname === 's.amazon-adsystem.com' && details.resourceType === 'subFrame')) {
+      if (isTrackerOrAd(details.url)) {
         cancel = true;
       }
-    } catch (_) { /* página em navegação/fechada: preserva a requisição */ }
+    } catch (_) { /* preserva a requisição em caso de erro */ }
     callback({ cancel });
   });
   // Sanitiza cabeçalhos sec-ch-ua para permitir login social do Google sem bloqueio de "app não seguro"
