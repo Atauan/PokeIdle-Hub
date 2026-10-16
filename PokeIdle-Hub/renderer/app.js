@@ -224,6 +224,7 @@ function reloadWebview(wv) {
 
 const tiles = new Map();   // key -> { root, player, chat, muteBtn, rect, stalls, acc, item, p, key }
 const colHeaders = new Map(); // acc.id -> header DOM element
+const accountCols = new Map(); // acc.id -> { col, header, body }
 let zTop = 10;
 
 function createTile(p, item, account) {
@@ -570,32 +571,37 @@ function syncTiles() {
     }
   }
 
-  // Sincronizar cabeçalhos de coluna de contas
+  // Sincronizar colunas e cabeçalhos de contas
   const activeAccIds = new Set(accounts.map(a => a.id));
-  for (const [accId, elHeader] of colHeaders) {
+  for (const [accId, colObj] of accountCols) {
     if (!activeAccIds.has(accId) || !visible.length) {
-      elHeader.remove();
+      colObj.col.remove();
+      accountCols.delete(accId);
       colHeaders.delete(accId);
     }
   }
   if (visible.length) {
     for (const acc of accounts) {
-      let header = colHeaders.get(acc.id);
-      if (!header) {
-        header = el('div', { class: 'account-col-header' },
+      let colObj = accountCols.get(acc.id);
+      if (!colObj) {
+        const header = el('div', { class: 'account-col-header' },
           el('div', { class: 'account-col-info' },
             el('span', { class: 'account-col-icon', text: '👤' }),
             el('span', { class: 'account-col-name', text: acc.name || 'Conta' }),
           ),
           el('div', { class: 'account-col-badges' }),
         );
-        grid.append(header);
+        const body = el('div', { class: 'account-col-body' });
+        const col = el('div', { class: 'account-column', 'data-acc-id': acc.id }, header, body);
+        grid.append(col);
+        colObj = { col, header, body };
+        accountCols.set(acc.id, colObj);
         colHeaders.set(acc.id, header);
       } else {
-        const nameEl = header.querySelector('.account-col-name');
+        const nameEl = colObj.header.querySelector('.account-col-name');
         if (nameEl) nameEl.textContent = acc.name || 'Conta';
       }
-      updateAccountHeaderBadges(acc, header);
+      updateAccountHeaderBadges(acc, colObj.header);
     }
   }
 
@@ -604,10 +610,13 @@ function syncTiles() {
   for (const id of liveStates.keys()) if (!ids.has(id)) liveStates.delete(id);
 
   for (const acc of accounts) {
+    const colObj = accountCols.get(acc.id);
     for (const e of visible) {
       const key = `${acc.id}:${e.i.id}`;
       if (!tiles.has(key)) {
-        grid.append(createTile(e.p, e.i, acc).root);
+        const t = createTile(e.p, e.i, acc);
+        if (colObj?.body) colObj.body.append(t.root);
+        else grid.append(t.root);
       }
     }
   }
@@ -856,7 +865,7 @@ function autoColumns(n, W, H, chrome) {
   return best;
 }
 
-/** Posição de cada bloco em colunas verticais por conta. */
+/** Organização das lives em colunas verticais roláveis com dimensões 16:9 saudáveis. */
 function layout() {
   const grid = $('#grid');
   grid.classList.toggle('nochat', !S.showChat);
@@ -866,54 +875,52 @@ function layout() {
   const W = grid.clientWidth;
   const H = grid.clientHeight;
   if (!hasTiles || !W || !H) {
-    colHeaders.forEach(h => { h.style.display = 'none'; });
+    accountCols.forEach(c => { c.col.style.display = 'none'; });
     return;
   }
-  colHeaders.forEach(h => { h.style.display = 'flex'; });
+  accountCols.forEach(c => { c.col.style.display = 'flex'; });
 
   const numCols = accounts.length;
-  const gap = 6;
-  const hdrH = 26;
-  const colW = Math.max(100, Math.floor((W - gap * (numCols + 1)) / numCols));
 
-  accounts.forEach((acc, cIdx) => {
-    const colX = gap + cIdx * (colW + gap);
-    const header = colHeaders.get(acc.id);
-    if (header) {
-      header.style.left = `${colX}px`;
-      header.style.top = `${gap}px`;
-      header.style.width = `${colW}px`;
-      header.style.height = `${hdrH}px`;
-    }
+  accounts.forEach((acc) => {
+    const colObj = accountCols.get(acc.id);
+    if (!colObj) return;
 
     const accTiles = [...tiles.values()].filter(t => t.acc.id === acc.id);
     const K = accTiles.length;
     if (!K) return;
 
-    const startY = gap + hdrH + gap;
-    const availH = Math.max(H - startY - gap, 100);
-    const tileH = S.hideVideos ? (S.showChat ? 74 : 36) : Math.max(60, Math.floor((availH - gap * (K - 1)) / K));
+    const bodyW = colObj.body.clientWidth || Math.floor(W / numCols);
 
-    accTiles.forEach((t, kIdx) => {
-      const f = S.frames[t.key] || S.frames[t.item.id];
-      let r;
-      if (Array.isArray(f) && f.length === 4) {
-        r = { x: f[0] * W, y: f[1] * H, w: f[2] * W, h: f[3] * H };
+    // Determinar sub-colunas internas dentro de cada conta
+    let gridCols = 1;
+    if (numCols === 1) {
+      if (S.columns > 0) {
+        gridCols = Math.min(S.columns, K);
       } else {
-        r = {
-          x: colX,
-          y: startY + kIdx * (tileH + gap),
-          w: colW,
-          h: tileH,
-        };
+        gridCols = bodyW >= 1200 ? Math.min(3, K) : (bodyW >= 720 ? Math.min(2, K) : 1);
       }
-      t.rect = r;
-      Object.assign(t.root.style, {
-        left: `${r.x}px`,
-        top: `${r.y}px`,
-        width: `${Math.max(r.w, 10)}px`,
-        height: `${Math.max(r.h, 10)}px`,
-      });
+    }
+    colObj.body.style.gridTemplateColumns = `repeat(${gridCols}, minmax(0, 1fr))`;
+
+    // Largura disponível para cada card e altura proporcional 16:9
+    const gap = 8;
+    const tileW = Math.max(260, Math.floor((bodyW - gap * (gridCols - 1) - 16) / gridCols));
+    const videoH = Math.round((tileW * 9) / 16);
+    const hdrH = 22;
+    const chatH = S.showChat ? 46 : 0;
+    const naturalTileH = hdrH + videoH + chatH;
+
+    // Limites saudáveis de altura: nunca espremer abaixo de 270px (com chat) ou 210px (sem chat)
+    const minTileH = S.showChat ? 270 : 210;
+    const maxTileH = S.showChat ? 460 : 400;
+    const tileH = S.hideVideos
+      ? (S.showChat ? 74 : 36)
+      : Math.min(maxTileH, Math.max(minTileH, naturalTileH));
+
+    accTiles.forEach((t) => {
+      t.root.style.height = `${tileH}px`;
+      t.rect = { w: tileW, h: tileH };
     });
   });
 }
