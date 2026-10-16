@@ -436,6 +436,57 @@ webview { background: #0b0b0c; }
 .account-col-body .tile .grip {
   display: none !important;
 }
+
+/* Botão de Favorito no Card da Live */
+.tile-fav-btn {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 3px !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+  color: #64748b !important;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.tile-fav-btn:hover {
+  color: #fbbf24 !important;
+  transform: scale(1.15);
+}
+.tile-fav-btn.active {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+}
+
+/* Botão Individual de Seguir no Card da Live */
+.tile-follow-btn {
+  background: #23252e !important;
+  border: 1px solid #3b3d4a !important;
+  border-radius: 4px !important;
+  padding: 1px 6px !important;
+  font-size: 10px !important;
+  line-height: 16px !important;
+  color: #cbd5e1 !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-right: 2px;
+  transition: all 0.15s ease;
+}
+.tile-follow-btn:hover:not(:disabled) {
+  background: #333644 !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.tile-follow-btn.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+.tile-follow-btn.followed {
+  background: #14532d !important;
+  border-color: #166534 !important;
+  color: #86efac !important;
+  cursor: default;
+}
 .account-col-info {
   display: flex;
   align-items: center;

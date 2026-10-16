@@ -47,6 +47,7 @@ const S = {
   frames: load('pf.frames', {}),      // id -> [x, y, largura, altura] em fração da área
   target: 'kick',
   hideVideos: load('pf.hideVideos', false) === true,
+  accountFavorites: load('pf.accountFavorites', {}),
 };
 function persist() {
   save('pf.kick', S.kick); save('pf.twitch', S.twitch); save('pf.columns', S.columns);
@@ -59,6 +60,7 @@ function persist() {
   save('pf.gameChannels', S.gameChannels);
   save('pf.ignoredGameChannels', S.ignoredGameChannels);
   save('pf.hideVideos', S.hideVideos);
+  save('pf.accountFavorites', S.accountFavorites);
 }
 
 window.PF = window.PF || {};
@@ -234,10 +236,38 @@ function createTile(p, item, account) {
   const t = { stalls: 0, rect: null, sharedTwitch: p === 'twitch', chatFallbackTimer: null, key, acc, item, p };
 
   t.muteBtn = el('button', { onclick: () => toggleMute(key) });
+
+  const isFav = isAccountFavorite(item.channel, acc.id);
+  const favBtn = el('button', {
+    class: `tile-fav-btn${isFav ? ' active' : ''}`,
+    title: isFav ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)',
+    'aria-label': 'Favoritar canal',
+    text: isFav ? '★' : '☆',
+    onclick: (e) => {
+      e.stopPropagation();
+      toggleAccountFavorite(item.channel, acc.id);
+    }
+  });
+  t.favBtn = favBtn;
+
+  const followBtn = el('button', {
+    class: 'tile-follow-btn',
+    title: `Seguir ${item.channel} com a conta ${acc.name}`,
+    'aria-label': 'Seguir canal',
+    text: '+ Seguir',
+    onclick: async (e) => {
+      e.stopPropagation();
+      await followSingleTile(t, followBtn);
+    }
+  });
+  t.followBtn = followBtn;
+
   const hdr = el('div', { class: 'hdr', 'data-drag': 'move', title: 'Arraste para mover o bloco' },
+    favBtn,
     el('span', { class: 'dot', style: `background:${P.color}` }),
     el('span', { class: 'name', text: item.channel }),
     el('span', { class: 'sp' }),
+    followBtn,
     t.muteBtn,
     el('button', { title: 'Recarregar', 'aria-label': 'Recarregar', text: '⟳', onclick: () => reloadTile(t) }),
     el('button', { title: 'Abrir no Edge', 'aria-label': 'Abrir no Edge', text: '🌐', onclick: () => window.pf.openEdge(`https://${P.host}/${item.channel}`) }),
@@ -516,6 +546,74 @@ async function followAllOpenChannels() {
   }
 }
 
+function isAccountFavorite(channel, accId) {
+  if (!channel || !accId) return false;
+  const list = S.accountFavorites[accId];
+  return Array.isArray(list) && list.includes(channel.toLowerCase());
+}
+
+function toggleAccountFavorite(channel, accId) {
+  if (!channel || !accId) return;
+  const c = channel.toLowerCase();
+  const current = Array.isArray(S.accountFavorites[accId]) ? S.accountFavorites[accId] : [];
+  if (current.includes(c)) {
+    S.accountFavorites[accId] = current.filter(x => x !== c);
+    toast(`Canal ${c} removido dos favoritos.`);
+  } else {
+    S.accountFavorites[accId] = [...current, c];
+    toast(`★ Canal ${c} adicionado aos favoritos desta conta!`);
+  }
+  persist();
+  for (const [key, t] of tiles) {
+    if (t.acc.id === accId && t.item.channel.toLowerCase() === c) {
+      const isFav = isAccountFavorite(c, accId);
+      if (t.favBtn) {
+        t.favBtn.textContent = isFav ? '★' : '☆';
+        t.favBtn.classList.toggle('active', isFav);
+        t.favBtn.title = isFav ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)';
+      }
+    }
+  }
+  syncTiles();
+}
+
+async function followSingleTile(t, btn) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Seguindo...';
+  btn.classList.add('loading');
+  try {
+    const res = await followTile(t);
+    if (res.status === 'followed' || res.status === 'already_following') {
+      btn.textContent = '✓ Seguido';
+      btn.classList.remove('loading');
+      btn.classList.add('followed');
+      btn.title = `Você segue ${t.item.channel} nesta conta`;
+      toast(`✓ ${t.item.channel} seguido com sucesso na conta ${t.acc.name}!`);
+    } else if (res.status === 'not_logged_in') {
+      btn.disabled = false;
+      btn.textContent = '+ Seguir';
+      btn.classList.remove('loading');
+      toast(`Atenção: Entre na ${t.p === 'kick' ? 'Kick' : 'Twitch'} para a conta "${t.acc.name}" para poder seguir.`);
+    } else if (res.status === 'not_ready') {
+      btn.disabled = false;
+      btn.textContent = '+ Seguir';
+      btn.classList.remove('loading');
+      toast(`O canal ${t.item.channel} ainda está carregando. Tente novamente em instantes.`);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '+ Seguir';
+      btn.classList.remove('loading');
+      toast(`Não foi possível seguir ${t.item.channel}.`);
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '+ Seguir';
+    btn.classList.remove('loading');
+    toast(`Erro ao processar comando de seguir em ${t.item.channel}.`);
+  }
+}
+
 
 // ---- Chat aberto inteiro (para resgatar pontos: o modal precisa de espaço) ----
 // Só muda o CSS: o chat não recarrega ao abrir/fechar.
@@ -611,13 +709,19 @@ function syncTiles() {
 
   for (const acc of accounts) {
     const colObj = accountCols.get(acc.id);
-    for (const e of visible) {
+    const sortedVisible = [...visible].sort((a, b) => {
+      const aFav = isAccountFavorite(a.i.channel, acc.id) ? 1 : 0;
+      const bFav = isAccountFavorite(b.i.channel, acc.id) ? 1 : 0;
+      return bFav - aFav;
+    });
+    for (const e of sortedVisible) {
       const key = `${acc.id}:${e.i.id}`;
-      if (!tiles.has(key)) {
-        const t = createTile(e.p, e.i, acc);
-        if (colObj?.body) colObj.body.append(t.root);
-        else grid.append(t.root);
+      let t = tiles.get(key);
+      if (!t) {
+        t = createTile(e.p, e.i, acc);
       }
+      if (colObj?.body) colObj.body.append(t.root);
+      else grid.append(t.root);
     }
   }
 
@@ -886,7 +990,11 @@ function layout() {
     const colObj = accountCols.get(acc.id);
     if (!colObj) return;
 
-    const accTiles = [...tiles.values()].filter(t => t.acc.id === acc.id);
+    const accTiles = [...tiles.values()].filter(t => t.acc.id === acc.id).sort((a, b) => {
+      const aFav = isAccountFavorite(a.item.channel, acc.id) ? 1 : 0;
+      const bFav = isAccountFavorite(b.item.channel, acc.id) ? 1 : 0;
+      return bFav - aFav;
+    });
     const K = accTiles.length;
     if (!K) return;
 
@@ -1174,6 +1282,10 @@ async function removeAccount() {
     : `Remover "${a.name}"? A aba fecha e o login desta conta no Pokeidle é apagado do app.`;
   if (!window.confirm(msg)) return;
   S.accounts = S.accounts.filter((x) => x.id !== a.id);
+  if (S.accountFavorites && S.accountFavorites[a.id]) {
+    delete S.accountFavorites[a.id];
+    persist();
+  }
   S.gameAccount = S.accounts[0].id;
   setupGame();
   renderAccountTabs();
