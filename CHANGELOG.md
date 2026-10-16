@@ -10,12 +10,13 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - Auditoria completa e higienização integral do repositório: eliminação de todas as menções, caminhos e chaves legadas em arquivos de código, configurações, módulos Electron, scripts de release e documentação técnica; reescrita completa do README.md com autoria atribuída a Atauan Lima (@Atauan).
 - Estruturação completa para distribuição pública do **PokeIdle Hub**: renomeada a pasta interna da aplicação para `PokeIdle-Hub`, configurados os instaladores do Electron (`PokeIdle-Hub-Setup-*.exe`, `PokeIdle-Hub-Portable-*.exe`, `.dmg`, `.AppImage`, `.deb`) e atualizados os scripts de CI (`.github/workflows/pokeidle-hub.yml`, `.github/scripts/release.cjs`, `build.sh`) para publicação automatizada de releases oficiais.
 - Transição de marca do aplicativo para **PokeIdle Hub**, com atualização do `package.json`, títulos de janela e rodapé da interface.
-- Removidos do rodapé os botões de apoio e verificação de atualizações de terceiros, além do modal `<dialog id="update-dialog">`, tornando o rodapé limpo e profissional.
+- Removidos do rodapé os botões de apoio a terceiros, mantendo a identificação e o botão de atualização oficial do PokeIdle Hub.
 
 ### Segurança
-- Desativado o mecanismo de verificação periódica que consultava APIs externas de terceiros, eliminando o risco de download de versões incompatíveis que sobrescreveriam e destruiriam o código personalizado do PokeIdle Hub.
+- Redirecionado o mecanismo de verificação periódica exclusivamente para as releases oficiais do PokeIdle Hub (`Atauan/PokeIdle-Hub`), garantindo integridade e distribuição segura de novos patches.
 
 ### Adicionado
+- Sistema de atualização integrado oficial do PokeIdle Hub: verificação periódica de novas versões e botão "Verificar atualizações" no rodapé com modal nativo de release conectado diretamente ao repositório oficial (`Atauan/PokeIdle-Hub`), permitindo que os usuários descubram e baixem novas versões com um clique.
 - Modo Mosaico (Split View Multi-Contas) na aba de Jogo, permitindo visualizar todas as contas ativas do Pokeidle simultaneamente em grade CSS responsiva (`⊞ Ver Todas` / `🗖 Conta Única`), com cartões identificadores contendo status online, botão de foco em tela cheia (`[🗖 Focar]`) e recarga individual de cada sessão, mantendo todas as contas farmando ao vivo sem recarregamento.
 - Botão "♥ Seguir Todos" na barra de lives (`#bar-lives`), permitindo seguir em lote todos os canais de lives abertos no momento na Twitch e no Kick de forma pontual (sob demanda), com espaçamento anti-bloqueio entre requisições, detecção de contas não logadas e preservação de canais já seguidos.
 - Importação direta de fichas do PokeIdle copiadas via "📋 Copiar p/ ChatGPT", habilitando modo de simulação com ranking das Top 3 rotas para XP e Top 3 para Lucro Líquido, calibragem de consumo de suprimentos (poções ideais pelo HP específico e pokébolas) e suporte a contas offline ou sem pokémon em campo.

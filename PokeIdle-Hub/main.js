@@ -154,11 +154,30 @@ ipcMain.handle('about-copy-pix', (event, id) => {
 });
 
 function startUpdateChecks() {
-  // Desativado: o PokeIdle Hub é autônomo e não consulta repositórios de terceiros
-  updateChecker = {
-    getState: () => ({ status: 'current', currentVersion: APP_VERSION, release: null }),
-    check: async () => ({ status: 'current', currentVersion: APP_VERSION, release: null }),
-  };
+  const settingsFile = path.join(app.getPath('userData'), 'update-notifications.json');
+  let notifiedVersions = [];
+  try { notifiedVersions = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch (_) { /* primeira abertura */ }
+  updateChecker = createReleaseChecker({
+    currentVersion: APP_VERSION,
+    notifiedVersions,
+    persistNotified: versions => {
+      try { fs.writeFileSync(settingsFile, JSON.stringify(versions)); } catch (_) {}
+    },
+    onChange: state => {
+      if (win && !win.isDestroyed()) win.webContents.send('update-state', state);
+    },
+    onAvailable: update => {
+      if (!Notification.isSupported()) return;
+      const notification = new Notification({
+        title: 'Atualização do PokeIdle Hub',
+        body: `A versão ${update.version} está disponível. Clique para ver a release.`,
+      });
+      notification.on('click', () => { void shell.openExternal(update.url).catch(() => {}); });
+      notification.show();
+    },
+  });
+  void updateChecker.check();
+  updateTimer = setInterval(() => { void updateChecker.check(); }, 60 * 60 * 1000);
 }
 
 const LOGIN_URLS = {

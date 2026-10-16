@@ -202,11 +202,23 @@
     <section id="panel-afk" class="panel"></section>
   </main>
 
-  <footer id="update-bar" aria-label="Informações do PokeIdle Hub">
+  <footer id="update-bar" aria-label="Informações e atualizações do PokeIdle Hub">
     <span id="app-version" class="muted">PokeIdle Hub</span>
     <span class="spacer"></span>
-    <span class="muted small">v3.1.0</span>
+    <button id="check-updates">Verificar atualizações</button>
   </footer>
+
+  <dialog id="update-dialog" aria-labelledby="update-title" aria-describedby="update-status">
+    <div class="update-symbol" aria-hidden="true">↓</div>
+    <h2 id="update-title">Atualizações do PokeIdle Hub</h2>
+    <p id="update-status" role="status" aria-live="polite"></p>
+    <p class="muted small">Suas lives e o jogo continuam rodando. Você escolhe quando atualizar.</p>
+    <p id="update-error" role="alert" hidden></p>
+    <div class="update-actions">
+      <button id="dismiss-update" autofocus>Agora não</button>
+      <button id="open-update" class="primary" hidden>Ver release / baixar</button>
+    </div>
+  </dialog>
 
   <!-- Cobre a tela durante arrastes (senão as lives "roubam" o mouse) -->
   <div id="shield" hidden></div>
@@ -215,5 +227,6 @@
   <script src="live-state.js"></script>
   <script src="app.js"></script>
   <script src="src/modules/farm-afk.js"></script>
+  <script src="updates.js"></script>
 </body>
 </html>
