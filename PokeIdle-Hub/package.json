@@ -51,6 +51,14 @@
       "assets/**",
       "package.json"
     ],
+    "asar": true,
+    "asarUnpack": [
+      "pokeidle-hunt.js",
+      "game-session.js",
+      "game-channels.js",
+      "twitch-economy.js",
+      "kick-economy.js"
+    ],
     "mac": {
       "target": [
         {
@@ -80,7 +88,7 @@
           ]
         }
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,

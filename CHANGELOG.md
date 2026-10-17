@@ -6,6 +6,11 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Não publicado]
 
+### Corrigido
+
+- Geração de contêiner `.ico` nativo multi-resolução para Windows (`build/icon.ico` e `assets/icon.ico`) e configuração no `package.json` e `main.js`, eliminando a exibição do ícone padrão do Electron nos executáveis e no agrupador da barra de tarefas.
+- Restauração da injeção do botão `/hunt` e dos scripts de telemetria/economia (`game-channels`, `game-session`, `twitch-economy`, `kick-economy`) em versões empacotadas (`.exe`, instalador e portable), garantindo leitura direta via Node no `webview-preload.js`, descompactação física em `app.asar.unpacked` e reforço na ancoragem do card do pokémon ativo.
+
 ### Alterado
 
 - Auditoria completa e higienização integral do repositório: eliminação de todas as menções, caminhos e chaves legadas em arquivos de código, configurações, módulos Electron, scripts de release e documentação técnica; reescrita completa do README.md com autoria atribuída a Atauan Lima (@Atauan).

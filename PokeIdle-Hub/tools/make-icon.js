@@ -96,11 +96,49 @@ function render(size) {
   return png(size, buf);
 }
 
+function makeIco(frames) {
+  const count = frames.length;
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reservado
+  header.writeUInt16LE(1, 2); // tipo 1 = ICO
+  header.writeUInt16LE(count, 4); // número de imagens
+
+  let offset = 6 + (16 * count);
+  const entries = [];
+  for (const { size, buffer } of frames) {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(size >= 256 ? 0 : size, 0); // largura (0 = 256 px)
+    entry.writeUInt8(size >= 256 ? 0 : size, 1); // altura (0 = 256 px)
+    entry.writeUInt8(0, 2); // paleta de cores (0 se >= 8bpp)
+    entry.writeUInt8(0, 3); // reservado
+    entry.writeUInt16LE(1, 4); // planos de cor
+    entry.writeUInt16LE(32, 6); // bits por pixel (32 = RGBA)
+    entry.writeUInt32LE(buffer.length, 8); // tamanho dos dados
+    entry.writeUInt32LE(offset, 12); // deslocamento no arquivo
+    entries.push(entry);
+    offset += buffer.length;
+  }
+  return Buffer.concat([header, ...entries, ...frames.map(f => f.buffer)]);
+}
+
 const root = path.join(__dirname, '..');
+
+// 1. Gera icon.png em build (1024 px) e assets (256 px)
 for (const [dir, size] of [['build', 1024], ['assets', 256]]) {
   const out = path.join(root, dir, 'icon.png');
-  if (fs.existsSync(out)) continue;
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, render(size));
-  console.log('ícone gerado:', path.relative(root, out));
+  console.log('ícone PNG gerado:', path.relative(root, out));
+}
+
+// 2. Gera icon.ico multi-resolução em build e assets (16, 32, 48, 64, 128, 256 px) para Windows PE e taskbar
+const icoSizes = [16, 32, 48, 64, 128, 256];
+const icoFrames = icoSizes.map(size => ({ size, buffer: render(size) }));
+const icoBuffer = makeIco(icoFrames);
+
+for (const dir of ['build', 'assets']) {
+  const out = path.join(root, dir, 'icon.ico');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, icoBuffer);
+  console.log('ícone ICO gerado:', path.relative(root, out));
 }

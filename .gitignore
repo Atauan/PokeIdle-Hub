@@ -3,7 +3,9 @@ PokeIdle-Hub.app/
 KickMulti.app/
 PokeIdle-Hub/dist/
 PokeIdle-Hub/node_modules/
-PokeIdle-Hub/build/
+PokeIdle-Hub/build/*
+!PokeIdle-Hub/build/icon.ico
+!PokeIdle-Hub/build/icon.png
 release-assets/
 dist/
 node_modules/
@@ -24,4 +26,3 @@ _metadata/
 /icons/
 !PokeIdle-Hub/renderer/assets/icons/**
 docs/
-!docs/changes/**

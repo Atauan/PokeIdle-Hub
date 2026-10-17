@@ -52,9 +52,17 @@ function showWindow() {
   win.focus();
 }
 
+function getAppIcon() {
+  if (process.platform === 'win32') {
+    const icoPath = path.join(__dirname, 'assets', 'icon.ico');
+    if (fs.existsSync(icoPath)) return icoPath;
+  }
+  return path.join(__dirname, 'assets', 'icon.png');
+}
+
 function createTray() {
   const size = process.platform === 'darwin' ? 18 : 32;
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png'))
+  const icon = nativeImage.createFromPath(getAppIcon())
     .resize({ width: size, height: size });
   tray = new Tray(icon);
   tray.setToolTip('PokeIdle Hub');
@@ -126,7 +134,7 @@ function showAbout() {
     title: 'Sobre o PokeIdle Hub', width: 440, height: 640, useContentSize: true,
     resizable: false, minimizable: false, maximizable: false, show: false,
     backgroundColor: '#141416', autoHideMenuBar: true,
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: getAppIcon(),
     webPreferences: { preload: path.join(__dirname, 'about-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   aboutWindow = window;
@@ -306,11 +314,27 @@ function setupSession(part) {
     }
     callback({ requestHeaders: headers });
   });
-  ses.registerPreloadScript({ id: 'pf-game-channels', type: 'frame', filePath: path.join(__dirname, 'game-channels.js') });
-  ses.registerPreloadScript({ id: 'pf-game-session', type: 'frame', filePath: path.join(__dirname, 'game-session.js') });
-  ses.registerPreloadScript({ id: 'pf-pokeidle-hunt', type: 'frame', filePath: path.join(__dirname, 'pokeidle-hunt.js') });
-  ses.registerPreloadScript({ id: 'pf-twitch-economy', type: 'frame', filePath: path.join(__dirname, 'twitch-economy.js') });
-  ses.registerPreloadScript({ id: 'pf-kick-economy', type: 'frame', filePath: path.join(__dirname, 'kick-economy.js') });
+
+  const resolvePreloadPath = (filename) => {
+    if (app.isPackaged) {
+      const unpacked = path.join(process.resourcesPath, 'app.asar.unpacked', filename);
+      if (fs.existsSync(unpacked)) return unpacked;
+    }
+    return path.join(__dirname, filename);
+  };
+  const regPreload = (id, filename) => {
+    try {
+      const filePath = resolvePreloadPath(filename);
+      if (fs.existsSync(filePath)) {
+        ses.registerPreloadScript({ id, type: 'frame', filePath });
+      }
+    } catch (_) {}
+  };
+  regPreload('pf-game-channels', 'game-channels.js');
+  regPreload('pf-game-session', 'game-session.js');
+  regPreload('pf-pokeidle-hunt', 'pokeidle-hunt.js');
+  regPreload('pf-twitch-economy', 'twitch-economy.js');
+  regPreload('pf-kick-economy', 'kick-economy.js');
 }
 
 const fromApp = (e) => !!(e.senderFrame && String(e.senderFrame.url).startsWith('file://'));
@@ -325,7 +349,7 @@ function createWindow() {
     title: 'PokeIdle Hub',
     backgroundColor: '#141416',
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: getAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
