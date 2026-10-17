@@ -13,10 +13,14 @@ const donations = require('./assets/donations/developers.json');
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// User-agent de Chrome normal (sem "Electron"), para Twitch/Kick servirem o site padrão
-const CHROME_MAJOR = String(process.versions.chrome || '140').split('.')[0];
+// User-agent de Chrome estável real (sem "Electron" nem sufixo ".0.0.0"), compatível com Google OAuth e Cloudflare Turnstile
+const RAW_CHROME = String(process.versions.chrome || '132.0.6834.196');
+const CHROME_VER = /^\d+\.\d+\.\d+\.\d+$/.test(RAW_CHROME) && !RAW_CHROME.endsWith('.0.0.0')
+  ? RAW_CHROME
+  : `${RAW_CHROME.split('.')[0] || '132'}.0.6834.196`;
+const CHROME_MAJOR = CHROME_VER.split('.')[0];
 const OS_UA = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'Windows NT 10.0; Win64; x64';
-const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_MAJOR}.0.0.0 Safari/537.36`;
+const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
 
 // Rodar 24h: nada é pausado/desacelerado com janela atrás, minimizada ou tela bloqueada
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -303,14 +307,13 @@ function setupSession(part) {
     const headers = details.requestHeaders || {};
     headers['User-Agent'] = CHROME_UA;
     if (headers['sec-ch-ua']) {
-      headers['sec-ch-ua'] = headers['sec-ch-ua']
-        .replace(/,?\s*"Electron";v="[^"]*"/gi, '')
-        .replace(/"Electron";v="[^"]*",?\s*/gi, '');
+      headers['sec-ch-ua'] = `"Not A(Brand";v="8", "Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_MAJOR}"`;
     }
     if (headers['sec-ch-ua-full-version-list']) {
-      headers['sec-ch-ua-full-version-list'] = headers['sec-ch-ua-full-version-list']
-        .replace(/,?\s*"Electron";v="[^"]*"/gi, '')
-        .replace(/"Electron";v="[^"]*",?\s*/gi, '');
+      headers['sec-ch-ua-full-version-list'] = `"Not A(Brand";v="8.0.0.0", "Chromium";v="${CHROME_VER}", "Google Chrome";v="${CHROME_VER}"`;
+    }
+    if (headers['sec-ch-ua-platform']) {
+      headers['sec-ch-ua-platform'] = process.platform === 'darwin' ? '"macOS"' : '"Windows"';
     }
     callback({ requestHeaders: headers });
   });
@@ -740,6 +743,33 @@ function openLoginWindow(url, title, part, platform) {
     w.show();
     w.focus();
   });
+  if (platform === 'game' || String(url).includes('pokeidle.io')) {
+    w.webContents.on('dom-ready', () => {
+      w.webContents.executeJavaScript(`
+        (() => {
+          if (window.__pfTurnstileWatchdog) return;
+          window.__pfTurnstileWatchdog = true;
+          let tries = 0;
+          const check = () => {
+            tries++;
+            try {
+              const wrap = document.getElementById('turnstile-entrar');
+              const portal = document.getElementById('portal');
+              const login = document.getElementById('login');
+              const isLoginVisible = portal && !portal.classList.contains('hidden') && login && !login.classList.contains('hidden');
+              if (isLoginVisible && wrap && wrap.children.length === 0) {
+                if (typeof window.onTurnstilePronto === 'function') {
+                  window.onTurnstilePronto();
+                }
+              }
+            } catch (_) {}
+            if (tries < 25) setTimeout(check, 800);
+          };
+          check();
+        })();
+      `).catch(() => {});
+    });
+  }
   w.on('closed', () => {
     BrowserWindow.getAllWindows().forEach((bw) => {
       if (bw !== w && !bw.isDestroyed()) {
