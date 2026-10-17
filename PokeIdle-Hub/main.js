@@ -628,26 +628,89 @@ ipcMain.handle('clean-ram', async (e) => {
 
 function migrateLegacySessions() {
   try {
-    const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
-    if (!fs.existsSync(partitionsDir)) return;
-    const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name === 'pokefarm') {
-        const dest = path.join(partitionsDir, 'pokeidlehub');
-        if (!fs.existsSync(dest)) {
-          fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
-        }
+    const currentDataDir = app.getPath('userData');
+    const parentDir = path.dirname(currentDataDir);
+    const partitionsDir = path.join(currentDataDir, 'Partitions');
+
+    // 1. Diretórios legados de onde podemos importar dados existentes
+    const candidateDirs = [];
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      candidateDirs.push(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'data'));
+    }
+    candidateDirs.push(
+      path.join(parentDir, 'PokeFarm'),
+      path.join(parentDir, 'pokefarm'),
+      path.join(parentDir, 'PokeFarm-Hub')
+    );
+
+    for (const legacyDir of candidateDirs) {
+      if (!fs.existsSync(legacyDir)) continue;
+
+      // Migração de Local Storage (contas cadastradas, regras e preferências)
+      const currentLocalStorage = path.join(currentDataDir, 'Local Storage');
+      const legacyLocalStorage = path.join(legacyDir, 'Local Storage');
+      const currentLevelDb = path.join(currentLocalStorage, 'leveldb');
+      const hasCurrentLevelDb = fs.existsSync(currentLevelDb) && fs.readdirSync(currentLevelDb).length > 2;
+
+      // Se o diretório atual ainda não tiver dados salvos e o legado tiver
+      if (!hasCurrentLevelDb && fs.existsSync(legacyLocalStorage)) {
+        try {
+          if (!fs.existsSync(currentLocalStorage)) fs.mkdirSync(currentLocalStorage, { recursive: true });
+          fs.cpSync(legacyLocalStorage, currentLocalStorage, { recursive: true });
+        } catch (_) {}
       }
-      if (entry.name.startsWith('pokefarm-acc-')) {
-        const suffix = entry.name.slice('pokefarm-acc-'.length);
-        const dest = path.join(partitionsDir, `pokeidlehub-acc-${suffix}`);
-        if (!fs.existsSync(dest)) {
-          fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
+
+      // Migração de Partições (cookies das contas do jogo Pokeidle, Twitch e Kick)
+      const legacyPartitions = path.join(legacyDir, 'Partitions');
+      if (fs.existsSync(legacyPartitions)) {
+        try {
+          if (!fs.existsSync(partitionsDir)) fs.mkdirSync(partitionsDir, { recursive: true });
+          const legacyEntries = fs.readdirSync(legacyPartitions, { withFileTypes: true });
+          for (const entry of legacyEntries) {
+            if (!entry.isDirectory()) continue;
+            let destName = null;
+            if (entry.name === 'pokefarm' || entry.name === 'pokeidlehub') {
+              destName = 'pokeidlehub';
+            } else if (entry.name.startsWith('pokefarm-acc-')) {
+              const suffix = entry.name.slice('pokefarm-acc-'.length);
+              destName = `pokeidlehub-acc-${suffix}`;
+            } else if (entry.name.startsWith('pokeidlehub-acc-')) {
+              destName = entry.name;
+            }
+            if (destName) {
+              const destPath = path.join(partitionsDir, destName);
+              if (!fs.existsSync(destPath)) {
+                fs.cpSync(path.join(legacyPartitions, entry.name), destPath, { recursive: true });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      break;
+    }
+
+    // 2. Normalizar partições internas caso já existam pastas com prefixo 'pokefarm' dentro de Partitions
+    if (fs.existsSync(partitionsDir)) {
+      const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'pokefarm') {
+          const dest = path.join(partitionsDir, 'pokeidlehub');
+          if (!fs.existsSync(dest)) {
+            fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
+          }
+        }
+        if (entry.name.startsWith('pokefarm-acc-')) {
+          const suffix = entry.name.slice('pokefarm-acc-'.length);
+          const dest = path.join(partitionsDir, `pokeidlehub-acc-${suffix}`);
+          if (!fs.existsSync(dest)) {
+            fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
+          }
         }
       }
     }
-  } catch (_) { /* ignora erro de migração */ }
+  } catch (_) { /* ignora erro de migração para não bloquear a inicialização */ }
 }
 
 // MARK: Ciclo de vida
