@@ -449,41 +449,45 @@
     const card = document.getElementById('ativo-card') || document.querySelector('#p-ativo .card, #p-ativo > div:not(.pih-btn)');
     const painel = document.getElementById('p-ativo') || card?.parentElement;
     const nome = card?.querySelector('.ativo-nome') || card?.querySelector('[class*="nome"]') || card?.querySelector('b, strong, span');
-    if (card && painel && !card.classList.contains('vazio')) return { modo: 'padrao', card, nome: nome || card };
+    if (card && painel) return { modo: 'padrao', card, nome: nome || card };
     return null;
   }
 
-  let quadro = 0;
   function posicionarBotao() {
-    cancelAnimationFrame(quadro);
-    quadro = requestAnimationFrame(() => {
-      const a = ancora();
-      if (!a) { botao.hidden = true; return; }
-      botao.hidden = false;
-      if (a.modo === 'padrao') {
-        botao.classList.remove('pih-fixo');
-        botao.classList.add('pih-barra');
-        botao.style.left = botao.style.top = botao.style.width = '';
-        if (a.card.previousElementSibling !== botao) a.card.before(botao);
-      } else {
-        // Reserva: flutua logo acima do ponto que o jogador apontou.
-        botao.classList.remove('pih-barra');
-        botao.classList.add('pih-fixo');
-        if (botao.parentElement !== document.body) document.body.appendChild(botao);
-        const r = a.el.getBoundingClientRect();
-        botao.style.left = `${r.left}px`;
-        botao.style.top = `${Math.max(4, r.top - botao.offsetHeight - 6)}px`;
+    const a = ancora();
+    if (!a) { botao.hidden = true; return; }
+    botao.hidden = false;
+    if (a.modo === 'padrao') {
+      botao.classList.remove('pih-fixo');
+      botao.classList.add('pih-barra');
+      botao.style.left = botao.style.top = botao.style.width = '';
+      if (a.card && a.card.previousElementSibling !== botao) {
+        a.card.before(botao);
       }
-    });
+    } else {
+      // Reserva: flutua logo acima do ponto que o jogador apontou.
+      botao.classList.remove('pih-barra');
+      botao.classList.add('pih-fixo');
+      if (botao.parentElement !== document.body) document.body.appendChild(botao);
+      const r = a.el.getBoundingClientRect();
+      botao.style.left = `${r.left}px`;
+      botao.style.top = `${Math.max(4, r.top - botao.offsetHeight - 6)}px`;
+    }
   }
 
   function vigiarCard() {
+    posicionarBotao();
     const painel = document.getElementById('p-ativo') ?? document.body;
-    new MutationObserver(posicionarBotao).observe(painel, { childList: true, subtree: true });
+    new MutationObserver(() => {
+      const card = document.getElementById('ativo-card');
+      if (card && card.previousElementSibling !== botao) {
+        posicionarBotao();
+      }
+    }).observe(painel, { childList: true, subtree: false });
     addEventListener('resize', posicionarBotao);
     addEventListener('scroll', posicionarBotao, true);
     // Rede de segurança para mudanças de layout que não mexem no card (abrir/fechar painéis).
-    setInterval(posicionarBotao, 1500);
+    setInterval(posicionarBotao, 2000);
   }
 
   // ---- verificação: onde está o pokémon ativo? -------------------------------------------

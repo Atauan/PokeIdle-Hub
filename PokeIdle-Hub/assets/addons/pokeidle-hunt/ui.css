@@ -17,9 +17,10 @@
 /* A barra fica no fluxo do painel "Em campo", entre o título e o card: acompanha a largura da
    caixa em qualquer tela e nunca cobre o pokémon. */
 .pih-btn.pih-barra {
-  display: block; width: clamp(110px, 55%, 240px); margin: 0 auto 8px; padding: 7px 10px;
+  display: block !important; width: clamp(110px, 55%, 240px); margin: 0 auto 8px; padding: 7px 10px;
+  position: relative; z-index: 5;
 }
-.pih-btn[hidden] { display: none; }
+.pih-btn[hidden] { display: none !important; }
 /* Reserva, quando o jogador apontou o pokémon à mão (layout desconhecido): flutua acima dele. */
 .pih-btn.pih-fixo { position: fixed; z-index: 38; margin: 0; }
 
