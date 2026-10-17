@@ -41,6 +41,11 @@
         <span class="icon-svg icon-afk"></span>
         <span class="nav-label">Farm AFK</span>
       </button>
+
+      <button class="nav-item" data-tab="settings" role="tab" title="Configurações e Desempenho">
+        <span class="icon-svg icon-settings"></span>
+        <span class="nav-label">Configurações</span>
+      </button>
     </nav>
 
     <div class="sidebar-spacer"></div>
@@ -140,6 +145,10 @@
           <select id="afk-account-select" aria-label="Conta do Pokeidle"></select>
         </label>
         <button id="afk-sync-btn" title="Lê os dados mais recentes do jogo nesta conta"><span class="icon-svg icon-reload"></span> Atualizar Dados</button>
+      </div>
+
+      <div class="bar-part" id="bar-settings" hidden>
+        <span class="muted">Configurações gerais e calibração de desempenho</span>
       </div>
 
       <button id="btn-collapse-topbar" class="icon bar-collapse-btn" title="Ocultar barra de ferramentas superior para ganhar espaço vertical">▲</button>
@@ -278,6 +287,101 @@
       </div>
     </section>
     <section id="panel-afk" class="panel"></section>
+
+    <section id="panel-settings" class="panel">
+      <div class="settings-container">
+        <div class="settings-header">
+          <h2>Configurações &amp; Otimização</h2>
+          <p class="muted">Calibre o consumo de CPU, taxa de quadros (FPS) e gerenciamento de recursos do PokeIdle Hub.</p>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="icon-svg icon-game"></span>
+            <div>
+              <h3>Taxa de Quadros do Jogo (FPS)</h3>
+              <p class="muted small">O Pokeidle é um jogo 2D retrô. Reduzir o FPS corta drasticamente o uso de CPU/GPU sem diminuir a velocidade de farm, pois o combate é sincronizado pelo servidor.</p>
+            </div>
+          </div>
+          <div class="settings-card-body">
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Conta em Foco (Na Tela)</span>
+                <span class="muted small">Taxa de quadros da conta do Pokeidle sendo exibida no momento</span>
+              </div>
+              <div class="settings-row-control">
+                <select id="cfg-fps-foreground" aria-label="FPS da conta ativa">
+                  <option value="60">60 FPS (Máximo)</option>
+                  <option value="30">30 FPS (Recomendado - 50% menos CPU)</option>
+                  <option value="20">20 FPS (Econômico)</option>
+                  <option value="0">Sem limite (Padrão do monitor)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Contas em Segundo Plano (Outras Abas)</span>
+                <span class="muted small">Taxa de quadros das contas extras ou quando você estiver na aba Lives</span>
+              </div>
+              <div class="settings-row-control">
+                <select id="cfg-fps-background" aria-label="FPS das contas em segundo plano">
+                  <option value="30">30 FPS</option>
+                  <option value="15">15 FPS (Recomendado - 75% menos CPU)</option>
+                  <option value="10">10 FPS (Ultra Econômico)</option>
+                  <option value="60">60 FPS (Sem economia)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="icon-svg icon-focus"></span>
+            <div>
+              <h3>Desempenho de Vídeo &amp; CPU</h3>
+              <p class="muted small">Otimizações nativas para máquinas de entrada, notebooks ou para rodar 24h em segundo plano.</p>
+            </div>
+          </div>
+          <div class="settings-card-body">
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Suspensão de Vídeo Fora de Lives</span>
+                <span class="muted small">Pausa a decodificação de vídeo das lives quando você estiver jogando ou em outras abas, mantendo o farm de pontos e chat 100% ativos</span>
+              </div>
+              <div class="settings-row-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cfg-suspend-video" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="icon-svg icon-clean-ram"></span>
+            <div>
+              <h3>Memória RAM &amp; Caches Temporários</h3>
+              <p class="muted small">Liberação de buffers de vídeo e requisições acumuladas sem deslogar as contas.</p>
+            </div>
+          </div>
+          <div class="settings-card-body">
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Limpeza Cirúrgica de Memória</span>
+                <span class="muted small">Esvazia caches de rede e memória do Chromium sem deslogar Twitch, Kick ou contas do Pokeidle</span>
+              </div>
+              <div class="settings-row-control">
+                <button id="cfg-clean-ram-btn" class="primary"><span class="icon-svg icon-clean-ram"></span> Otimizar RAM Agora</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
     <footer id="update-bar" aria-label="Informações e atualizações do PokeIdle Hub">

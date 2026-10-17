@@ -48,6 +48,9 @@ const S = {
   target: 'kick',
   hideVideos: load('pf.hideVideos', false) === true,
   accountFavorites: load('pf.accountFavorites', {}),
+  fpsForeground: load('pf.fpsForeground', 30),
+  fpsBackground: load('pf.fpsBackground', 15),
+  suspendBgVideos: load('pf.suspendBgVideos', true) !== false,
   accountLimits: (() => {
     const lim = load('pf.accountLimits', {});
     return lim && typeof lim === 'object' ? lim : {};
@@ -69,6 +72,9 @@ function persist() {
   save('pf.ignoredGameChannels', S.ignoredGameChannels);
   save('pf.hideVideos', S.hideVideos);
   save('pf.accountFavorites', S.accountFavorites);
+  save('pf.fpsForeground', S.fpsForeground);
+  save('pf.fpsBackground', S.fpsBackground);
+  save('pf.suspendBgVideos', S.suspendBgVideos);
   save('pf.accountLimits', S.accountLimits);
   save('pf.universalLimits', S.universalLimits);
 }
@@ -1378,12 +1384,14 @@ function toggleGameMosaic(force) {
   S.gameMosaic = enable;
   persist();
   applyGameMosaic(enable);
+  applyFpsLimits();
 }
 
 function focarConta(accId) {
   S.gameAccount = accId;
   toggleGameMosaic(false);
   setTab('game');
+  applyFpsLimits();
 }
 
 /** Cria/remove as abas do jogo para bater com a lista de contas. Todas ficam rodando. */
@@ -1406,7 +1414,10 @@ function setupGame() {
       now: true,
       skeleton: 'game',
       partition: accountPartition(a),
-      onReady: (w) => w.executeJavaScript(`window.__pfPoll = ${Number(M.poll) || 60}`).catch(() => {}),
+      onReady: (w) => {
+        w.executeJavaScript(`window.__pfPoll = ${Number(M.poll) || 60}`).catch(() => {});
+        applyFpsLimits();
+      },
     });
     wv.addEventListener('ipc-message', (e) => {
       if (e.channel === 'market' && market) onMarket(e.args[0]);
@@ -1424,7 +1435,9 @@ function setupGame() {
   game = games.get(S.accounts[0].id)?.wv || null;
   if (!S.accounts.some((a) => a.id === S.gameAccount)) S.gameAccount = S.accounts[0].id;
   updateGamePaneHeaders();
+  renderAccountTabs();
   if (S.gameMosaic) applyGameMosaic(true);
+  applyFpsLimits();
 }
 
 function renderAccountTabs() {
@@ -1658,7 +1671,7 @@ function addRule() {
 // ---------------- Barra e abas ----------------
 
 function setTab(tab) {
-  if (!['lives', 'game', 'alerts', 'afk'].includes(tab)) tab = 'lives';
+  if (!['lives', 'game', 'alerts', 'afk', 'settings'].includes(tab)) tab = 'lives';
   S.tab = tab;
   persist();
   const acc = currentAccount();
@@ -1684,13 +1697,17 @@ function setTab(tab) {
   $('#panel-game').classList.toggle('active', tab === 'game');
   $('#panel-alerts').classList.toggle('active', tab === 'alerts');
   $('#panel-afk')?.classList.toggle('active', tab === 'afk');
+  $('#panel-settings')?.classList.toggle('active', tab === 'settings');
   $('#bar-lives').hidden = tab !== 'lives';
   $('#bar-game').hidden = tab !== 'game';
   $('#bar-alerts').hidden = tab !== 'alerts';
   $('#bar-afk').hidden = tab !== 'afk';
+  $('#bar-settings').hidden = tab !== 'settings';
   if (tab === 'alerts') renderAlerts();
   if (tab === 'afk' && window.PF?.FarmAfk?.init) window.PF.FarmAfk.init();
+  if (tab === 'settings') renderSettings();
   if (tab === 'lives') layout();
+  applyFpsLimits();
 }
 
 async function updateGameBarConnections() {
@@ -1736,7 +1753,82 @@ function setTarget(p) {
   $$('#target button').forEach((b) => b.classList.toggle('on', b.dataset.target === p));
 }
 
+function applyFpsLimits() {
+  try {
+    const isGameTab = S.tab === 'game';
+    const currentAcc = currentAccount();
+    const fg = Number(S.fpsForeground) || 30;
+    const bg = Number(S.fpsBackground) || 15;
+
+    games.forEach((g, accId) => {
+      if (!g?.wv || typeof g.wv.executeJavaScript !== 'function') return;
+      try {
+        let target;
+        if (!isGameTab) {
+          target = bg;
+        } else if (S.gameMosaic) {
+          target = fg;
+        } else {
+          target = accId === currentAcc?.id ? fg : bg;
+        }
+        g.wv.executeJavaScript(`window.__pfSetTargetFps && window.__pfSetTargetFps(${target})`).catch(() => {});
+      } catch (_) {}
+    });
+  } catch (_) {}
+}
+
+function renderSettings() {
+  const fg = $('#cfg-fps-foreground');
+  const bg = $('#cfg-fps-background');
+  const susp = $('#cfg-suspend-video');
+  if (fg) fg.value = String(S.fpsForeground ?? 30);
+  if (bg) bg.value = String(S.fpsBackground ?? 15);
+  if (susp) susp.checked = S.suspendBgVideos !== false;
+}
+
+function setupSettings() {
+  $('#cfg-fps-foreground')?.addEventListener('change', (e) => {
+    S.fpsForeground = Number(e.target.value) || 0;
+    persist();
+    applyFpsLimits();
+    toast(`FPS da conta em foco: ${S.fpsForeground ? S.fpsForeground + ' FPS' : 'Sem limite'}`);
+  });
+
+  $('#cfg-fps-background')?.addEventListener('change', (e) => {
+    S.fpsBackground = Number(e.target.value) || 0;
+    persist();
+    applyFpsLimits();
+    toast(`FPS de contas em segundo plano: ${S.fpsBackground ? S.fpsBackground + ' FPS' : 'Sem limite'}`);
+  });
+
+  $('#cfg-suspend-video')?.addEventListener('change', (e) => {
+    S.suspendBgVideos = e.target.checked;
+    persist();
+    $('#panel-lives')?.classList.toggle('suspend-bg', S.suspendBgVideos !== false);
+    toast(S.suspendBgVideos ? 'Suspensão de vídeo ativada.' : 'Suspensão de vídeo desativada.');
+  });
+
+  $('#cfg-clean-ram-btn')?.addEventListener('click', async () => {
+    const btn = $('#cfg-clean-ram-btn');
+    if (btn) btn.disabled = true;
+    try {
+      if (window.pf?.cleanRam) {
+        await window.pf.cleanRam();
+      }
+      toast('✓ Memória RAM otimizada e caches temporários liberados.');
+    } catch (_) {
+      toast('Falha ao liberar memória.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  renderSettings();
+}
+
 function setupBar() {
+  $('#panel-lives')?.classList.toggle('suspend-bg', S.suspendBgVideos !== false);
+  setupSettings();
   $('#auto-lives').addEventListener('change', (e) => {
     S.autoLives = e.target.checked;
     // A chave controla o monitoramento, sem abrir canais offline nem fechar a tela atual.

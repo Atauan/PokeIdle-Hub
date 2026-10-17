@@ -399,6 +399,40 @@ function market() {
   }, 10000);
 }
 
+/** Regulador inteligente de taxa de quadros (FPS) para poupar CPU/GPU no Canvas/WebGL do Pokeidle. */
+function limitFps() {
+  try {
+    let targetFps = 30;
+    let lastTime = 0;
+    const origRAF = window.requestAnimationFrame.bind(window);
+
+    window.__pfSetTargetFps = function (fps) {
+      const val = Number(fps);
+      if (Number.isFinite(val) && val > 0) {
+        targetFps = Math.max(5, Math.min(120, val));
+      } else {
+        targetFps = 0;
+      }
+    };
+
+    window.requestAnimationFrame = function (callback) {
+      if (!targetFps || targetFps >= 60) {
+        return origRAF(callback);
+      }
+      return origRAF(function loop(timestamp) {
+        const interval = 1000 / targetFps;
+        const elapsed = timestamp - lastTime;
+        if (elapsed >= interval || lastTime === 0) {
+          lastTime = timestamp - (elapsed % interval);
+          callback(timestamp);
+        } else {
+          origRAF(loop);
+        }
+      });
+    };
+  } catch (_) {}
+}
+
 // ---------- Qual página é esta? ----------
 
 const host = location.hostname;
@@ -408,6 +442,7 @@ const isChat = /\/popout\//.test(pathName) && /chat/.test(pathName);
 inject(keepAlive);
 
 if (/pokeidle\.io$/.test(host)) {
+  inject(limitFps);
   inject(market);
   // Página -> app (o mundo isolado escuta as mensagens da página)
   window.addEventListener('message', (e) => {

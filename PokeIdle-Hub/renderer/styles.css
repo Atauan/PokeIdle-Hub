@@ -310,6 +310,7 @@ input[type=text] { min-width: 0; }
 .icon-svg.icon-key { mask-image: url('assets/icons/game-key.svg'); -webkit-mask-image: url('assets/icons/game-key.svg'); }
 .icon-svg.icon-link { mask-image: url('assets/icons/game-link.svg'); -webkit-mask-image: url('assets/icons/game-link.svg'); }
 .icon-svg.icon-edge { mask-image: url('assets/icons/game-edge.svg'); -webkit-mask-image: url('assets/icons/game-edge.svg'); }
+.icon-svg.icon-settings { mask-image: url('assets/icons/nav-settings.svg'); -webkit-mask-image: url('assets/icons/nav-settings.svg'); }
 
 .bar-part { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: visible; }
 #channel-input { flex: 1; }
@@ -987,11 +988,11 @@ button.badge-conn.btn-login:hover {
 
 /* Modo Ocultar Vídeos e Suspensão de Segundo Plano (Poupar GPU/CPU) */
 #grid.hide-videos .player,
-#panel-lives:not(.active) .player {
+#panel-lives.suspend-bg:not(.active) .player {
   display: none !important;
 }
 #grid.hide-videos .tile,
-#panel-lives:not(.active) .tile {
+#panel-lives.suspend-bg:not(.active) .tile {
   min-height: 42px !important;
 }
 #toggle-video-view.active {
@@ -1461,6 +1462,150 @@ button.badge-conn.btn-login:hover {
   opacity: 0.65;
   cursor: wait;
   pointer-events: none;
+}
+
+/* Aba de Configurações */
+#panel-settings {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+#panel-settings:not(.active) {
+  display: none !important;
+}
+.settings-container {
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.settings-header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.settings-header h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: var(--text);
+  font-weight: 600;
+}
+.settings-header p {
+  margin: 0;
+}
+.settings-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+.settings-card-header .icon-svg {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.settings-card-header h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.settings-card-header p {
+  margin: 0;
+  line-height: 1.4;
+}
+.settings-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.settings-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.settings-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.settings-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.settings-row-control select {
+  min-width: 220px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #111215;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+}
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #2e3038;
+  border-radius: 24px;
+  transition: 0.2s;
+  border: 1px solid var(--line);
+}
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #e2e8f0;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+  background-color: #fff;
 }
 
 
