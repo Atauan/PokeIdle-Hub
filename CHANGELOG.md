@@ -19,6 +19,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Alterado
 
+- Reestruturação da Game Bar em dois níveis responsivos (`index.html`, `styles.css`, `app.js` e `webview-preload.js`), eliminando o campo de texto redundante de nome de conta e dividindo o cabeçalho em linha de abas de contas com alternância retrátil (`▲ Opções` / `▼ Opções`) e sub-barra dedicada de ações do jogo (`Ver Todas`, `Recarregar`, `Sniper`, `Conectar Lives`, `Entrar`, `Edge`, `Remover conta`), garantindo visibilidade integral de todos os botões em telas de 1366x768 e 720p, com suporte a renomeação por duplo clique e sincronização automática do nickname do treinador em campo (com referência em `docs/changes/2026-10-17-1850--gamebar-duas-linhas-responsiva-e-autonick.md`).
+
 - Auditoria completa e higienização integral do repositório: eliminação de todas as menções, caminhos e chaves legadas em arquivos de código, configurações, módulos Electron, scripts de release e documentação técnica; reescrita completa do README.md com autoria atribuída a Atauan Lima (@Atauan).
 - Estruturação completa para distribuição pública do **PokeIdle Hub**: renomeada a pasta interna da aplicação para `PokeIdle-Hub`, configurados os instaladores do Electron (`PokeIdle-Hub-Setup-*.exe`, `PokeIdle-Hub-Portable-*.exe`, `.dmg`, `.AppImage`, `.deb`) e atualizados os scripts de CI (`.github/workflows/pokeidle-hub.yml`, `.github/scripts/release.cjs`, `build.sh`) para publicação automatizada de releases oficiais.
 - Transição de marca do aplicativo para **PokeIdle Hub**, com atualização do `package.json`, títulos de janela e rodapé da interface.

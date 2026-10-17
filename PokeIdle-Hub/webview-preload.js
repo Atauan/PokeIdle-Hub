@@ -522,6 +522,27 @@ function turnstileWatchdog() {
   }
 }
 
+/** Detecta o nickname do jogador no jogo e repassa para o app */
+function detectPlayerNick() {
+  let lastNick = '';
+  const check = () => {
+    try {
+      const elNick = document.querySelector('#tr-nick') || document.querySelector('.treinador-nome');
+      const nick = (elNick?.textContent || '').trim();
+      if (nick && nick !== '—' && nick !== lastNick) {
+        lastNick = nick;
+        window.postMessage({ __pfPlayerNick: nick }, '*');
+      }
+    } catch (_) {}
+  };
+  setInterval(check, 3000);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', check, { once: true });
+  } else {
+    check();
+  }
+}
+
 // ---------- Qual página é esta? ----------
 
 const host = location.hostname;
@@ -534,10 +555,16 @@ if (/pokeidle\.io$/.test(host)) {
   inject(limitFps);
   inject(market);
   inject(turnstileWatchdog);
+  inject(detectPlayerNick);
   // Página -> app (o mundo isolado escuta as mensagens da página)
   window.addEventListener('message', (e) => {
-    if (e.source !== window || !e.data || typeof e.data.__pfMarket !== 'object') return;
-    ipcRenderer.sendToHost('market', e.data.__pfMarket);
+    if (e.source !== window || !e.data) return;
+    if (typeof e.data.__pfMarket === 'object') {
+      ipcRenderer.sendToHost('market', e.data.__pfMarket);
+    }
+    if (typeof e.data.__pfPlayerNick === 'string') {
+      ipcRenderer.sendToHost('game-account-nick', e.data.__pfPlayerNick);
+    }
   });
 
 } else if (isChat) {

@@ -108,30 +108,8 @@
           <div class="seg" id="account-tabs" role="tablist" aria-label="Contas do Pokeidle"></div>
           <button id="add-account" class="add-tab" title="Nova conta do Pokeidle (aba com login separado)" aria-label="Adicionar conta do Pokeidle"><span class="icon-svg icon-add"></span> Conta</button>
         </div>
-        <div class="sep"></div>
-        <label class="inline" title="Nome desta conta (aparece na aba)">Conta:
-          <input id="account-name" type="text" maxlength="30" aria-label="Nome da conta" placeholder="Nome da conta">
-        </label>
         <span class="spacer"></span>
-        <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
-        <button id="game-reload"><span class="icon-svg icon-reload"></span> Recarregar jogo</button>
-        <button id="game-open-sniper" class="game-sniper-btn" title="Abrir Cockpit Auto-Sniper desta conta"><span class="icon-svg icon-target"></span> Sniper</button>
-        <div class="menu">
-          <button class="menu-btn" title="Conectar contas Twitch e Kick para esta conta do Pokeidle"><span class="icon-svg icon-link"></span> Conectar Lives ▾</button>
-          <div class="menu-list" id="account-conn-menu">
-            <div class="conn-menu-item">
-              <button id="account-login-twitch" class="conn-action-btn">Entrar na Twitch</button>
-              <button id="account-clear-twitch" class="btn-clear-conn" title="Desconectar Twitch desta conta" hidden>✕</button>
-            </div>
-            <div class="conn-menu-item">
-              <button id="account-login-kick" class="conn-action-btn">Entrar na Kick</button>
-              <button id="account-clear-kick" class="btn-clear-conn" title="Desconectar Kick desta conta" hidden>✕</button>
-            </div>
-          </div>
-        </div>
-        <button id="game-login" title="Entrar nesta conta (abre janela de login; funciona com Google)"><span class="icon-svg icon-key"></span> Entrar</button>
-        <button id="game-edge"><span class="icon-svg icon-edge"></span> Abrir no Edge</button>
-        <button id="account-remove" title="Fecha esta aba e apaga o login dela"><span class="icon-svg icon-trash"></span> Remover conta</button>
+        <button id="btn-toggle-game-actions" class="btn-actions-toggle" title="Ocultar ferramentas e opções de ações do jogo">▲ Opções</button>
       </div>
 
       <div class="bar-part" id="bar-alerts" hidden>
@@ -154,6 +132,29 @@
 
       <button id="btn-collapse-topbar" class="icon bar-collapse-btn" title="Ocultar barra de ferramentas superior para ganhar espaço vertical">▲</button>
     </header>
+
+    <div id="game-actions-bar" class="game-actions-subbar" hidden>
+      <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
+      <button id="game-reload"><span class="icon-svg icon-reload"></span> Recarregar jogo</button>
+      <button id="game-open-sniper" class="game-sniper-btn" title="Abrir Cockpit Auto-Sniper desta conta"><span class="icon-svg icon-target"></span> Sniper</button>
+      <div class="menu">
+        <button class="menu-btn" title="Conectar contas Twitch e Kick para esta conta do Pokeidle"><span class="icon-svg icon-link"></span> Conectar Lives ▾</button>
+        <div class="menu-list" id="account-conn-menu">
+          <div class="conn-menu-item">
+            <button id="account-login-twitch" class="conn-action-btn">Entrar na Twitch</button>
+            <button id="account-clear-twitch" class="btn-clear-conn" title="Desconectar Twitch desta conta" hidden>✕</button>
+          </div>
+          <div class="conn-menu-item">
+            <button id="account-login-kick" class="conn-action-btn">Entrar na Kick</button>
+            <button id="account-clear-kick" class="btn-clear-conn" title="Desconectar Kick desta conta" hidden>✕</button>
+          </div>
+        </div>
+      </div>
+      <span class="spacer"></span>
+      <button id="game-login" title="Entrar nesta conta (abre janela de login; funciona com Google)"><span class="icon-svg icon-key"></span> Entrar</button>
+      <button id="game-edge"><span class="icon-svg icon-edge"></span> Abrir no Edge</button>
+      <button id="account-remove" title="Fecha esta aba e apaga o login dela"><span class="icon-svg icon-trash"></span> Remover conta</button>
+    </div>
 
   <main id="stage">
     <section id="panel-lives" class="panel">

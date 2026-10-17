@@ -59,12 +59,14 @@ const S = {
     const u = load('pf.universalLimits', { kick: 2, twitch: 3 });
     return u && typeof u === 'object' ? u : { kick: 2, twitch: 3 };
   })(),
+  gameActionsVisible: load('pf.gameActionsVisible', true) !== false,
 };
 function persist() {
   save('pf.kick', S.kick); save('pf.twitch', S.twitch); save('pf.columns', S.columns);
   save('pf.showChat', S.showChat); save('pf.quality', S.quality); save('pf.tab', S.tab); save('pf.frames', S.frames);
   save('pf.accounts', S.accounts); save('pf.gameAccount', S.gameAccount);
   save('pf.gameMosaic', S.gameMosaic);
+  save('pf.gameActionsVisible', S.gameActionsVisible);
   save('pf.autoLives', S.autoLives); save('pf.livePoll', S.livePoll);
   save('pf.twitchEconomy', S.twitchEconomy);
   save('pf.kickEconomy', S.kickEconomy);
@@ -1441,6 +1443,14 @@ function setupGame() {
           window.pf.sendRotomFromWebview(a.id, e.args[0]);
         }
       }
+      if (e.channel === 'game-account-nick') {
+        const nick = String(e.args[0] || '').trim();
+        if (nick && nick !== '—' && a.name !== nick) {
+          a.name = nick;
+          persist();
+          renderAccountTabs();
+        }
+      }
     });
     const header = createGamePaneHeader(a, wv, market);
     const pane = el('div', { class: 'game-pane', 'data-account': a.id }, header, wv, wv.__skeleton);
@@ -1463,11 +1473,21 @@ function renderAccountTabs() {
     'data-tab': 'game',
     'data-account': a.id,
     text: a.name || 'Sem nome',
-    title: a.name || 'Sem nome',
+    title: `${a.name || 'Sem nome'} (Duplo clique para renomear)`,
     onclick: () => {
       S.gameAccount = a.id;
       if (S.gameMosaic) toggleGameMosaic(false);
       setTab('game');
+    },
+    ondblclick: (e) => {
+      e.stopPropagation();
+      const novo = window.prompt('Renomear esta conta:', a.name || '');
+      if (novo !== null && novo.trim()) {
+        a.name = novo.trim().slice(0, 30);
+        persist();
+        renderAccountTabs();
+        setTab('game');
+      }
     },
   })));
   const badgeAccounts = $('#badge-accounts');
@@ -1719,8 +1739,6 @@ function setTab(tab) {
   });
   games.forEach((g, id) => g.pane.classList.toggle('on', id === acc?.id));
   if (tab === 'game') {
-    // Só reescreve se mudou (senão o cursor pula para o fim enquanto você digita)
-    if ($('#account-name').value !== (acc?.name || '')) $('#account-name').value = acc?.name || '';
     $('#account-remove').disabled = S.accounts.length <= 1;
     void updateGameBarConnections();
     applyGameMosaic(Boolean(S.gameMosaic));
@@ -1735,11 +1753,25 @@ function setTab(tab) {
   $('#bar-alerts').hidden = tab !== 'alerts';
   $('#bar-afk').hidden = tab !== 'afk';
   $('#bar-settings').hidden = tab !== 'settings';
+  const actionsBar = $('#game-actions-bar');
+  if (actionsBar) actionsBar.hidden = tab !== 'game' || S.gameActionsVisible === false;
+  updateGameActionsToggleBtn();
   if (tab === 'alerts') renderAlerts();
   if (tab === 'afk' && window.PF?.FarmAfk?.init) window.PF.FarmAfk.init();
   if (tab === 'settings') renderSettings();
   if (tab === 'lives') layout();
   applyFpsLimits();
+}
+
+function updateGameActionsToggleBtn() {
+  const btn = $('#btn-toggle-game-actions');
+  if (!btn) return;
+  const isVisible = S.gameActionsVisible !== false;
+  btn.innerHTML = isVisible ? '▲ Opções' : '▼ Opções';
+  btn.title = isVisible
+    ? 'Ocultar barra de ações do jogo'
+    : 'Mostrar barra de ações do jogo';
+  btn.classList.toggle('active', isVisible);
 }
 
 async function updateGameBarConnections() {
@@ -1907,10 +1939,12 @@ function setupBar() {
   // Controle de Tela Limpa (ocultar / mostrar barras de ferramentas)
   const bar = $('#bar');
   const updateBar = $('#update-bar');
+  const gameActionsBar = $('#game-actions-bar');
   const floatingRestore = $('#bars-floating-restore');
   const setBarsCollapsed = (hide) => {
     bar?.classList.toggle('bar-collapsed', hide);
     updateBar?.classList.toggle('bar-collapsed', hide);
+    gameActionsBar?.classList.toggle('bar-collapsed', hide);
     if (floatingRestore) floatingRestore.hidden = !hide;
     save('pf.barsCollapsed', hide);
     if (S.tab === 'lives') layout();
@@ -1956,13 +1990,13 @@ function setupBar() {
 
   $('#add-account').addEventListener('click', addAccount);
   $('#account-remove').addEventListener('click', () => { void removeAccount(); });
-  $('#account-name').addEventListener('input', (e) => {
-    const a = currentAccount();
-    if (!a) return;
-    a.name = e.target.value.replace(/\s+/g, ' ').slice(0, 30);
+  $('#btn-toggle-game-actions')?.addEventListener('click', () => {
+    S.gameActionsVisible = !S.gameActionsVisible;
     persist();
-    renderAccountTabs();
-    setTab('game');
+    if (gameActionsBar) {
+      gameActionsBar.hidden = S.tab !== 'game' || !S.gameActionsVisible;
+    }
+    updateGameActionsToggleBtn();
   });
   $$('#target button').forEach((b) => b.addEventListener('click', () => setTarget(b.dataset.target)));
 
