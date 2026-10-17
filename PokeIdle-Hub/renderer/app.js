@@ -1805,6 +1805,22 @@ function setupBar() {
     setBarsCollapsed(true);
   }
 
+  // Limpeza de cache e memória RAM não utilizada
+  $('#btn-clean-ram')?.addEventListener('click', async () => {
+    const btn = $('#btn-clean-ram');
+    if (btn) btn.disabled = true;
+    try {
+      if (window.pf?.cleanRam) {
+        await window.pf.cleanRam();
+      }
+      toast('✓ Memória RAM otimizada e caches temporários liberados.');
+    } catch (_) {
+      toast('Falha ao liberar memória.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
   // Atalho de teclado F10 para alternar barras / tela limpa
   document.addEventListener('keydown', (e) => {
     if (e.key === 'F10') {

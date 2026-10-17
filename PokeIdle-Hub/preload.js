@@ -23,4 +23,5 @@ contextBridge.exposeInMainWorld('pf', {
   checkConnections: (partition) => ipcRenderer.invoke('check-connections', partition ? String(partition) : null),
   clearConnection: (platform, partition) => ipcRenderer.invoke('clear-connection', String(platform), partition ? String(partition) : null),
   onLoginClosed: (cb) => ipcRenderer.on('login-window-closed', (_e, data) => cb(data)),
+  cleanRam: () => ipcRenderer.invoke('clean-ram'),
 });

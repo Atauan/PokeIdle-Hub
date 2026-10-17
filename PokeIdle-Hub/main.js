@@ -584,6 +584,44 @@ ipcMain.on('open-data-dir', (e) => {
   if (fromApp(e)) shell.openPath(app.getPath('userData'));
 });
 
+// Limpeza cirúrgica de cache de requisições e memória temporária sem deslogar contas
+ipcMain.handle('clean-ram', async (e) => {
+  if (!fromApp(e)) return { ok: false };
+  try {
+    const partitions = new Set([PARTITION, ...configuredSessions]);
+    const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
+    if (fs.existsSync(partitionsDir)) {
+      try {
+        const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory() && entry.name.startsWith('pokeidlehub-acc-')) {
+            partitions.add(`persist:${entry.name}`);
+          }
+        }
+      } catch (_) {}
+    }
+
+    await Promise.all([...partitions].map(async (part) => {
+      try {
+        const ses = session.fromPartition(part);
+        await ses.clearCache();
+      } catch (_) {}
+    }));
+
+    try {
+      await session.defaultSession.clearCache();
+    } catch (_) {}
+
+    if (typeof global.gc === 'function') {
+      try { global.gc(); } catch (_) {}
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
 function migrateLegacySessions() {
   try {
     const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
