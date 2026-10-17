@@ -396,11 +396,47 @@
     <div class="update-symbol" aria-hidden="true">↓</div>
     <h2 id="update-title">Atualizações do PokeIdle Hub</h2>
     <p id="update-status" role="status" aria-live="polite"></p>
-    <p class="muted small">Suas lives e o jogo continuam rodando. Você escolhe quando atualizar.</p>
+    <p id="update-desc" class="muted small">Suas lives e o jogo continuam rodando. Você escolhe quando atualizar.</p>
+
+    <!-- Barra de Progresso de Download Direto -->
+    <div id="update-progress-container" class="update-progress-card" hidden>
+      <div class="progress-bar-wrapper">
+        <div id="update-progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+      </div>
+      <div class="progress-info">
+        <span id="update-progress-text">Baixando… 0%</span>
+        <span id="update-progress-bytes" class="muted"></span>
+      </div>
+    </div>
+
+    <!-- Aviso e Ações de Download Concluído -->
+    <div id="update-complete-container" hidden>
+      <div id="update-portable-notice" class="update-notice-card" hidden>
+        <span class="icon-svg icon-focus"></span>
+        <div>
+          <strong>Versão Portátil Baixada!</strong>
+          <p class="small">O novo arquivo foi salvo na sua pasta de Downloads. Para concluir a atualização, basta fechar o Hub agora e abrir o novo executável baixado.</p>
+        </div>
+      </div>
+      <div id="update-setup-notice" class="update-notice-card" hidden>
+        <span class="icon-svg icon-clean-ram"></span>
+        <div>
+          <strong>Pronto para Instalar!</strong>
+          <p class="small">Clique no botão abaixo para reiniciar e instalar a nova versão em 1 clique sem perder seus dados.</p>
+        </div>
+      </div>
+    </div>
+
     <p id="update-error" role="alert" hidden></p>
+
     <div class="update-actions">
       <button id="dismiss-update" autofocus>Agora não</button>
-      <button id="open-update" class="primary" hidden>Ver release / baixar</button>
+      <button id="btn-cancel-download" hidden>Cancelar</button>
+      <button id="btn-download-update" class="primary" hidden>Baixar Atualização</button>
+      <button id="btn-install-update" class="primary" hidden>Instalar e Reiniciar</button>
+      <button id="btn-open-folder" class="primary" hidden>Abrir pasta do arquivo</button>
+      <button id="btn-quit-hub" hidden>Fechar Hub agora</button>
+      <button id="open-update" class="link-btn" title="Ver release e notas da versão no GitHub" hidden>Ver no GitHub ↗</button>
     </div>
   </dialog>
 

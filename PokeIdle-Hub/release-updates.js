@@ -19,11 +19,17 @@ function newerRelease(data, currentVersion) {
   const latest = parseVersion(data.tag_name);
   if (!current || !latest) throw new Error('Invalid version');
   const different = latest.findIndex((part, i) => part !== current[i]);
+  const assets = Array.isArray(data.assets) ? data.assets.map(a => ({
+    name: String(a.name || ''),
+    size: Number(a.size || 0),
+    url: String(a.browser_download_url || ''),
+  })) : [];
   return {
     newer: different !== -1 && latest[different] > current[different],
     version: latest.join('.'),
     // Nunca abre uma URL fornecida pelo renderer ou pelo conteúdo da release.
     url: RELEASE_PAGE + encodeURIComponent(data.tag_name),
+    assets,
   };
 }
 
@@ -55,7 +61,7 @@ function createReleaseChecker({ currentVersion, fetch: fetchRelease = globalThis
         throw new Error('GitHub unavailable');
       } else {
         const result = newerRelease(await response.json(), currentVersion);
-        const update = result?.newer ? { version: result.version, url: result.url } : null;
+        const update = result?.newer ? { version: result.version, url: result.url, assets: result.assets } : null;
         setState({ status: !result ? 'unpublished' : update ? 'available' : 'current', release: update });
         if (update && !notified.has(update.version)) {
           notified.add(update.version);

@@ -432,11 +432,173 @@ ipcMain.on('session-close', e => { if (fromSummaryWindow(e)) summaryWindow.hide(
 ipcMain.on('open-about', e => { if (fromMainWindow(e)) showAbout(); });
 ipcMain.handle('update-state', e => fromMainWindow(e) ? updateChecker?.getState() : null);
 ipcMain.handle('check-updates', e => fromMainWindow(e) ? updateChecker?.check() : null);
+function isRunningAsPortable() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE) return true;
+  try {
+    const exeName = path.basename(app.getPath('exe')).toLowerCase();
+    return exeName.includes('portable');
+  } catch (_) {
+    return false;
+  }
+}
+
+function getBestUpdateAsset(assets) {
+  if (!Array.isArray(assets) || !assets.length) return null;
+  const isPortable = isRunningAsPortable();
+  const platform = process.platform;
+
+  if (platform === 'win32') {
+    if (isPortable) {
+      const p = assets.find(a => a.name.toLowerCase().includes('portable') && a.name.toLowerCase().endsWith('.exe'));
+      if (p) return { ...p, isPortable: true };
+    }
+    const s = assets.find(a => a.name.toLowerCase().includes('setup') && a.name.toLowerCase().endsWith('.exe'))
+      || assets.find(a => a.name.toLowerCase().endsWith('.exe'));
+    if (s) return { ...s, isPortable: false };
+  } else if (platform === 'darwin') {
+    const d = assets.find(a => a.name.toLowerCase().endsWith('.dmg'))
+      || assets.find(a => a.name.toLowerCase().endsWith('.zip'));
+    if (d) return { ...d, isPortable: false };
+  } else if (platform === 'linux') {
+    const l = assets.find(a => a.name.toLowerCase().endsWith('.appimage'))
+      || assets.find(a => a.name.toLowerCase().endsWith('.deb'));
+    if (l) return { ...l, isPortable: false };
+  }
+  return assets[0] ? { ...assets[0], isPortable } : null;
+}
+
+let currentDownloadAbort = null;
+
+ipcMain.handle('get-update-target', (e) => {
+  if (!fromMainWindow(e)) return null;
+  const release = updateChecker?.getState().release;
+  const asset = getBestUpdateAsset(release?.assets);
+  return {
+    isPortable: isRunningAsPortable(),
+    platform: process.platform,
+    assetName: asset?.name || null,
+    assetSize: asset?.size || 0,
+  };
+});
+
 ipcMain.handle('open-update', async e => {
   if (!fromMainWindow(e)) return false;
   const url = updateChecker?.getState().release?.url;
   if (!url) return false;
   try { await shell.openExternal(url); return true; } catch (_) { return false; }
+});
+
+ipcMain.handle('download-update', async (e) => {
+  if (!fromMainWindow(e)) return { ok: false, error: 'Unauthorized' };
+  const release = updateChecker?.getState().release;
+  if (!release) return { ok: false, error: 'Nenhuma versão disponível' };
+
+  const asset = getBestUpdateAsset(release.assets);
+  if (!asset || !asset.url) return { ok: false, error: 'Arquivo executável não encontrado na release' };
+
+  try {
+    if (currentDownloadAbort) {
+      currentDownloadAbort.abort();
+      currentDownloadAbort = null;
+    }
+    currentDownloadAbort = new AbortController();
+
+    const downloadsDir = app.getPath('downloads');
+    const destPath = path.join(downloadsDir, asset.name);
+
+    const response = await fetch(asset.url, {
+      signal: currentDownloadAbort.signal,
+      headers: {
+        'User-Agent': 'PokeIdleHub-Updater',
+        Accept: 'application/octet-stream',
+      },
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Falha no download: HTTP ${response.status}`);
+    }
+
+    const totalBytes = Number(response.headers.get('content-length')) || asset.size || 0;
+    let downloadedBytes = 0;
+
+    const fileStream = fs.createWriteStream(destPath);
+    const reader = response.body.getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      downloadedBytes += value.length;
+      fileStream.write(Buffer.from(value));
+
+      const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
+      win?.webContents.send('update-download-progress', {
+        percent,
+        downloadedBytes,
+        totalBytes,
+        fileName: asset.name,
+      });
+    }
+
+    await new Promise((resolve, reject) => {
+      fileStream.end((err) => (err ? reject(err) : resolve()));
+    });
+
+    currentDownloadAbort = null;
+
+    return {
+      ok: true,
+      filePath: destPath,
+      fileName: asset.name,
+      isPortable: asset.isPortable,
+      version: release.version,
+    };
+  } catch (err) {
+    currentDownloadAbort = null;
+    if (err.name === 'AbortError') {
+      return { ok: false, aborted: true };
+    }
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('cancel-download-update', (e) => {
+  if (!fromMainWindow(e)) return false;
+  if (currentDownloadAbort) {
+    currentDownloadAbort.abort();
+    currentDownloadAbort = null;
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('install-update', async (e, filePath) => {
+  if (!fromMainWindow(e)) return false;
+  if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) return false;
+
+  try {
+    if (process.platform === 'win32') {
+      spawn(filePath, [], { detached: true, stdio: 'ignore' }).unref();
+      setTimeout(() => { app.quit(); }, 800);
+      return true;
+    } else {
+      await shell.openPath(filePath);
+      return true;
+    }
+  } catch (_) {
+    return false;
+  }
+});
+
+ipcMain.on('show-in-folder', (e, filePath) => {
+  if (fromMainWindow(e) && filePath && typeof filePath === 'string') {
+    shell.showItemInFolder(filePath);
+  }
+});
+
+ipcMain.on('quit-app', (e) => {
+  if (fromMainWindow(e)) {
+    app.quit();
+  }
 });
 
 ipcMain.handle('live-status', (e, platform, channels) => {

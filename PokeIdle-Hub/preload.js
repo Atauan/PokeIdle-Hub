@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('pf', {
   onAddLive: (cb) => ipcRenderer.on('add-live', (_e, link) => cb(String(link))),
   checkConnections: (partition) => ipcRenderer.invoke('check-connections', partition ? String(partition) : null),
   clearConnection: (platform, partition) => ipcRenderer.invoke('clear-connection', String(platform), partition ? String(partition) : null),
-  onLoginClosed: (cb) => ipcRenderer.on('login-window-closed', (_e, data) => cb(data)),
   cleanRam: () => ipcRenderer.invoke('clean-ram'),
+  getUpdateTarget: () => ipcRenderer.invoke('get-update-target'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  cancelDownloadUpdate: () => ipcRenderer.invoke('cancel-download-update'),
+  installUpdate: (filePath) => ipcRenderer.invoke('install-update', filePath),
+  showInFolder: (filePath) => ipcRenderer.send('show-in-folder', filePath),
+  quitApp: () => ipcRenderer.send('quit-app'),
+  onDownloadProgress: (cb) => ipcRenderer.on('update-download-progress', (_e, data) => cb(data)),
 });
