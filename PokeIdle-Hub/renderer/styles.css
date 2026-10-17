@@ -985,11 +985,13 @@ button.badge-conn.btn-login:hover {
   border-color: var(--twitch);
 }
 
-/* Modo Ocultar Vídeos (Poupar GPU/CPU) */
-#grid.hide-videos .player {
+/* Modo Ocultar Vídeos e Suspensão de Segundo Plano (Poupar GPU/CPU) */
+#grid.hide-videos .player,
+#panel-lives:not(.active) .player {
   display: none !important;
 }
-#grid.hide-videos .tile {
+#grid.hide-videos .tile,
+#panel-lives:not(.active) .tile {
   min-height: 42px !important;
 }
 #toggle-video-view.active {

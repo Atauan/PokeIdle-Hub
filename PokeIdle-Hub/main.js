@@ -24,6 +24,10 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,WebBluetooth');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Aceleração por hardware (GPU Offloading) para decodificação de vídeo e composição gráfica
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
 app.userAgentFallback = CHROME_UA;
 app.setName('PokeIdle Hub');
 if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
