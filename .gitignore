@@ -21,5 +21,7 @@ temp_*
 
 # Artefatos locais e documentação interna
 _metadata/
-icons/
+/icons/
+!PokeIdle-Hub/renderer/assets/icons/**
 docs/
+!docs/changes/**
