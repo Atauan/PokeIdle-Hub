@@ -446,10 +446,10 @@
       const el = document.querySelector(alvoManual);
       if (el) return { modo: 'manual', el };
     }
-    const card = document.getElementById('ativo-card');
-    const painel = document.getElementById('p-ativo');
-    const nome = card?.querySelector('.ativo-nome');
-    if (card && painel && nome && !card.classList.contains('vazio')) return { modo: 'padrao', card, nome };
+    const card = document.getElementById('ativo-card') || document.querySelector('#p-ativo .card, #p-ativo > div:not(.pih-btn)');
+    const painel = document.getElementById('p-ativo') || card?.parentElement;
+    const nome = card?.querySelector('.ativo-nome') || card?.querySelector('[class*="nome"]') || card?.querySelector('b, strong, span');
+    if (card && painel && !card.classList.contains('vazio')) return { modo: 'padrao', card, nome: nome || card };
     return null;
   }
 
@@ -516,8 +516,8 @@
       return;
     }
     const a = ancora();
-    const texto = a?.modo === 'padrao' ? a.nome.textContent : a?.el?.textContent;
-    if (a && texto?.includes(pk.nome)) {
+    const texto = a?.modo === 'padrao' ? (a.nome?.textContent || '') : (a?.el?.textContent || '');
+    if (a && texto && texto.includes(pk.nome)) {
       verificado = true;
       posicionarBotao();
       mostrarAviso(`Pokémon em campo encontrado: <b>${esc(pk.nome)}</b>. O <b>/hunt</b> está logo acima dele.`, { fechaEm: 4500 });
