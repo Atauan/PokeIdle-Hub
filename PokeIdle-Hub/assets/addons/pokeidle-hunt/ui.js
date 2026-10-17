@@ -13,10 +13,33 @@
 
   const CHAVE_PREFS = 'pokeidle-hunt:prefs:v1';
   const CHAVE_ALVO = 'pokeidle-hunt:alvo:v1';
+  const CHAVE_AUTO_COMPRA = 'pokeidle-hunt:autocompra:v1';
   const POR_PAGINA = 25;
 
   const lerJson = (k, padrao) => { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } };
   const gravarJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } };
+
+  const REGRAS_AUTO_PADRAO = {
+    'ball-1': { ativo: false, min: 50, qty: 100 },
+    'ball-2': { ativo: false, min: 30, qty: 50 },
+    'ball-3': { ativo: false, min: 20, qty: 50 },
+    'ball-4': { ativo: false, min: 20, qty: 50 },
+    'item-200': { ativo: false, min: 20, qty: 50 },
+    'item-201': { ativo: false, min: 20, qty: 50 },
+    'item-202': { ativo: false, min: 20, qty: 50 },
+    'item-203': { ativo: false, min: 15, qty: 30 },
+    'item-204': { ativo: false, min: 10, qty: 20 },
+    'item-70070': { ativo: false, min: 10, qty: 20 },
+    'item-205': { ativo: false, min: 10, qty: 20 },
+    'item-206': { ativo: false, min: 5, qty: 10 },
+  };
+  const salvoAuto = lerJson(CHAVE_AUTO_COMPRA, {});
+  let autoCompra = {
+    ativo: !!salvoAuto.ativo,
+    regras: { ...REGRAS_AUTO_PADRAO, ...(salvoAuto.regras || {}) },
+  };
+  let registroUltimaCompra = null;
+  let ultimoAutoCompra = 0;
 
   let prefs = { ordem: 'xp', soLiberadas: true, comPocao: true, bola: 'poke', ...lerJson(CHAVE_PREFS, {}) };
   if (prefs.ordem === 'capturas') prefs.ordem = 'catch';
@@ -43,16 +66,16 @@
     poke: 5, great: 20, super: 50, ultra: 130, beast: 0,
   };
   const NOMES_POCOES = {
-    '201': 'Poção', '202': 'Super Poção', '203': 'Hyper Poção', '204': 'Max Poção',
-    '205': 'Revive', '206': 'Max Revive',
-    pocao: 'Poção', superPocao: 'Super Poção', hyperPocao: 'Hyper Poção', maxPocao: 'Max Poção',
-    revive: 'Revive', maxRevive: 'Max Revive',
+    '200': 'Small Potion', '201': 'Great Potion', '202': 'Ultra Potion', '203': 'Hyper Potion', '204': 'Ultimate Potion',
+    '70070': 'Golden Potion', '205': 'Revive', '206': 'Max Revive',
+    pocao: 'Small Potion', superPocao: 'Great Potion', hyperPocao: 'Hyper Potion', maxPocao: 'Ultimate Potion',
+    goldenPotion: 'Golden Potion', revive: 'Revive', maxRevive: 'Max Revive',
   };
   const PRECOS_POCOES = {
-    '201': 20, '202': 60, '203': 150, '204': 300,
-    '205': 250, '206': 500,
-    pocao: 20, superPocao: 60, hyperPocao: 150, maxPocao: 300,
-    revive: 250, maxRevive: 500,
+    '200': 50, '201': 150, '202': 400, '203': 800, '204': 1500,
+    '70070': 2500, '205': 600, '206': 2500,
+    pocao: 50, superPocao: 150, hyperPocao: 800, maxPocao: 1500,
+    goldenPotion: 2500, revive: 600, maxRevive: 2500,
   };
   const NOMES_DROPS = {
     bossTokens: 'Boss Tokens', fragChave: 'Frag. de Chave', fragShiny: 'Frag. Shiny Stone',
@@ -728,6 +751,7 @@
         <button type="button" data-ordem="ouro" class="${prefs.ordem === 'ouro' ? 'on' : ''}">Ouro/h</button>
         <button type="button" data-ordem="catch" class="${prefs.ordem === 'catch' ? 'on' : ''}">Catch</button>
         <button type="button" data-ordem="sessao" class="${prefs.ordem === 'sessao' ? 'on' : ''}">Sessão</button>
+        <button type="button" data-ordem="auto" class="${prefs.ordem === 'auto' ? 'on' : ''}">Auto Compra</button>
       </span>
       ${prefs.ordem === 'catch' ? `
       <label style="margin-left: 2px;">Bola:
@@ -739,7 +763,7 @@
           <option value="beast" ${prefs.bola === 'beast' ? 'selected' : ''}>Beast Ball (💎)</option>
         </select>
       </label>` : ''}
-      ${prefs.ordem !== 'sessao' ? `
+      ${prefs.ordem !== 'sessao' && prefs.ordem !== 'auto' ? `
       <label><input type="checkbox" data-pref="soLiberadas" ${prefs.soLiberadas ? 'checked' : ''}> só hunts liberadas</label>
       <label title="Com a automação de poção ligada, só morre quem leva um golpe maior que o HP inteiro"><input type="checkbox" data-pref="comPocao" ${prefs.comPocao ? 'checked' : ''}> poção automática</label>` : ''}
       ${prefs.ordem === 'ouro' ? '<button type="button" class="pih-ajuda" data-acao="ajuda-ouro" aria-expanded="false" aria-controls="pih-dica-ouro" title="O que entra no ouro/h">?</button>' : ''}
@@ -930,7 +954,10 @@
       </div>
 
       <div class="pih-vao pih-sessao-secao">
-        <h4>Consumo de Poções e Revives (${num(sessao.pocoes.totalCount)} itens · ${num(sessao.pocoes.totalCountH)} itens/h · custo: ${curto(sessao.pocoes.custoTotal)} · ${curto(sessao.pocoes.custoH)} ouro/h)</h4>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <h4 style="margin: 0;">Consumo de Poções e Revives (${num(sessao.pocoes.totalCount)} itens · ${num(sessao.pocoes.totalCountH)} itens/h · custo: ${curto(sessao.pocoes.custoTotal)} · ${curto(sessao.pocoes.custoH)} ouro/h)</h4>
+          <button type="button" class="pih-btn-mini" data-acao="testar-compra-pocao" title="Disparo seguro de 1x Small Potion (50g) para testar resposta do servidor">🧪 Testar compra (1x Small Potion)</button>
+        </div>
         ${pocoesHtml}
       </div>
 
@@ -1130,9 +1157,268 @@
     }
   }
 
+  function obterCatalogoCompra() {
+    const base = PIH.ITENS_COMPRAVEIS || {
+      bolas: [
+        { id: 1, kind: 'ball', nome: 'Poké Ball', preco: 5, catchRate: 1 },
+        { id: 2, kind: 'ball', nome: 'Great Ball', preco: 20, catchRate: 2 },
+        { id: 3, kind: 'ball', nome: 'Super Ball', preco: 50, catchRate: 3 },
+        { id: 4, kind: 'ball', nome: 'Ultra Ball', preco: 130, catchRate: 4 },
+      ],
+      pocoes: [
+        { id: 200, kind: 'item', nome: 'Small Potion', preco: 50, cura: '+60 HP' },
+        { id: 201, kind: 'item', nome: 'Great Potion', preco: 150, cura: '+150 HP' },
+        { id: 202, kind: 'item', nome: 'Ultra Potion', preco: 400, cura: '+400 HP' },
+        { id: 203, kind: 'item', nome: 'Hyper Potion', preco: 800, cura: '+1.000 HP' },
+        { id: 204, kind: 'item', nome: 'Ultimate Potion', preco: 1500, cura: '+3.000 HP' },
+        { id: 70070, kind: 'item', nome: 'Golden Potion', preco: 2500, cura: '50% HP' },
+        { id: 205, kind: 'item', nome: 'Revive', preco: 600, cura: '10% HP' },
+        { id: 206, kind: 'item', nome: 'Max Revive', preco: 2500, cura: '100% HP' },
+      ],
+    };
+    if (welcome?.catalogoBolas?.length) {
+      for (const b of welcome.catalogoBolas) {
+        if (!b.compravel || !b.priceGold) continue;
+        const existente = base.bolas.find((x) => x.id === b.id);
+        if (existente) {
+          existente.preco = Number(b.priceGold);
+          if (b.nome) existente.nome = b.nome;
+          if (b.catchRate) existente.catchRate = b.catchRate;
+        }
+      }
+    }
+    return base;
+  }
+
+  function calcularTotalCustoAtivo() {
+    const catalogo = obterCatalogoCompra();
+    return Object.entries(autoCompra.regras).reduce((acc, [key, r]) => {
+      if (!r.ativo) return acc;
+      const isBall = key.startsWith('ball-');
+      const id = Number(key.replace(/^[a-z]+-/, ''));
+      const item = isBall ? catalogo.bolas.find((x) => x.id === id) : catalogo.pocoes.find((x) => x.id === id);
+      return acc + (item ? item.preco * Math.max(1, r.qty) : 0);
+    }, 0);
+  }
+
+  function atualizarTotaisAuto() {
+    if (!painel || prefs.ordem !== 'auto') return;
+    const totalEl = painel.querySelector('#pih-auto-total-investimento');
+    if (totalEl) {
+      totalEl.innerHTML = `Investimento por ciclo: <b>${num(calcularTotalCustoAtivo())}g</b>`;
+    }
+    const tagMaster = painel.querySelector('#pih-auto-tag-master');
+    if (tagMaster) {
+      tagMaster.className = `pih-auto-status-tag ${autoCompra.ativo ? 'ativa' : 'pausada'}`;
+      tagMaster.textContent = autoCompra.ativo ? '● ATIVA' : '○ PAUSADA';
+    }
+  }
+
+  function atualizarEstoqueAutoNaTela() {
+    if (!painel || prefs.ordem !== 'auto') return;
+    const saldoEl = painel.querySelector('#pih-auto-saldo');
+    if (saldoEl && eu?.gold != null) {
+      saldoEl.textContent = `💰 Saldo: ${num(eu.gold)}g`;
+    }
+    const catalogo = obterCatalogoCompra();
+    for (const item of [...catalogo.bolas, ...catalogo.pocoes]) {
+      const key = `${item.kind}-${item.id}`;
+      const badgeEl = painel.querySelector(`[data-badge-key="${key}"]`);
+      if (badgeEl) {
+        const tem = item.kind === 'ball'
+          ? Number(eu?.balls?.[item.id] ?? eu?.balls?.[String(item.id)] ?? 0)
+          : Number(eu?.items?.[item.id] ?? eu?.items?.[String(item.id)] ?? 0);
+        const regra = autoCompra.regras[key] || { min: 20 };
+        const statusCls = tem === 0 ? 'zerado' : (tem < regra.min ? 'alerta' : 'ok');
+        badgeEl.className = `pih-badge-estoque ${statusCls}`;
+        badgeEl.textContent = num(tem);
+      }
+    }
+  }
+
+  function verificarAutoCompra() {
+    if (!autoCompra.ativo || !eu || !PIH.ws || PIH.ws.readyState !== 1) return;
+    const agora = Date.now();
+    if (agora - ultimoAutoCompra < 3800) return;
+
+    const catalogo = obterCatalogoCompra();
+    const todosItens = [...catalogo.bolas, ...catalogo.pocoes];
+
+    for (const item of todosItens) {
+      const key = `${item.kind}-${item.id}`;
+      const regra = autoCompra.regras[key];
+      if (!regra || !regra.ativo) continue;
+
+      const tem = item.kind === 'ball'
+        ? Number(eu?.balls?.[item.id] ?? eu?.balls?.[String(item.id)] ?? 0)
+        : Number(eu?.items?.[item.id] ?? eu?.items?.[String(item.id)] ?? 0);
+
+      const minGatilho = Math.max(0, Number(regra.min) || 0);
+      const qtdCompra = Math.max(1, Math.min(9999, Number(regra.qty) || 1));
+
+      if (tem < minGatilho) {
+        const custoTotal = item.preco * qtdCompra;
+        if (typeof eu.gold === 'number' && eu.gold < custoTotal) {
+          console.warn(`[pokeidle-hunt] Saldo insuficiente para auto-compra de ${item.nome} (${eu.gold}g < ${custoTotal}g)`);
+          continue;
+        }
+
+        const res = PIH.comprarItem(item.kind, item.id, qtdCompra);
+        if (res?.ok) {
+          ultimoAutoCompra = Date.now();
+          registroUltimaCompra = {
+            tempo: Date.now(),
+            texto: `${qtdCompra}x ${item.nome} (${num(custoTotal)}g)`
+          };
+          console.info(`[pokeidle-hunt] Auto-compra realizada: ${registroUltimaCompra.texto}`);
+          if (painel && prefs.ordem === 'auto') {
+            const statusEl = painel.querySelector('#pih-auto-status-msg');
+            if (statusEl) {
+              statusEl.innerHTML = `✅ Reposição automática: <b>${esc(item.nome)} (${qtdCompra}x)</b>`;
+            }
+          }
+          // Anti-ban: encerra esta rodada com apenas 1 compra. A próxima ocorrerá no ciclo subsequente.
+          return;
+        }
+      }
+    }
+  }
+
+  // Intervalo autônomo periódico de checagem segura
+  setInterval(verificarAutoCompra, 4500);
+
+  function corpoAutoCompra() {
+    const gold = Number(eu?.gold || 0);
+    const catalogo = obterCatalogoCompra();
+
+    const renderLinha = (item) => {
+      const key = `${item.kind}-${item.id}`;
+      const regra = autoCompra.regras[key] || { ativo: false, min: 20, qty: 50 };
+      const tem = item.kind === 'ball'
+        ? Number(eu?.balls?.[item.id] ?? eu?.balls?.[String(item.id)] ?? 0)
+        : Number(eu?.items?.[item.id] ?? eu?.items?.[String(item.id)] ?? 0);
+
+      const statusCls = tem === 0 ? 'zerado' : (tem < regra.min ? 'alerta' : 'ok');
+      const custo = item.preco * Math.max(1, regra.qty);
+      const detalhe = item.catchRate ? `×${item.catchRate} catch` : (item.cura || '');
+
+      return `
+        <tr data-item-row="${key}">
+          <td>
+            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" class="pih-auto-chk" data-item-key="${key}" ${regra.ativo ? 'checked' : ''}>
+              <b>${esc(item.nome)}</b>
+            </label>
+            ${detalhe ? `<span class="pih-dim" style="margin-left: 4px; font-size: 10px;">(${detalhe})</span>` : ''}
+          </td>
+          <td>${num(item.preco)}g</td>
+          <td><span class="pih-badge-estoque ${statusCls}" data-badge-key="${key}">${num(tem)}</span></td>
+          <td>
+            <input type="number" min="0" max="999999" class="pih-input-auto" data-item-key="${key}" data-campo="min" value="${regra.min}">
+          </td>
+          <td>
+            <input type="number" min="1" max="9999" class="pih-input-auto" data-item-key="${key}" data-campo="qty" value="${regra.qty}">
+          </td>
+          <td><span class="pih-custo-destaque" data-custo-key="${key}">${num(custo)}g</span></td>
+          <td>
+            <button type="button" class="pih-btn-mini" data-acao="comprar-agora" data-kind="${item.kind}" data-id="${item.id}" title="Comprar ${regra.qty}x ${esc(item.nome)} agora (${num(custo)}g)">
+              Comprar
+            </button>
+          </td>
+        </tr>`;
+    };
+
+    const totalCustoAtivo = calcularTotalCustoAtivo();
+
+    return `<div class="pih-sessao-container">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 6px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label style="font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: .3px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="pih-auto-master" ${autoCompra.ativo ? 'checked' : ''}>
+            <span>⚙️ Auto-Compra</span>
+          </label>
+          <span id="pih-auto-tag-master" class="pih-auto-status-tag ${autoCompra.ativo ? 'ativa' : 'pausada'}">
+            ${autoCompra.ativo ? '● ATIVA' : '○ PAUSADA'}
+          </span>
+        </div>
+        <div id="pih-auto-saldo" style="font-size: 11.5px; font-weight: 700; color: #ffe9a8; background: var(--vao2, #462b39); padding: 4px 8px; border-radius: 4px;">
+          💰 Saldo: ${num(gold)}g
+        </div>
+      </div>
+
+      <div class="pih-vao" style="font-size: 11px; margin-bottom: 8px; line-height: 1.4; color: var(--sobre-mad-dim, #f5cdb9); border-left: 3px solid var(--verde, #6fd08a);">
+        <b>🛡️ Proteção Anti-Ban:</b> Pacotes nativos enviados diretamente no WebSocket do jogo (1 compra por ciclo, intervalo mínimo de 3,5s e validação prévia de saldo de ouro).
+      </div>
+
+      <div class="pih-vao pih-sessao-secao" style="padding: 6px 10px; margin-bottom: 8px;">
+        <h4 style="margin: 0 0 4px; display: flex; justify-content: space-between;">
+          <span>Pokébolas</span>
+          <small class="pih-dim">Monitoramento e reposição automática</small>
+        </h4>
+        <div style="overflow-x: auto;">
+          <table class="pih-auto-tab">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Preço</th>
+                <th>Estoque Atual</th>
+                <th>Mínimo (Gatilho)</th>
+                <th>Qtd Compra</th>
+                <th>Valor Total</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${catalogo.bolas.map(renderLinha).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pih-vao pih-sessao-secao" style="padding: 6px 10px; margin-bottom: 8px;">
+        <h4 style="margin: 0 0 4px; display: flex; justify-content: space-between;">
+          <span>Poções e Revives</span>
+          <small class="pih-dim">Reposição imediata ao atingir estoque mínimo</small>
+        </h4>
+        <div style="overflow-x: auto;">
+          <table class="pih-auto-tab">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Preço</th>
+                <th>Estoque Atual</th>
+                <th>Mínimo (Gatilho)</th>
+                <th>Qtd Compra</th>
+                <th>Valor Total</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${catalogo.pocoes.map(renderLinha).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pih-rodape" style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <span id="pih-auto-total-investimento">Investimento por ciclo: <b>${num(totalCustoAtivo)}g</b></span>
+          <div id="pih-auto-status-msg" style="font-size: 10.5px; color: var(--vao-dim, #c9a9b4); margin-top: 2px;">
+            ${registroUltimaCompra ? `Última compra automática: <b>${registroUltimaCompra.texto}</b>` : 'Pronto para monitorar estoque.'}
+          </div>
+        </div>
+        <button type="button" class="pih-btn-mini" data-acao="salvar-regras-auto" style="padding: 4px 10px;">💾 Salvar Configurações</button>
+      </div>
+    </div>`;
+  }
+
+
   function corpo(r, jogo, pk, sessao, slugAtiva, historico) {
     if (prefs.ordem === 'sessao') {
       return corpoSessao(r, jogo, pk, sessao, slugAtiva, historico);
+    }
+    if (prefs.ordem === 'auto') {
+      return corpoAutoCompra();
     }
 
     const linhas = r.linhas;
@@ -1307,6 +1593,99 @@
     for (const s of painel.querySelectorAll('[data-pref-select]')) {
       s.addEventListener('change', () => { prefs[s.dataset.prefSelect] = s.value; gravarJson(CHAVE_PREFS, prefs); desenhar(); });
     }
+    // Auto-compra: toggle master
+    const chkMaster = painel.querySelector('#pih-auto-master');
+    if (chkMaster) {
+      chkMaster.addEventListener('change', () => {
+        autoCompra.ativo = chkMaster.checked;
+        gravarJson(CHAVE_AUTO_COMPRA, autoCompra);
+        atualizarTotaisAuto();
+        if (autoCompra.ativo) {
+          mostrarAviso('<b>⚙️ Auto-Compra Ativada!</b><br>Monitorando estoque seguro.', { fechaEm: 3000 });
+          verificarAutoCompra();
+        } else {
+          mostrarAviso('<b>⏸️ Auto-Compra Pausada.</b>', { fechaEm: 2500 });
+        }
+      });
+    }
+
+    // Auto-compra: toggles de cada item
+    for (const chk of painel.querySelectorAll('.pih-auto-chk')) {
+      chk.addEventListener('change', () => {
+        const key = chk.dataset.itemKey;
+        if (!autoCompra.regras[key]) autoCompra.regras[key] = { ativo: false, min: 20, qty: 50 };
+        autoCompra.regras[key].ativo = chk.checked;
+        gravarJson(CHAVE_AUTO_COMPRA, autoCompra);
+        atualizarTotaisAuto();
+        if (autoCompra.ativo && chk.checked) {
+          verificarAutoCompra();
+        }
+      });
+    }
+
+    // Auto-compra: inputs de mínimo e quantidade
+    for (const inp of painel.querySelectorAll('.pih-input-auto')) {
+      const atualizar = () => {
+        const key = inp.dataset.itemKey;
+        const campo = inp.dataset.campo;
+        const minVal = campo === 'min' ? 0 : 1;
+        const maxVal = campo === 'min' ? 999999 : 9999;
+        const val = Math.max(minVal, Math.min(maxVal, Math.floor(Number(inp.value) || minVal)));
+        if (!autoCompra.regras[key]) autoCompra.regras[key] = { ativo: false, min: 20, qty: 50 };
+        autoCompra.regras[key][campo] = val;
+
+        // Atualiza o valor total da compra da linha na hora
+        const custoEl = painel.querySelector(`[data-custo-key="${key}"]`);
+        if (custoEl) {
+          const catalogo = obterCatalogoCompra();
+          const isBall = key.startsWith('ball-');
+          const id = Number(key.replace(/^[a-z]+-/, ''));
+          const item = isBall ? catalogo.bolas.find((x) => x.id === id) : catalogo.pocoes.find((x) => x.id === id);
+          if (item) {
+            const custo = item.preco * Math.max(1, autoCompra.regras[key].qty);
+            custoEl.textContent = `${num(custo)}g`;
+          }
+        }
+        atualizarTotaisAuto();
+      };
+      inp.addEventListener('input', atualizar);
+      inp.addEventListener('change', () => {
+        atualizar();
+        gravarJson(CHAVE_AUTO_COMPRA, autoCompra);
+      });
+    }
+
+    // Auto-compra: compra manual imediata
+    for (const btn of painel.querySelectorAll('[data-acao="comprar-agora"]')) {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const kind = btn.dataset.kind;
+        const id = Number(btn.dataset.id);
+        const key = `${kind}-${id}`;
+        const row = btn.closest('tr');
+        const inpQty = row?.querySelector('input[data-campo="qty"]');
+        const r = autoCompra.regras[key] || { qty: 50 };
+        const qty = inpQty ? Math.max(1, Math.min(9999, Math.floor(Number(inpQty.value) || 1))) : Math.max(1, Math.min(9999, Math.floor(Number(r.qty) || 1)));
+        if (!autoCompra.regras[key]) autoCompra.regras[key] = { ativo: false, min: 20, qty: 50 };
+        autoCompra.regras[key].qty = qty;
+        gravarJson(CHAVE_AUTO_COMPRA, autoCompra);
+        const res = PIH.comprarItem(kind, id, qty);
+        if (res?.ok) {
+          mostrarAviso(`<b>Compra enviada!</b><br>${res.msg}`, { fechaEm: 3500 });
+          atualizarEstoqueAutoNaTela();
+        } else {
+          mostrarAviso(`<b>Falha na compra:</b><br>${esc(res?.error || 'Erro desconhecido')}`, { fechaEm: 4500 });
+        }
+      });
+    }
+
+    // Auto-compra: salvar regras
+    painel.querySelector('[data-acao="salvar-regras-auto"]')?.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      gravarJson(CHAVE_AUTO_COMPRA, autoCompra);
+      mostrarAviso('<b>Configurações salvas!</b><br>Regras de auto-compra gravadas no navegador.', { fechaEm: 3000 });
+    });
   }
 
   // Recalcula com o painel aberto só quando muda o que entra na conta (outro pokémon, nível
@@ -1328,7 +1707,13 @@
     eu = e;
     posicionarBotao();
     if (primeiro) setTimeout(() => verificar(0), 800);
-    if (painel && assinatura && assinaturaDe(pkAtivo()) !== assinatura) desenhar();
+    atualizarEstoqueAutoNaTela();
+    if (autoCompra.ativo) verificarAutoCompra();
+    if (painel && assinatura && assinaturaDe(pkAtivo()) !== assinatura) {
+      if (prefs.ordem !== 'auto' || !painel.querySelector('input:focus')) {
+        desenhar();
+      }
+    }
   });
 
   PIH.obterContextoAfk = async function() {

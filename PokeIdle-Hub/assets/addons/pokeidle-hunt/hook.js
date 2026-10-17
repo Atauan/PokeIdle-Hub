@@ -84,11 +84,87 @@
     const ws = new Original(...args);
     try {
       const alvo = new URL(String(args[0]), location.href);
-      if (alvo.host === location.host) ws.addEventListener('message', aoReceber);
+      if (alvo.host === location.host) {
+        PIH.ws = ws;
+        ws.addEventListener('message', aoReceber);
+      }
     } catch { /* URL estranha: não é o socket do jogo */ }
     return ws;
   }
   WebSocketObservado.prototype = Original.prototype;
   for (const k of ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED']) WebSocketObservado[k] = Original[k];
   root.WebSocket = WebSocketObservado;
+
+  // ---- catálogo e compra segura de poções e pokébolas -------------------------------------
+  const ITENS_COMPRAVEIS = {
+    bolas: [
+      { id: 1, kind: 'ball', nome: 'Poké Ball', preco: 5, catchRate: 1 },
+      { id: 2, kind: 'ball', nome: 'Great Ball', preco: 20, catchRate: 2 },
+      { id: 3, kind: 'ball', nome: 'Super Ball', preco: 50, catchRate: 3 },
+      { id: 4, kind: 'ball', nome: 'Ultra Ball', preco: 130, catchRate: 4 },
+    ],
+    pocoes: [
+      { id: 200, kind: 'item', nome: 'Small Potion', preco: 50, cura: '+60 HP' },
+      { id: 201, kind: 'item', nome: 'Great Potion', preco: 150, cura: '+150 HP' },
+      { id: 202, kind: 'item', nome: 'Ultra Potion', preco: 400, cura: '+400 HP' },
+      { id: 203, kind: 'item', nome: 'Hyper Potion', preco: 800, cura: '+1.000 HP' },
+      { id: 204, kind: 'item', nome: 'Ultimate Potion', preco: 1500, cura: '+3.000 HP' },
+      { id: 70070, kind: 'item', nome: 'Golden Potion', preco: 2500, cura: '50% HP' },
+      { id: 205, kind: 'item', nome: 'Revive', preco: 600, cura: '10% HP' },
+      { id: 206, kind: 'item', nome: 'Max Revive', preco: 2500, cura: '100% HP' },
+    ],
+  };
+  PIH.ITENS_COMPRAVEIS = ITENS_COMPRAVEIS;
+
+  let ultimoDisparoCompra = 0;
+
+  PIH.comprarItem = function (kind, id, qty = 1) {
+    const itemNum = Number(id);
+    const qtdNum = Math.max(1, Math.min(9999, Math.floor(Number(qty) || 1)));
+    const lista = kind === 'ball' ? ITENS_COMPRAVEIS.bolas : ITENS_COMPRAVEIS.pocoes;
+    const itemInfo = lista.find((x) => x.id === itemNum);
+
+    if (!itemInfo) {
+      const err = `Item ${kind} #${itemNum} não encontrado no catálogo do NPC.`;
+      console.warn('[PokeIdle Hunt]', err);
+      return { ok: false, error: err };
+    }
+
+    if (!PIH.ws || PIH.ws.readyState !== 1) {
+      const err = 'WebSocket do jogo não conectado no momento.';
+      console.warn('[PokeIdle Hunt]', err);
+      return { ok: false, error: err };
+    }
+
+    // Cooldown de segurança (mínimo de 3,5 segundos entre compras)
+    const agora = Date.now();
+    if (agora - ultimoDisparoCompra < 3500) {
+      const restam = ((3500 - (agora - ultimoDisparoCompra)) / 1000).toFixed(1);
+      const err = `Aguarde ${restam}s para nova compra (anti-spam de segurança).`;
+      return { ok: false, error: err };
+    }
+
+    const eu = ultimo.get('estado');
+    const custoTotal = itemInfo.preco * qtdNum;
+    if (eu && typeof eu.gold === 'number' && eu.gold < custoTotal) {
+      const err = `Ouro insuficiente (${eu.gold.toLocaleString('pt-BR')}g disponíveis, precisa de ${custoTotal.toLocaleString('pt-BR')}g).`;
+      console.warn('[PokeIdle Hunt]', err);
+      return { ok: false, error: err };
+    }
+
+    ultimoDisparoCompra = agora;
+    const payload = { t: 'shop.buy', kind: kind === 'ball' ? 'ball' : 'item', id: itemNum, qty: qtdNum };
+    PIH.ws.send(JSON.stringify(payload));
+
+    const msg = `${qtdNum}x ${itemInfo.nome} compradas por ${custoTotal.toLocaleString('pt-BR')}g.`;
+    console.info('[PokeIdle Hunt]', msg);
+    return { ok: true, item: itemNum, kind, nome: itemInfo.nome, qty: qtdNum, custo: custoTotal, msg };
+  };
+
+  PIH.testarCompraPocao = function (id = 200, qty = 1) {
+    return PIH.comprarItem('item', id, qty);
+  };
+  PIH.testarCompraBola = function (id = 1, qty = 1) {
+    return PIH.comprarItem('ball', id, qty);
+  };
 })(globalThis);

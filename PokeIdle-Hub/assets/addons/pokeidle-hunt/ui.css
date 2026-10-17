@@ -163,3 +163,45 @@
 .pih-aviso button.pih-x { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 14px; }
 .pih-mirando, .pih-mirando * { cursor: crosshair !important; }
 .pih-alvo { outline: 3px dashed var(--seta, #ffd166) !important; outline-offset: 2px; }
+
+/* ---- aba auto compra ---------------------------------------------------------------- */
+.pih-auto-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 11px; margin-top: 4px; }
+.pih-auto-tab th {
+  text-align: right; font-size: 9.5px; color: var(--vao-dim, #c9a9b4); padding: 5px 6px;
+  border-bottom: 1px solid var(--vao2, #462b39); white-space: nowrap; text-transform: uppercase;
+}
+.pih-auto-tab th:nth-child(-n+2), .pih-auto-tab td:nth-child(-n+2) { text-align: left; }
+.pih-auto-tab th:nth-child(3), .pih-auto-tab td:nth-child(3),
+.pih-auto-tab th:nth-child(4), .pih-auto-tab td:nth-child(4),
+.pih-auto-tab th:nth-child(5), .pih-auto-tab td:nth-child(5),
+.pih-auto-tab th:nth-child(7), .pih-auto-tab td:nth-child(7) {
+  text-align: center;
+}
+.pih-auto-tab td { padding: 5px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: right; white-space: nowrap; vertical-align: middle; }
+.pih-auto-tab tr:hover td { background: rgba(255, 255, 255, 0.03); }
+.pih-input-auto {
+  width: 64px; background: var(--vao, #33202b); border: 1px solid var(--mad-linha, #480e1e);
+  color: var(--sobre-mad, #fff6ef); border-radius: 4px; padding: 2px 4px; font: 700 11px/1 system-ui; text-align: center;
+  -moz-appearance: textfield;
+}
+.pih-input-auto::-webkit-outer-spin-button,
+.pih-input-auto::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.pih-input-auto:focus { outline: 1px solid var(--laranja, #f0a03c); border-color: var(--laranja, #f0a03c); }
+
+.pih-badge-estoque {
+  display: inline-block; min-width: 32px; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 10.5px; text-align: center;
+}
+.pih-badge-estoque.ok { background: rgba(111, 208, 138, 0.2); color: var(--verde, #6fd08a); border: 1px solid rgba(111, 208, 138, 0.3); }
+.pih-badge-estoque.alerta { background: rgba(240, 160, 60, 0.25); color: var(--laranja, #f0a03c); border: 1px solid rgba(240, 160, 60, 0.4); }
+.pih-badge-estoque.zerado { background: rgba(255, 90, 90, 0.25); color: #ff8080; border: 1px solid rgba(255, 90, 90, 0.4); }
+.pih-custo-destaque { color: #ffe9a8; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pih-auto-status-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700;
+}
+.pih-auto-status-tag.ativa { background: rgba(111, 208, 138, 0.25); color: var(--verde, #6fd08a); border: 1px solid rgba(111, 208, 138, 0.4); }
+.pih-auto-status-tag.pausada { background: rgba(200, 200, 200, 0.1); color: var(--vao-dim, #c9a9b4); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+

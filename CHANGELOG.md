@@ -26,6 +26,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Adicionado
 
+- Aba "Auto Compra" no addon `/hunt` para automação e reposição de Pokébolas (Poké Ball, Great Ball, Super Ball, Ultra Ball) e consumíveis de cura (Small Potion, Great Potion, Ultra Potion, Hyper Potion, Ultimate Potion, Golden Potion, Revive, Max Revive) com verificação em tempo real de estoque, limites mínimos configuráveis, cálculo dinâmico de custo total, botão de compra manual e proteção anti-ban por cooldown nativo de 3,5s (com referência em `docs/changes/2026-10-17-1417--auto-compra-bolas-pocoes.md`).
+
 - Download direto de atualizações no modal nativo com barra de progresso em tempo real e suporte a executáveis portáteis (com referência em `docs/changes/2026-10-16-2250--download-direto-atualizacao-e-fluxo-portatil.md`), permitindo baixar o instalador ou a versão portátil sem abrir o navegador, com instalação e reinicialização em 1 clique para o instalador e orientação com botão de abrir pasta para a versão portátil.
 
 - Aba de Configurações e regulador dinâmico de FPS para o jogo Pokeidle (com referência em `docs/changes/2026-10-16-2136--aba-configuracoes-e-limitador-fps-dinamico.md`), permitindo calibrar independentemente a taxa de quadros da conta em foco (30 FPS recomendado / 60 FPS máximo) e de contas em segundo plano (15 FPS recomendado / 10 FPS ultra-econômico), além de alternar a suspensão de vídeos e acionar a otimização de memória RAM.
