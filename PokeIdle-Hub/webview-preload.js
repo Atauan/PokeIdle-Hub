@@ -266,11 +266,30 @@ function market() {
   if (window.__pfMarket) return;
   window.__pfMarket = true;
   window.__pfPoll = window.__pfPoll || 60;
-  const post = (o) => window.postMessage({ __pfMarket: o }, '*');
+  const recentSent = new Map();
+  function postMarket(o) {
+    if (!o || !Array.isArray(o.items) || !o.items.length) return;
+    const now = Date.now();
+    for (const [k, t] of recentSent) {
+      if (now - t > 600000) recentSent.delete(k);
+    }
+    const fresh = [];
+    for (const it of o.items) {
+      const k = it.id != null ? `id:${it.id}` : `${it.name}|${it.currency}|${it.price}|${it.shiny ? 1 : 0}`;
+      if (recentSent.has(k)) continue;
+      recentSent.set(k, now);
+      fresh.push(it);
+    }
+    if (fresh.length) {
+      window.postMessage({ __pfMarket: { ...o, items: fresh } }, '*');
+    }
+  }
+
   const WANT = /market|mercado|rmt|listing|offer|oferta|auction|leil|trade|anunc/i;
   const replay = {};
   const NAME = /^(name|nome|displayName|speciesName|pokemonName|itemName|title|species|pokemon|item)$/i;
-  const PRICE = /price|preco|preço|valor|cost|amount|min/i;
+  const PRIMARY_PRICE = /^(preco|price)$/i;
+  const PRICE = /price|preco|preço|valor|cost|min/i;
 
   function pickName(o) {
     for (const k in o) {
@@ -281,8 +300,33 @@ function market() {
     }
     return null;
   }
+
+  function pickPriceAndCurrency(x, curDefault) {
+    let pKey = null;
+    for (const k in x) {
+      if (PRIMARY_PRICE.test(k)) { pKey = k; break; }
+    }
+    if (!pKey) {
+      for (const k in x) {
+        if (PRICE.test(k) && !/^(qtd|quantity|amount|count|total|level|lvl|id)$/i.test(k)) {
+          pKey = k;
+          break;
+        }
+      }
+    }
+    if (!pKey) return null;
+    let v = x[pKey];
+    if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) v = parseFloat(v);
+    if (typeof v !== 'number' || v <= 0 || isNaN(v)) return null;
+
+    const cur = String(x.currency || x.moeda || x.coin || curDefault || '');
+    const c = /gem|diam|orb/i.test(pKey) ? 'gems' : (/coin|gold|moeda/i.test(pKey) ? 'coins' : (/gem|diam|orb/i.test(cur) ? 'gems' : 'coins'));
+    return { price: v, currency: c };
+  }
+
   function extract(root) {
     const out = [];
+    const seenBatch = new Set();
     let n = 0;
     (function walk(x, depth) {
       if (!x || depth > 8 || n > 5000) return;
@@ -292,13 +336,14 @@ function market() {
       const name = pickName(x);
       if (name) {
         const shiny = x.shiny === true || x.isShiny === true || /shiny/i.test(name);
-        const cur = String(x.currency || x.moeda || x.coin || '');
-        for (const k in x) {
-          let v = x[k];
-          if (typeof v === 'string' && /^\d+(\.\d+)?$/.test(v)) v = parseFloat(v);
-          if (typeof v !== 'number' || !PRICE.test(k) || v <= 0) continue;
-          const c = /gem|diam/i.test(k) ? 'gems' : (/coin|gold|moeda/i.test(k) ? 'coins' : (/gem|diam/i.test(cur) ? 'gems' : 'coins'));
-          out.push({ name, price: v, currency: c, shiny, id: x.id || x._id || x.listingId || null });
+        const pc = pickPriceAndCurrency(x);
+        if (pc) {
+          const id = x.id || x._id || x.listingId || null;
+          const bKey = id != null ? `id:${id}` : `${name}|${pc.price}|${pc.currency}|${shiny ? 1 : 0}`;
+          if (!seenBatch.has(bKey)) {
+            seenBatch.add(bKey);
+            out.push({ name, price: pc.price, currency: pc.currency, shiny, id });
+          }
         }
       }
       for (const k2 in x) if (x[k2] && typeof x[k2] === 'object') walk(x[k2], depth + 1);
@@ -312,7 +357,7 @@ function market() {
     const items = extract(json);
     if (!items.length) return;
     if (method === 'GET' && !isPoll) replay[url] = Date.now();
-    post({ url, sample: text.slice(0, 30000), items });
+    postMarket({ url, sample: text.slice(0, 30000), items });
   }
 
   const origFetch = window.fetch;
@@ -395,7 +440,7 @@ function market() {
       if (prices[0]) out.push({ name, price: prices[0], currency: 'coins', shiny });
       if (prices[1]) out.push({ name, price: prices[1], currency: 'gems', shiny });
     });
-    if (out.length) post({ url: 'dom', items: out });
+    if (out.length) postMarket({ url: 'dom', items: out });
   }, 10000);
 }
 

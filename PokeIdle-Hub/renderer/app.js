@@ -1590,11 +1590,28 @@ function onMarket(msg) {
 }
 
 function processItems(items) {
-  M.totalSeen += items.length;
   const now = Date.now();
-  M.seen = [...items.map((item) => ({ date: now, item })), ...M.seen].slice(0, 60);
+  if (!M.recentSeenMap) M.recentSeenMap = new Map();
+  for (const [k, t] of M.recentSeenMap) {
+    if (now - t > 600000) M.recentSeenMap.delete(k);
+  }
 
+  const fresh = [];
   for (const item of items) {
+    const key = item.id != null
+      ? `id:${item.id}`
+      : `${norm(item.name)}|${item.currency}|${item.price}|${item.shiny ? 1 : 0}`;
+    if (M.recentSeenMap.has(key)) continue;
+    M.recentSeenMap.set(key, now);
+    fresh.push(item);
+  }
+
+  if (!fresh.length) return;
+
+  M.totalSeen += fresh.length;
+  M.seen = [...fresh.map((item) => ({ date: now, item })), ...M.seen].slice(0, 60);
+
+  for (const item of fresh) {
     const avg = average(item);   // média antes de incluir este preço
     const hKey = `${norm(item.name)}|${item.currency}`;
     M.history[hKey] = [...(M.history[hKey] || []), item.price].slice(-50);
@@ -1602,11 +1619,11 @@ function processItems(items) {
     if (!M.enabled) continue;
     const rule = M.rules.find((r) => matches(r, item, avg));
     if (!rule) continue;
-    // Mesmo anúncio/preço só alerta uma vez
-    const key = `${item.id || '-'}|${hKey}|${item.price}`;
-    if (M.alerted.has(key)) continue;
+    // Mesmo anúncio só alerta uma vez
+    const aKey = item.id != null ? `id:${item.id}` : `${hKey}|${item.price}|${item.shiny ? 1 : 0}`;
+    if (M.alerted.has(aKey)) continue;
     if (M.alerted.size > 20000) M.alerted.clear();
-    M.alerted.add(key);
+    M.alerted.add(aKey);
 
     const summary = ruleSummary(rule);
     M.hits.unshift({ date: now, name: item.name, price: item.price, currency: item.currency, shiny: item.shiny, rule: summary, average: avg });

@@ -8,6 +8,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Corrigido
 
+- Deduplicação de anúncios e alertas no Community Market (`webview-preload.js`, `app.js` e `alerts.js`), eliminando listagens repetidas causadas pelo envio multi-idioma (`pt`, `en`, `es`) do WebSocket do jogo, reconexões de chat e polling de DOM, além de corrigir o reconhecimento da moeda `orb` para Gemas em vez de Coins (com referência em `docs/changes/2026-10-17-1615--deduplicacao-alertas-mercado-e-ajuste-responsividade-auto-compra.md`).
+- Alargamento e refinamento responsivo do painel `/hunt` (ampliado de 640px para 760px) com coluna de ação e botão de compra manual perfeitamente visíveis e sem corte horizontal na aba de Auto Compra.
 - Injeção do addon `/hunt` e dos leitores de telemetria diretamente no Mundo Principal (World 0) da `<webview>` via `webFrame.executeJavaScriptInIsolatedWorld(0)`, eliminando a barreira de isolamento de mundos da V8, garantindo que o gancho de `window.WebSocket` capture o estado do treinador e que o botão dourado seja ancorado no fluxo do painel `#p-ativo` acima do card ativo.
 - Eliminação de cancelamentos por `requestAnimationFrame` e mutações em cascata na ancoragem do botão `/hunt`, garantindo posicionamento síncrono no painel `#p-ativo` com estilo `display: block !important` e observador restrito a nós filhos diretos.
 - Remoção de chamadas `require` relativas em `webview-preload.js` incompatíveis com o modo `sandbox: true`, padronizando o carregamento de preloads de sessão via `ses.registerPreloadScript`.
