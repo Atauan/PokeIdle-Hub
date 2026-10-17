@@ -53,6 +53,12 @@ function installPokeidleHunt() {
   try {
     if (typeof process !== 'undefined' && process.versions?.electron && typeof require === 'function') {
       const { webFrame } = require('electron');
+      if (webFrame && typeof webFrame.executeJavaScriptInIsolatedWorld === 'function') {
+        webFrame.executeJavaScriptInIsolatedWorld(0, [{ code: runner }]).catch(err => {
+          console.error('[PokeIdle Hub] Erro ao injetar /hunt no mundo principal:', err);
+        });
+        return;
+      }
       if (webFrame && typeof webFrame.executeJavaScript === 'function') {
         webFrame.executeJavaScript(runner).catch(err => {
           console.error('[PokeIdle Hub] Erro ao injetar /hunt:', err);

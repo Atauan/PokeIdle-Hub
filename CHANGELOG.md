@@ -8,8 +8,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Corrigido
 
+- Injeção do addon `/hunt` e dos leitores de telemetria diretamente no Mundo Principal (World 0) da `<webview>` via `webFrame.executeJavaScriptInIsolatedWorld(0)`, eliminando a barreira de isolamento de mundos da V8, garantindo que o gancho de `window.WebSocket` capture o estado do treinador e que o botão dourado seja ancorado no fluxo do painel `#p-ativo` acima do card ativo.
+- Remoção de chamadas `require` relativas em `webview-preload.js` incompatíveis com o modo `sandbox: true`, padronizando o carregamento de preloads de sessão via `ses.registerPreloadScript`.
 - Geração de contêiner `.ico` nativo multi-resolução para Windows (`build/icon.ico` e `assets/icon.ico`) e configuração no `package.json` e `main.js`, eliminando a exibição do ícone padrão do Electron nos executáveis e no agrupador da barra de tarefas.
-- Restauração da injeção do botão `/hunt` e dos scripts de telemetria/economia (`game-channels`, `game-session`, `twitch-economy`, `kick-economy`) em versões empacotadas (`.exe`, instalador e portable), garantindo leitura direta via Node no `webview-preload.js`, descompactação física em `app.asar.unpacked` e reforço na ancoragem do card do pokémon ativo.
 
 ### Alterado
 

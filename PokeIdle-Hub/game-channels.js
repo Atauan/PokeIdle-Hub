@@ -135,8 +135,15 @@ if (typeof process !== 'undefined' && process.versions?.electron && typeof requi
       if (event.source !== window || event.origin !== location.origin || !Array.isArray(event.data?.__pfGameChannels)) return;
       ipcRenderer.sendToHost('game-channels', event.data.__pfGameChannels.slice(0, 200));
     });
-    try { contextBridge.executeInMainWorld({ func: watchGameChannels }); }
-    catch (_) { webFrame.executeJavaScript(`(${watchGameChannels.toString()})()`).catch(() => {}); }
+    try {
+      if (webFrame.executeJavaScriptInIsolatedWorld) {
+        webFrame.executeJavaScriptInIsolatedWorld(0, [{ code: `(${watchGameChannels.toString()})()` }]);
+      } else if (contextBridge.executeInMainWorld) {
+        contextBridge.executeInMainWorld({ func: watchGameChannels });
+      } else {
+        webFrame.executeJavaScript(`(${watchGameChannels.toString()})()`).catch(() => {});
+      }
+    } catch (_) {}
   }
 } else {
   watchGameChannels();

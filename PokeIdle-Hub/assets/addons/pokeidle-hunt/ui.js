@@ -508,28 +508,33 @@
 
   let verificado = false;
   function verificar(tentativa = 0) {
-    if (verificado || !eu) return;
+    if (verificado) return;
     const pk = pkAtivo();
-    if (!pk) {
-      if (tentativa === 0) mostrarAviso('Coloque um pokémon <b>em campo</b> para usar o <b>/hunt</b>.', { fechaEm: 8000 });
-      setTimeout(() => verificar(1), 3000);
-      return;
-    }
     const a = ancora();
-    const texto = a?.modo === 'padrao' ? (a.nome?.textContent || '') : (a?.el?.textContent || '');
-    if (a && texto && texto.includes(pk.nome)) {
-      verificado = true;
+    if (a) {
       posicionarBotao();
-      mostrarAviso(`Pokémon em campo encontrado: <b>${esc(pk.nome)}</b>. O <b>/hunt</b> está logo acima dele.`, { fechaEm: 4500 });
+      if (pk) {
+        const texto = a.modo === 'padrao' ? (a.nome?.textContent || '') : (a.el?.textContent || '');
+        if (texto.includes(pk.nome)) {
+          verificado = true;
+          mostrarAviso(`Pokémon em campo encontrado: <b>${esc(pk.nome)}</b>. O <b>/hunt</b> está logo acima dele.`, { fechaEm: 4500 });
+          return;
+        }
+      }
+    }
+    if (!pk && !eu) {
+      if (tentativa < 20) { setTimeout(() => verificar(tentativa + 1), 1000); return; }
       return;
     }
     if (tentativa < 12) { setTimeout(() => verificar(tentativa + 1), 500); return; }
-    const mirar = document.createElement('button');
-    mirar.className = 'pih-mais';
-    mirar.style.width = 'auto';
-    mirar.textContent = 'Apontar';
-    mirar.onclick = iniciarMira;
-    mostrarAviso(`<b>Onde está seu Pokémon ativo?</b><br>Não achei o card de <b>${esc(pk.nome)}</b>. Clique em “Apontar” e depois no nome dele.`, { acao: mirar });
+    if (pk && !a) {
+      const mirar = document.createElement('button');
+      mirar.className = 'pih-mais';
+      mirar.style.width = 'auto';
+      mirar.textContent = 'Apontar';
+      mirar.onclick = iniciarMira;
+      mostrarAviso(`<b>Onde está seu Pokémon ativo?</b><br>Não achei o card de <b>${esc(pk.nome)}</b>. Clique em “Apontar” e depois no nome dele.`, { acao: mirar });
+    }
   }
 
   let mirando = null;

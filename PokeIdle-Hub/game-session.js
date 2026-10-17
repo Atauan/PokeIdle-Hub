@@ -259,9 +259,13 @@ function installGameSessionReader() {
 
 if (typeof process !== 'undefined' && process.versions?.electron && typeof require === 'function') {
   const { webFrame } = require('electron');
-  // executeInMainWorld serializa a função; imports dinâmicos precisam do contexto
-  // normal de script do WebFrame para resolver os módulos públicos do jogo.
-  webFrame.executeJavaScript(`(${installGameSessionReader.toString()})()`).catch(() => {});
+  try {
+    if (webFrame.executeJavaScriptInIsolatedWorld) {
+      webFrame.executeJavaScriptInIsolatedWorld(0, [{ code: `(${installGameSessionReader.toString()})()` }]);
+    } else {
+      webFrame.executeJavaScript(`(${installGameSessionReader.toString()})()`).catch(() => {});
+    }
+  } catch (_) {}
 } else if (typeof window !== 'undefined') {
   installGameSessionReader();
 } else if (typeof module !== 'undefined') {

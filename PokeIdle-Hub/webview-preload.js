@@ -467,19 +467,9 @@ if (/pokeidle\.io$/.test(host)) {
     ipcRenderer.sendToHost('market', e.data.__pfMarket);
   });
 
-  // Scripts do jogo e addons carregados com suporte nativo a app.asar no Electron
-  try { require('./game-channels.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar game-channels:', err); }
-  try { require('./game-session.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar game-session:', err); }
-  try { require('./pokeidle-hunt.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar pokeidle-hunt:', err); }
 } else if (isChat) {
   inject(compactChat);
-  if (/twitch\.tv$/.test(host)) {
-    inject(twitchChat);
-    try { require('./twitch-economy.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar twitch-economy:', err); }
-  }
-  if (/kick\.com$/.test(host)) {
-    try { require('./kick-economy.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar kick-economy:', err); }
-  }
+  if (/twitch\.tv$/.test(host)) inject(twitchChat);
   // Clique na faixa (ex.: botão de pontos): avisa o app para abrir o chat inteiro e o modal aparecer
   document.addEventListener('pointerdown', () => ipcRenderer.sendToHost('chat-click'), true);
 } else if (host === 'player.kick.com' || host === 'www.twitch.tv' || /kick\.com$/.test(host)) {
@@ -488,14 +478,11 @@ if (/pokeidle\.io$/.test(host)) {
     inject(compactChat);
     inject(twitchLayout);
     inject(twitchChat);
-    try { require('./twitch-economy.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar twitch-economy:', err); }
     window.addEventListener('message', e => {
       if (e.source === window && typeof e.data?.__pfTwitchChatReady === 'boolean') ipcRenderer.sendToHost('twitch-chat-ready', e.data.__pfTwitchChatReady);
     });
     document.addEventListener('pointerdown', e => {
       if (document.documentElement.classList.contains('pf-twitch-shared') && e.target.closest('.chat-shell')) ipcRenderer.sendToHost('chat-click');
     }, true);
-  } else if (host === 'player.kick.com' || /kick\.com$/.test(host)) {
-    try { require('./kick-economy.js'); } catch (err) { console.error('[PokeIdle Hub] Erro ao carregar kick-economy:', err); }
   }
 }

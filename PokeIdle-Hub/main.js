@@ -232,7 +232,7 @@ function addLive(link) {
 }
 
 // Sessão de cada conta extra do Pokeidle: persist:pokeidlehub-acc-<id>
-const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{8,40}$/;
+const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{1,60}$/i;
 const configuredSessions = new Set();
 
 // Domínios conhecidos de telemetria, rastreamento e publicidade pesada da Twitch e Kick.
@@ -326,6 +326,7 @@ function setupSession(part) {
     try {
       const filePath = resolvePreloadPath(filename);
       if (fs.existsSync(filePath)) {
+        try { ses.unregisterPreloadScript(id); } catch (_) {}
         ses.registerPreloadScript({ id, type: 'frame', filePath });
       }
     } catch (_) {}
