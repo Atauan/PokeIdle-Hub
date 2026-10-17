@@ -48,7 +48,7 @@ const S = {
   target: 'kick',
   hideVideos: load('pf.hideVideos', false) === true,
   accountFavorites: load('pf.accountFavorites', {}),
-  fpsForeground: load('pf.fpsForeground', 30),
+  fpsForeground: load('pf.fpsForeground', 0),
   fpsBackground: load('pf.fpsBackground', 15),
   suspendBgVideos: load('pf.suspendBgVideos', true) !== false,
   accountLimits: (() => {

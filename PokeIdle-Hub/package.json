@@ -88,8 +88,7 @@
       "artifactName": "PokeIdle-Hub-Setup-${version}.exe"
     },
     "portable": {
-      "artifactName": "PokeIdle-Hub-Portable-${version}.exe",
-      "useApplicationDataDirectory": true
+      "artifactName": "PokeIdle-Hub-Portable-${version}.exe"
     },
     "dmg": {
       "artifactName": "PokeIdle-Hub-${version}-${arch}.dmg"

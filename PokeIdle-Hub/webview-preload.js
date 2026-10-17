@@ -399,36 +399,53 @@ function market() {
   }, 10000);
 }
 
-/** Regulador inteligente de taxa de quadros (FPS) para poupar CPU/GPU no Canvas/WebGL do Pokeidle. */
+/** Regulador inteligente de taxa de quadros (FPS) para poupar CPU/GPU sem quebrar o loop de renderização do Canvas. */
 function limitFps() {
   try {
-    let targetFps = 30;
-    let lastTime = 0;
+    let targetFps = 0; // 0 = sem limite (60 FPS padrão)
+    let lastFrameTime = 0;
     const origRAF = window.requestAnimationFrame.bind(window);
 
     window.__pfSetTargetFps = function (fps) {
       const val = Number(fps);
-      if (Number.isFinite(val) && val > 0) {
-        targetFps = Math.max(5, Math.min(120, val));
+      if (Number.isFinite(val) && val > 0 && val < 60) {
+        targetFps = Math.max(5, val);
       } else {
         targetFps = 0;
       }
     };
 
+    const pendingCallbacks = [];
+    let rafScheduled = false;
+
+    function processQueue(timestamp) {
+      rafScheduled = false;
+      const interval = targetFps > 0 ? (1000 / targetFps) : 0;
+      const elapsed = timestamp - lastFrameTime;
+
+      if (!targetFps || elapsed >= interval || lastFrameTime === 0) {
+        lastFrameTime = timestamp - (interval > 0 ? (elapsed % interval) : 0);
+        const toRun = pendingCallbacks.slice();
+        pendingCallbacks.length = 0;
+        for (let i = 0; i < toRun.length; i++) {
+          try { toRun[i](timestamp); } catch (_) {}
+        }
+      } else if (pendingCallbacks.length > 0) {
+        rafScheduled = true;
+        origRAF(processQueue);
+      }
+    }
+
     window.requestAnimationFrame = function (callback) {
       if (!targetFps || targetFps >= 60) {
         return origRAF(callback);
       }
-      return origRAF(function loop(timestamp) {
-        const interval = 1000 / targetFps;
-        const elapsed = timestamp - lastTime;
-        if (elapsed >= interval || lastTime === 0) {
-          lastTime = timestamp - (elapsed % interval);
-          callback(timestamp);
-        } else {
-          origRAF(loop);
-        }
-      });
+      pendingCallbacks.push(callback);
+      if (!rafScheduled) {
+        rafScheduled = true;
+        return origRAF(processQueue);
+      }
+      return 1;
     };
   } catch (_) {}
 }
