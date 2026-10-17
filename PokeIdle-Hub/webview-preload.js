@@ -567,6 +567,28 @@ if (/pokeidle\.io$/.test(host)) {
     }
   });
 
+  // Atalho de Zoom com Scroll do Mouse dentro do jogo (Ctrl + Wheel)
+  window.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      ipcRenderer.sendToHost('game-zoom-delta', delta);
+    }
+  }, { passive: false });
+
+  // Atalhos universais de Zoom com Teclado dentro do jogo (Ctrl + - / Ctrl + + / Ctrl + 0)
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract')) {
+      e.preventDefault();
+      ipcRenderer.sendToHost('game-zoom-delta', -0.05);
+    } else if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd')) {
+      e.preventDefault();
+      ipcRenderer.sendToHost('game-zoom-delta', 0.05);
+    } else if (e.ctrlKey && (e.key === '0' || e.code === 'Numpad0')) {
+      e.preventDefault();
+      ipcRenderer.sendToHost('game-zoom-reset');
+    }
+  }, true);
 } else if (isChat) {
   inject(compactChat);
   if (/twitch\.tv$/.test(host)) inject(twitchChat);

@@ -32,6 +32,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Adicionado
 
+- Controle universal de Zoom e escala para as contas do jogo e Modo Mosaico (`index.html`, `styles.css`, `app.js` e `webview-preload.js`), permitindo diminuir ou aumentar a escala das contas (de 40% a 150%) com atalhos de teclado (`Ctrl + -`, `Ctrl + +`, `Ctrl + 0`), rolagem do mouse (`Ctrl + Wheel`), botões dedicados na sub-barra de ações e controles individuais no cabeçalho de cada card do Modo Mosaico, evitando cortes de tela e rolagem quando 4 ou mais contas estiverem abertas simultaneamente (com referência em `docs/changes/2026-10-17-1905--controle-zoom-escala-jogo-e-mosaico.md`).
+
 - Addon nativo Sniper com Cockpit Standalone por conta (com referência em `docs/changes/2026-10-17-1755--addon-sniper-cockpit-por-conta.md`), permitindo abrir a interface autêntica do assistente de auto-snipe, radar e telemetria de mercado em janela própria dedicada (`BrowserWindow` de 1160x760) para cada conta do Pokeidle, com motor de auto-compra independente rodando no World 0 da webview mesmo com o Cockpit fechado e comunicação segura via protocolo nativo do jogo.
 
 - Aba "Auto Compra" no addon `/hunt` para automação e reposição de Pokébolas (Poké Ball, Great Ball, Super Ball, Ultra Ball) e consumíveis de cura (Small Potion, Great Potion, Ultra Potion, Hyper Potion, Ultimate Potion, Golden Potion, Revive, Max Revive) com verificação em tempo real de estoque, limites mínimos configuráveis, cálculo dinâmico de custo total, botão de compra manual e proteção anti-ban por cooldown nativo de 3,5s (com referência em `docs/changes/2026-10-17-1417--auto-compra-bolas-pocoes.md`).

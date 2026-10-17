@@ -809,6 +809,103 @@ webview { background: #0b0b0c; }
   border-color: rgba(239, 68, 68, 0.35);
   color: #fca5a5;
 }
+
+/* Controles de Zoom na Sub-barra do Jogo */
+.game-zoom-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+.game-zoom-control .zoom-title {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+.game-zoom-control .btn-zoom {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.game-zoom-control .btn-zoom:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.game-zoom-control .btn-zoom-value {
+  background: transparent;
+  border: 0;
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 38px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.game-zoom-control .btn-zoom-value:hover {
+  text-decoration: underline;
+}
+
+/* Grupo de Zoom nos Cards do Modo Mosaico */
+.game-pane-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-right: 2px;
+}
+.game-pane-zoom-btn {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.game-pane-zoom-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+.game-pane-zoom-level {
+  font-size: 10px;
+  font-weight: 600;
+  color: #93c5fd;
+  min-width: 32px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+.game-pane-zoom-level:hover {
+  color: #fff;
+  text-decoration: underline;
+}
 .game-pane-btn.sniper:hover {
   background: #ef4444;
   color: #fff;

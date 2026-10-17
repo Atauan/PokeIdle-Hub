@@ -60,6 +60,7 @@ const S = {
     return u && typeof u === 'object' ? u : { kick: 2, twitch: 3 };
   })(),
   gameActionsVisible: load('pf.gameActionsVisible', true) !== false,
+  accountZoom: load('pf.accountZoom', {}),
 };
 function persist() {
   save('pf.kick', S.kick); save('pf.twitch', S.twitch); save('pf.columns', S.columns);
@@ -67,6 +68,7 @@ function persist() {
   save('pf.accounts', S.accounts); save('pf.gameAccount', S.gameAccount);
   save('pf.gameMosaic', S.gameMosaic);
   save('pf.gameActionsVisible', S.gameActionsVisible);
+  save('pf.accountZoom', S.accountZoom);
   save('pf.autoLives', S.autoLives); save('pf.livePoll', S.livePoll);
   save('pf.twitchEconomy', S.twitchEconomy);
   save('pf.kickEconomy', S.kickEconomy);
@@ -1315,6 +1317,45 @@ window.__pfCollectSessions = async () => ({
   })),
 });
 
+function getAccountZoom(accId) {
+  if (!accId) accId = S.gameAccount;
+  const z = S.accountZoom && S.accountZoom[accId];
+  return typeof z === 'number' && z >= 0.35 && z <= 2.0 ? z : 1.0;
+}
+
+function setAccountZoom(accId, factor) {
+  if (!accId) accId = S.gameAccount;
+  const clamped = Math.max(0.40, Math.min(1.50, Math.round(factor * 100) / 100));
+  if (!S.accountZoom || typeof S.accountZoom !== 'object') S.accountZoom = {};
+  S.accountZoom[accId] = clamped;
+  persist();
+
+  const g = games.get(accId);
+  if (g && g.wv) {
+    try {
+      if (typeof g.wv.setZoomFactor === 'function') {
+        g.wv.setZoomFactor(clamped);
+      }
+    } catch (_) {}
+  }
+
+  if (accId === S.gameAccount) {
+    const valEl = $('#btn-game-zoom-reset');
+    if (valEl) valEl.textContent = `${Math.round(clamped * 100)}%`;
+  }
+
+  if (g && g.pane) {
+    const cardZoomEl = g.pane.querySelector('.game-pane-zoom-level');
+    if (cardZoomEl) cardZoomEl.textContent = `${Math.round(clamped * 100)}%`;
+  }
+}
+
+function adjustAccountZoom(accId, delta) {
+  if (!accId) accId = S.gameAccount;
+  const current = getAccountZoom(accId);
+  setAccountZoom(accId, current + delta);
+}
+
 function createGamePaneHeader(a, wv, isMarket) {
   return el('div', {
     class: 'game-pane-header',
@@ -1330,6 +1371,33 @@ function createGamePaneHeader(a, wv, isMarket) {
       isMarket ? el('span', { class: 'game-pane-tag', text: 'Principal' }) : null
     ),
     el('div', { class: 'game-pane-actions' },
+      el('div', { class: 'game-pane-zoom-group', title: 'Ajuste de escala (Ctrl + - / Ctrl + + / Ctrl + Scroll)' },
+        el('button', {
+          class: 'game-pane-zoom-btn',
+          title: 'Diminuir escala desta conta',
+          onclick: (e) => {
+            e.stopPropagation();
+            adjustAccountZoom(a.id, -0.05);
+          },
+        }, '−'),
+        el('span', {
+          class: 'game-pane-zoom-level',
+          text: `${Math.round(getAccountZoom(a.id) * 100)}%`,
+          title: 'Clique para restaurar escala padrão de 100%',
+          onclick: (e) => {
+            e.stopPropagation();
+            setAccountZoom(a.id, 1.0);
+          },
+        }),
+        el('button', {
+          class: 'game-pane-zoom-btn',
+          title: 'Aumentar escala desta conta',
+          onclick: (e) => {
+            e.stopPropagation();
+            adjustAccountZoom(a.id, 0.05);
+          },
+        }, '+')
+      ),
       el('button', {
         class: 'game-pane-btn sniper',
         title: 'Abrir Cockpit Sniper desta conta',
@@ -1428,10 +1496,28 @@ function setupGame() {
       partition: accountPartition(a),
       onReady: (w) => {
         w.executeJavaScript(`window.__pfPoll = ${Number(M.poll) || 60}`).catch(() => {});
+        try {
+          if (typeof w.setZoomFactor === 'function') {
+            w.setZoomFactor(getAccountZoom(a.id));
+          }
+        } catch (_) {}
         applyFpsLimits();
       },
     });
+    wv.addEventListener('dom-ready', () => {
+      try {
+        if (typeof wv.setZoomFactor === 'function') {
+          wv.setZoomFactor(getAccountZoom(a.id));
+        }
+      } catch (_) {}
+    });
     wv.addEventListener('ipc-message', (e) => {
+      if (e.channel === 'game-zoom-delta') {
+        adjustAccountZoom(a.id, Number(e.args[0]) || 0);
+      }
+      if (e.channel === 'game-zoom-reset') {
+        setAccountZoom(a.id, 1.0);
+      }
       if (e.channel === 'market' && market) onMarket(e.args[0]);
       if (e.channel === 'game-channels') {
         try {
@@ -1742,6 +1828,8 @@ function setTab(tab) {
     $('#account-remove').disabled = S.accounts.length <= 1;
     void updateGameBarConnections();
     applyGameMosaic(Boolean(S.gameMosaic));
+    const zoomValEl = $('#btn-game-zoom-reset');
+    if (zoomValEl) zoomValEl.textContent = `${Math.round(getAccountZoom(S.gameAccount) * 100)}%`;
   }
   $('#panel-lives').classList.toggle('active', tab === 'lives');
   $('#panel-game').classList.toggle('active', tab === 'game');
@@ -1998,6 +2086,36 @@ function setupBar() {
     }
     updateGameActionsToggleBtn();
   });
+
+  // Controles de Zoom da Sub-barra do Jogo
+  $('#btn-game-zoom-out')?.addEventListener('click', () => adjustAccountZoom(S.gameAccount, -0.05));
+  $('#btn-game-zoom-in')?.addEventListener('click', () => adjustAccountZoom(S.gameAccount, 0.05));
+  $('#btn-game-zoom-reset')?.addEventListener('click', () => setAccountZoom(S.gameAccount, 1.0));
+
+  // Atalhos universais de teclado para Zoom (Ctrl + - / Ctrl + + / Ctrl + 0)
+  window.addEventListener('keydown', (e) => {
+    if (S.tab !== 'game') return;
+    if (e.ctrlKey && (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract')) {
+      e.preventDefault();
+      adjustAccountZoom(S.gameAccount, -0.05);
+    } else if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd')) {
+      e.preventDefault();
+      adjustAccountZoom(S.gameAccount, 0.05);
+    } else if (e.ctrlKey && (e.key === '0' || e.code === 'Numpad0')) {
+      e.preventDefault();
+      setAccountZoom(S.gameAccount, 1.0);
+    }
+  });
+
+  // Atalho de Scroll do Mouse com Ctrl (Zoom in / Zoom out)
+  window.addEventListener('wheel', (e) => {
+    if (S.tab !== 'game') return;
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      adjustAccountZoom(S.gameAccount, delta);
+    }
+  }, { passive: false });
   $$('#target button').forEach((b) => b.addEventListener('click', () => setTarget(b.dataset.target)));
 
   const input = $('#channel-input');
