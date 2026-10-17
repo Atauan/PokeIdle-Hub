@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Sniper — Cockpit Auto-Sniper</title>
+  <style>
+    :root {
+      /* Fundo xadrez azul oficial PokéIdle */
+      --xadrez-esc: #3357e3;
+      --xadrez-clr: #587aff;
+
+      /* Moldura de madeira: quadros, botões, degraus */
+      --mad-linha: #480e1e;
+      --mad-luz: #f1d3b7;
+      --mad-luz2: #e7a86d;
+      --mad: #bd6951;
+      --mad-esc: #914850;
+      --mad-quente: #df824c;
+      --mad-base: #722c3f;
+
+      /* Miolo roxo dos botões ligados */
+      --rx-luz: #ffdef0;
+      --rx-esc: #8d49b8;
+      --rx: #ba5ad1;
+      --rx-clr: #e77ad2;
+      --rx-rosa: #ffa7d7;
+
+      /* Vãos: áreas recuadas escuras */
+      --vao: #33202b;
+      --vao2: #462b39;
+      --vao-luz: #5c3948;
+
+      /* Texto */
+      --sobre-mad: #fff6ef;
+      --sobre-mad-dim: #f5cdb9;
+      --vao-dim: #c9a9b4;
+
+      /* Sinais */
+      --verde: #6fd08a;
+      --verde-esc: #4e9c62;
+      --vermelho: #d8574a;
+      --vermelho-esc: #a03428;
+      --laranja: #f0a03c;
+
+      /* Ouro & Moedas */
+      --ouro-luz: #ffe9a3;
+      --ouro: #e2a93f;
+      --ouro-esc: #7d5313;
+      --ouro-vao: #efe4d2;
+      --coins: #fbbf24;
+      --gemas: #ffa7d7;
+
+      /* Selo VIP Oficial */
+      --vip-luz: #9fe4ff;
+      --vip: #2f8fc4;
+      --vip-texto: #06202e;
+
+      /* Véu modal */
+      --veu: #1a0f16d9;
+    }
+
+    .selo-vip {
+      background: linear-gradient(180deg, var(--vip-luz) 0 4px, var(--vip) 4px 100%);
+      color: var(--vip-texto);
+      font-weight: 800;
+      border-radius: 0px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--sobre-mad);
+      background-color: var(--xadrez-esc);
+      background-image: conic-gradient(
+        var(--xadrez-clr) 0 25%, var(--xadrez-esc) 0 50%,
+        var(--xadrez-clr) 0 75%, var(--xadrez-esc) 0);
+      background-size: 64px 64px;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    img, canvas {
+      image-rendering: pixelated;
+    }
+
+    /* Barra de rolagem oficial de madeira */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--mad-base) transparent;
+    }
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: var(--mad);
+      border-radius: 4px;
+      box-shadow: inset 0 0 0 2px var(--mad-linha);
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* TOP BAR (Quadro Superior Estilo Menu) */
+    .top-bar {
+      flex: none;
+      background: linear-gradient(180deg,
+        var(--mad-esc) 0 8px,
+        var(--mad) 8px calc(100% - 10px),
+        var(--mad-quente) calc(100% - 10px) calc(100% - 4px),
+        var(--mad) calc(100% - 4px) 100%);
+      box-shadow:
+        inset 0 0 0 2px var(--mad-linha),
+        inset 0 0 0 4px var(--mad-luz),
+        0 4px 0 var(--mad-base),
+        0 6px 0 var(--mad-linha);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #fff;
+      text-shadow:
+        -2px -2px 0 var(--mad-base), 2px -2px 0 var(--mad-base),
+        -2px 2px 0 var(--mad-base), 2px 2px 0 var(--mad-base);
+    }
+
+    .brand-badge {
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 1px 0 var(--mad-luz2);
+      border-radius: 0px;
+      padding: 2px 6px;
+      font-size: 9px;
+      color: var(--ouro-luz);
+      letter-spacing: 0.8px;
+    }
+
+    .telemetry-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .moeda-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 1px 0 var(--mad-luz2);
+      border-radius: 0px;
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .moeda-label {
+      color: var(--vao-dim);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .moeda-valor-coins {
+      color: var(--coins);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .moeda-valor-gemas {
+      color: var(--gemas);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slot-pill {
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--rx);
+      border-radius: 0px;
+      padding: 4px 8px;
+      font-size: 10px;
+      color: var(--rx-luz);
+      letter-spacing: 0.5px;
+    }
+
+    .master-switch-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 1px 0 var(--mad-luz2);
+      border-radius: 0px;
+      padding: 4px 10px;
+    }
+
+    .master-switch-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--sobre-mad);
+    }
+
+    /* INTERRUPTOR OFICIAL POKÉIDLE */
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      position: relative;
+      flex: none;
+      cursor: pointer;
+      width: 44px;
+      height: 22px;
+      margin: 0;
+      border: 0;
+      border-radius: 0px;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 2px 0 var(--mad-base);
+      transition: background .12s;
+    }
+
+    input[type="checkbox"]::before {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 0px;
+      background: linear-gradient(180deg,
+        var(--mad-luz2) 0 4px, var(--mad) 4px calc(100% - 3px), var(--mad-base) calc(100% - 3px) 100%);
+      box-shadow: inset 0 0 0 2px var(--mad-linha);
+      transition: left .12s, background .12s;
+    }
+
+    input[type="checkbox"]:checked {
+      background: var(--rx-esc);
+    }
+
+    input[type="checkbox"]:checked::before {
+      left: 25px;
+      background: linear-gradient(180deg,
+        var(--rx-luz) 0 4px, var(--rx) 4px calc(100% - 3px), var(--rx-rosa) calc(100% - 3px) 100%);
+    }
+
+    /* Variante Miniatura para Cards de Regra */
+    input[type="checkbox"].chk-mini {
+      width: 36px;
+      height: 18px;
+    }
+
+    input[type="checkbox"].chk-mini::before {
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    input[type="checkbox"].chk-mini:checked::before {
+      left: 20px;
+    }
+
+    input[type="checkbox"]:hover {
+      filter: brightness(1.12);
+    }
+
+    input[type="checkbox"]:active::before {
+      top: 4px;
+    }
+
+    /* ÁREA PRINCIPAL COM 3 COLUNAS */
+    .cockpit-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* COLUNA ESQUERDA: CADASTRO & RADAR COM SCROLL SEGURO E SEM ENCOLHIMENTO */
+    .cockpit-col-left {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 4px;
+    }
+
+    .cockpit-col-left > .quadro {
+      flex-shrink: 0 !important;
+      min-height: min-content;
+    }
+
+    /* QUADROS OFICIAIS */
+    .quadro {
+      background: linear-gradient(180deg,
+        var(--mad-esc) 0 10px,
+        var(--mad) 10px calc(100% - 14px),
+        var(--mad-quente) calc(100% - 14px) calc(100% - 7px),
+        var(--mad) calc(100% - 7px) 100%);
+      border: 0;
+      border-radius: 0px;
+      padding: 12px;
+      color: var(--sobre-mad);
+      box-shadow:
+        inset 0 0 0 2px var(--mad-linha),
+        inset 0 0 0 4px var(--mad-luz),
+        inset 0 0 0 6px var(--mad),
+        0 4px 0 var(--mad-base),
+        0 6px 0 var(--mad-linha);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .quadro-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--mad-linha);
+      padding-bottom: 6px;
+    }
+
+    .quadro-titulo {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #fff;
+      text-shadow:
+        -1px -1px 0 var(--mad-base), 1px -1px 0 var(--mad-base),
+        -1px 1px 0 var(--mad-base), 1px 1px 0 var(--mad-base);
+    }
+
+    .quadro-sub {
+      font-size: 9.5px;
+      color: var(--sobre-mad-dim);
+      font-weight: 400;
+    }
+
+    /* VÃOS */
+    .vao {
+      background: var(--vao);
+      border: 0;
+      border-radius: 0px;
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 1px 0 var(--mad-luz2);
+    }
+
+    /* CAMPOS DE TEXTO OFICIAIS */
+    .campo {
+      height: 30px;
+      padding: 0 10px;
+      background: var(--vao);
+      color: var(--sobre-mad);
+      border: 0;
+      border-radius: 0px;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 700;
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 1px 0 var(--mad-luz2);
+      width: 100%;
+    }
+
+    .campo::placeholder {
+      color: var(--vao-dim);
+      font-weight: 400;
+    }
+
+    .campo:focus {
+      outline: none;
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--rx), 0 1px 0 var(--mad-luz2);
+    }
+
+    /* BOTÕES PIXEL OFICIAIS */
+    .btn {
+      height: 32px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 0px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+      text-shadow:
+        -1px -1px 0 var(--rx-esc), 1px -1px 0 var(--rx-esc),
+        -1px 1px 0 var(--rx-esc), 1px 1px 0 var(--rx-esc);
+      background: linear-gradient(180deg,
+        var(--rx-luz) 0 6px,
+        var(--rx-esc) 6px 13px,
+        var(--rx) 13px calc(100% - 13px),
+        var(--rx-clr) calc(100% - 13px) calc(100% - 7px),
+        var(--rx-rosa) calc(100% - 7px) 100%);
+      box-shadow:
+        inset 0 0 0 2px var(--mad-linha),
+        inset 0 0 0 4px var(--mad-luz2),
+        inset 0 0 0 5px var(--mad),
+        0 2px 0 var(--mad-base);
+      transition: filter .1s, transform .06s, box-shadow .06s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    #btn-add-rule {
+      width: 100%;
+      height: 32px;
+      flex-shrink: 0;
+      margin-top: 4px;
+      display: inline-flex;
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .btn:hover:not(:disabled) {
+      filter: brightness(1.12);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow:
+        inset 0 0 0 2px var(--mad-linha),
+        inset 0 0 0 4px var(--mad-luz2),
+        inset 0 0 0 5px var(--mad);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: default;
+    }
+
+    /* Botão Apagado (Madeira) */
+    .btn.apagado, .btn:not(.on):not(.btn-roxo) {
+      background: linear-gradient(180deg,
+        var(--mad-luz2) 0 6px,
+        var(--mad-esc) 6px 13px,
+        var(--mad) 13px calc(100% - 10px),
+        var(--mad-quente) calc(100% - 10px) 100%);
+      color: var(--sobre-mad-dim);
+      text-shadow:
+        -1px -1px 0 var(--mad-base), 1px -1px 0 var(--mad-base),
+        -1px 1px 0 var(--mad-base), 1px 1px 0 var(--mad-base);
+    }
+
+    .btn.on, .btn-roxo {
+      background: linear-gradient(180deg,
+        var(--rx-luz) 0 6px,
+        var(--rx-esc) 6px 13px,
+        var(--rx) 13px calc(100% - 13px),
+        var(--rx-clr) calc(100% - 13px) calc(100% - 7px),
+        var(--rx-rosa) calc(100% - 7px) 100%);
+      color: #fff;
+      text-shadow:
+        -1px -1px 0 var(--rx-esc), 1px -1px 0 var(--rx-esc),
+        -1px 1px 0 var(--rx-esc), 1px 1px 0 var(--rx-esc);
+    }
+
+    /* CHIPS DE FILTRO RÁPIDO */
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .chip-btn {
+      height: 24px;
+      padding: 0 8px;
+      font-size: 9px;
+      letter-spacing: 0.3px;
+    }
+
+    /* FORMULÁRIO DE NOVA REGRA */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-label {
+      font-size: 10px;
+      color: var(--sobre-mad-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+    }
+
+    .preview-img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      flex: none;
+    }
+
+    .preview-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .preview-name {
+      font-size: 11.5px;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-cat {
+      font-size: 9px;
+      color: var(--vao-dim);
+      text-transform: uppercase;
+    }
+
+    /* AUTOCOMPLETE DROPDOWN */
+    .sug-box {
+      position: relative;
+    }
+
+    .sug-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 160px;
+      overflow-y: auto;
+      z-index: 50;
+      margin-top: 3px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sug-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(72, 14, 30, 0.4);
+      transition: background 0.1s;
+    }
+
+    .sug-item:hover {
+      background: var(--vao2);
+    }
+
+    .sug-img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      flex: none;
+    }
+
+    .sug-text {
+      flex: 1;
+      font-size: 11px;
+      color: #fff;
+    }
+
+    .sug-cat {
+      font-size: 8.5px;
+      color: var(--vao-dim);
+      text-transform: uppercase;
+    }
+
+    /* RADAR GLOBAL DE POKÉMON */
+    .global-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+
+    .global-title {
+      font-size: 10px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex: none;
+      white-space: nowrap;
+    }
+
+    .inputs-pair {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      justify-content: flex-end;
+      min-width: 0;
+    }
+
+    .inputs-pair .campo {
+      height: 26px;
+      font-size: 10px;
+      padding: 0 4px;
+      text-align: center;
+      width: 76px;
+      max-width: 82px;
+      min-width: 46px;
+      flex: 1 1 76px;
+    }
+
+    .inputs-pair .campo-note-val {
+      flex: 0 0 40px;
+      width: 40px;
+      max-width: 40px;
+      min-width: 40px;
+      padding: 0 2px;
+    }
+
+    /* LISTA DE REGRAS ATIVAS */
+    .rules-container {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 2px;
+    }
+
+    .rule-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      transition: background 0.1s;
+    }
+
+    .rule-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .rule-target-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .rule-icon {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      flex: none;
+    }
+
+    .rule-name-box {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .rule-name {
+      font-size: 12px;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rule-meta {
+      font-size: 10px;
+      color: var(--sobre-mad-dim);
+      font-weight: 400;
+    }
+
+    .rule-prices {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10.5px;
+    }
+
+    .rule-price-coins {
+      color: var(--coins);
+    }
+
+    .rule-price-gemas {
+      color: var(--gemas);
+    }
+
+    .rule-card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-top: 1px solid rgba(72, 14, 30, 0.4);
+      padding-top: 5px;
+    }
+
+    .rule-progress-bar {
+      flex: 1;
+      position: relative;
+      height: 10px;
+      background: var(--mad-base);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+    }
+
+    .rule-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--verde-esc), var(--verde));
+      transition: width 0.2s ease;
+    }
+
+    .rule-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-mini {
+      height: 22px;
+      padding: 0 6px;
+      font-size: 8.5px;
+      border-radius: 4px;
+    }
+
+    /* TERMINAL DE LOGS */
+    .logs-container {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+    }
+
+    .log-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 5px 6px;
+      border-bottom: 1px solid rgba(72, 14, 30, 0.4);
+      font-size: 9.5px;
+    }
+
+    .log-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .log-target-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .log-time {
+      color: var(--vao-dim);
+      font-size: 8.5px;
+      flex-shrink: 0;
+      font-family: var(--fonte-mono, monospace);
+    }
+
+    .log-item-icon {
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+
+    .log-target {
+      color: #fff;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 9.5px;
+    }
+
+    .log-seller {
+      font-size: 8px;
+      color: var(--ouro);
+      background: rgba(255, 170, 0, 0.12);
+      border: 1px solid rgba(255, 170, 0, 0.35);
+      padding: 0 4px;
+      border-radius: 0px;
+      font-weight: 600;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      max-width: 120px;
+      flex-shrink: 0;
+    }
+
+    .log-seller b {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .log-status-tag {
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 0px;
+      text-transform: uppercase;
+      font-weight: 900;
+      flex: none;
+    }
+
+    .log-status-tag.disparado {
+      background: var(--rx);
+      color: #fff;
+    }
+
+    .log-status-tag.sucesso {
+      background: var(--verde-esc);
+      color: #fff;
+    }
+
+    .log-status-tag.aviso {
+      background: var(--laranja);
+      color: #4a3608;
+    }
+
+    .log-status-tag.erro {
+      background: var(--vermelho);
+      color: #fff;
+    }
+
+    .log-detail {
+      font-size: 8.5px;
+      color: var(--vao-dim);
+      font-weight: 400;
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+
+    .log-price {
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .log-desc {
+      color: var(--vao-dim);
+    }
+
+    /* BOTÃO PIX */
+    .btn-pix {
+      background: linear-gradient(180deg, #10b981 0 4px, #059669 4px calc(100% - 3px), #047857 calc(100% - 3px) 100%) !important;
+      color: #fff !important;
+      text-shadow: -1px -1px 0 #064e3b, 1px -1px 0 #064e3b, -1px 1px 0 #064e3b, 1px 1px 0 #064e3b !important;
+      border: 0 !important;
+      border-radius: 0px !important;
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 0 2px 0 #064e3b !important;
+      user-select: none;
+    }
+
+    .btn-pix:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-pix:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 #064e3b !important;
+    }
+
+    /* MODAL DE EDIÇÃO */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: var(--veu);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-caixa {
+      width: min(480px, 94vw);
+      background: linear-gradient(180deg,
+        var(--mad-esc) 0 12px,
+        var(--mad) 12px calc(100% - 16px),
+        var(--mad-quente) calc(100% - 16px) calc(100% - 8px),
+        var(--mad) calc(100% - 8px) 100%);
+      box-shadow:
+        inset 0 0 0 2px var(--mad-linha),
+        inset 0 0 0 4px var(--mad-luz),
+        inset 0 0 0 6px var(--mad),
+        0 6px 0 var(--mad-base),
+        0 24px 70px rgba(0, 0, 0, 0.85);
+      border-radius: 0px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--mad-linha);
+      padding-bottom: 6px;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #fff;
+      text-shadow:
+        -2px -2px 0 var(--mad-base), 2px -2px 0 var(--mad-base),
+        -2px 2px 0 var(--mad-base), 2px 2px 0 var(--mad-base);
+    }
+
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 2px solid var(--mad-linha);
+      padding-top: 8px;
+    }
+
+    /* NAVEGAÇÃO SUPERIOR DO COCKPIT */
+    .nav-bar-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px 0 14px;
+      background: var(--vao);
+      border-bottom: 2px solid var(--mad-linha);
+      flex: none;
+    }
+
+    .tab-nav-btn {
+      height: 28px;
+      padding: 0 14px;
+      font-size: 10.5px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: 0;
+      cursor: pointer;
+    }
+
+    .tab-nav-btn.on {
+      background: linear-gradient(180deg, var(--rx-luz) 0 4px, var(--rx) 4px calc(100% - 3px), var(--rx-rosa) calc(100% - 3px) 100%) !important;
+      color: #fff !important;
+      box-shadow: inset 0 0 0 2px var(--rx-borda), 0 -2px 0 var(--rx-luz) !important;
+    }
+
+    .btn-cancelar {
+      background: linear-gradient(180deg, #fca5a5 0 4px, #ef4444 4px calc(100% - 3px), #b91c1c calc(100% - 3px) 100%) !important;
+      color: #fff !important;
+      box-shadow: inset 0 0 0 2px #7f1d1d, 0 3px 0 #7f1d1d !important;
+    }
+
+    .btn-cancelar:hover {
+      filter: brightness(1.15);
+    }
+
+    .btn-cancelar:active {
+      transform: translateY(2px);
+      box-shadow: inset 0 0 0 2px #7f1d1d, 0 1px 0 #7f1d1d !important;
+    }
+
+    /* TELA DO MERCADO DA COMUNIDADE */
+    .market-view-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 14px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .market-subnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex: none;
+    }
+
+    .market-subnav-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .market-content-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .market-cards-grid {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 10px;
+      padding: 4px 6px 12px 2px;
+      align-content: start;
+    }
+
+    .catalog-section-title {
+      grid-column: 1 / -1;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 2px 0 var(--mad-base);
+      padding: 6px 10px;
+      font-size: 10px;
+      color: var(--ouro);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    .catalog-section-title:first-child {
+      margin-top: 0;
+    }
+
+    .my-listing-card {
+      background: var(--mad);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--mad-luz), 0 3px 0 var(--mad-base);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-radius: 0px;
+    }
+
+    .community-item-card {
+      background: var(--mad);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--mad-luz), 0 3px 0 var(--mad-base);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-radius: 0px;
+      transition: filter 0.1s;
+    }
+
+    .community-item-card:hover {
+      filter: brightness(1.06);
+    }
+
+    /* =================================================== */
+    /* ESTILOS DA ABA 3: ESTATÍSTICAS DE FARM AO VIVO      */
+    /* =================================================== */
+    .stats-view-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 14px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .stats-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), 0 2px 0 var(--mad-base);
+      padding: 6px 12px;
+      border-radius: 0px;
+      flex: none;
+    }
+
+    .stats-live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--verde-luz);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--verde-luz);
+      box-shadow: 0 0 6px var(--verde-luz);
+      border-radius: 0px;
+      animation: pulse-live 1.6s infinite;
+    }
+
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .stats-timer-label {
+      font-family: var(--fonte-mono, monospace);
+      font-size: 11px;
+      color: var(--ouro);
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 8px;
+      border-radius: 0px;
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+    }
+
+    .stats-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      flex: none;
+    }
+
+    .stats-metric-card {
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      border-radius: 0px;
+    }
+
+    .stats-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .stats-card-label {
+      font-size: 9px;
+      color: var(--sobre-mad-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stats-card-icon {
+      font-size: 11px;
+      flex: none;
+    }
+
+    .stats-card-main-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stats-card-rate {
+      font-size: 9px;
+      color: var(--ouro-luz);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stats-lower-split {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .stats-drops-grid {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+      padding: 4px 6px 12px 2px;
+      align-content: start;
+    }
+
+    .stat-drop-card {
+      background: var(--mad);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--mad-luz), 0 2px 0 var(--mad-base);
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 0px;
+    }
+
+    .stat-drop-icon {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+
+    /* Estilos do Dashboard de Hunts */
+    .stat-active-hunt-banner {
+      background: rgba(0, 0, 0, 0.4);
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+      border-radius: 0px;
+    }
+
+    .stat-hunts-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: var(--mad-luz) var(--mad);
+    }
+
+    .stat-hunt-card {
+      background: var(--mad);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--mad-luz), 0 2px 0 var(--mad-base);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-radius: 0px;
+      transition: all 0.15s ease;
+    }
+
+    .stat-hunt-card.active-hunt-highlight {
+      box-shadow: inset 0 0 0 2px var(--verde-luz), inset 0 0 0 4px var(--mad-luz), 0 2px 0 var(--mad-base);
+      background: linear-gradient(180deg, rgba(20, 45, 30, 0.6) 0%, var(--mad) 100%);
+    }
+
+    .stat-hunt-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .stat-hunt-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .stat-hunt-pill {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 0px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .stat-hunt-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 8px;
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+    }
+
+    .stat-hunt-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .stat-hunt-col-label {
+      font-size: 8px;
+      color: var(--sobre-mad-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat-hunt-col-val {
+      font-size: 11px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat-hunt-col-sub {
+      font-size: 8.5px;
+      color: var(--sobre-mad-dim);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* =================================================== */
+    /* ESTILOS DA ABA 4: HUNTS, ROTAS DE UP & BOSSES       */
+    /* =================================================== */
+    .hunts-view-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 14px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .hunts-subnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex: none;
+    }
+
+    .hunts-cards-grid {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+      padding: 4px 6px 12px 2px;
+      align-content: start;
+    }
+
+    .hunt-card {
+      background: var(--mad);
+      box-shadow: inset 0 0 0 2px var(--mad-linha), inset 0 0 0 4px var(--mad-luz), 0 3px 0 var(--mad-base);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-radius: 0px;
+      transition: filter 0.1s;
+    }
+
+    .hunt-card:hover {
+      filter: brightness(1.06);
+    }
+
+    .hunt-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hunt-poke-sprite {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+      background: var(--vao);
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+      padding: 2px;
+      border-radius: 0px;
+    }
+
+    .hunt-poke-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hunt-poke-name {
+      color: #fff;
+      font-weight: 800;
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hunt-poke-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9.5px;
+      color: var(--sobre-mad-dim);
+    }
+
+    .hunt-type-badge {
+      font-size: 8px;
+      padding: 1px 5px;
+      color: #fff;
+      font-weight: 800;
+      text-transform: uppercase;
+      border-radius: 0px;
+      letter-spacing: 0.3px;
+    }
+
+    .hunt-weak-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .hunt-weak-chip-4x {
+      font-size: 8px;
+      padding: 1px 4px;
+      background: #dc2626;
+      color: #fff;
+      font-weight: 900;
+      border-radius: 0px;
+      letter-spacing: 0.3px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+    }
+
+    .hunt-weak-chip-2x {
+      font-size: 8px;
+      padding: 1px 4px;
+      background: #d97706;
+      color: #fff;
+      font-weight: 800;
+      border-radius: 0px;
+      letter-spacing: 0.3px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+    }
+
+    .hunt-yield-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: var(--vao);
+      padding: 4px 8px;
+      border-radius: 0px;
+      font-size: 9.5px;
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+    }
+
+    .hunt-drops-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 5px 8px;
+      border-radius: 0px;
+      box-shadow: inset 0 0 0 1px var(--mad-linha);
+    }
+
+    .hunt-drop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 9px;
+      color: var(--sobre-mad);
+    }
+
+    .hunt-drop-chance {
+      font-weight: 700;
+      color: var(--ouro-luz);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* FOOTER BAR */
+    .footer-bar {
+      flex: none;
+      background: var(--vao);
+      box-shadow: inset 0 2px 0 var(--mad-linha);
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--vao-dim);
+    }
+
+    /* =================================================== */
+    /* REGRAS RESPONSIVAS MULTI-RESOLUÇÃO & MULTI-ALTURA  */
+    /* =================================================== */
+
+    @media (max-width: 1280px) {
+      .cockpit-grid {
+        grid-template-columns: 330px 1fr 310px;
+        gap: 10px;
+        padding: 10px;
+      }
+      .top-bar {
+        padding: 6px 12px;
+        gap: 10px;
+      }
+      .telemetry-group {
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .cockpit-grid {
+        grid-template-columns: 310px 1fr 280px;
+        gap: 8px;
+        padding: 8px;
+      }
+      .brand-title {
+        font-size: 14px;
+      }
+      .moeda-box {
+        padding: 3px 6px;
+        font-size: 10px;
+      }
+      .slot-pill {
+        padding: 3px 6px;
+        font-size: 9px;
+      }
+      .market-cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      }
+      .stats-summary-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .hunts-cards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      }
+    }
+
+    @media (max-width: 960px) {
+      body {
+        overflow-y: auto !important;
+        height: auto !important;
+        min-height: 100vh;
+      }
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .brand-group {
+        justify-content: space-between;
+      }
+      .telemetry-group {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+      .stats-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .stats-lower-split {
+        flex-direction: column;
+        height: auto;
+      }
+      .stats-drops-grid, .hunts-cards-grid {
+        max-height: 480px;
+      }
+      .cockpit-grid {
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+        gap: 12px;
+        padding: 10px;
+      }
+      .cockpit-col-left {
+        overflow-y: visible;
+        max-height: none;
+      }
+      .cockpit-col-left > .quadro {
+        flex-shrink: 0;
+      }
+      .rules-container, .logs-container {
+        max-height: 380px;
+      }
+    }
+
+    /* TELAS DE BAIXA ALTURA (NOTEBOOKS 720p/768p OU COM ZOOM/DPI DO WINDOWS) */
+    @media (max-height: 780px) {
+      .top-bar {
+        padding: 4px 10px;
+        gap: 8px;
+      }
+      .brand-title {
+        font-size: 13.5px;
+      }
+      .nav-bar-tabs {
+        padding: 3px 10px 0 10px;
+      }
+      .tab-nav-btn {
+        height: 24px;
+        font-size: 9.5px;
+        padding: 0 10px;
+      }
+      .cockpit-grid {
+        padding: 8px;
+        gap: 8px;
+      }
+      .quadro {
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .quadro-header {
+        padding-bottom: 4px;
+      }
+      .campo {
+        height: 24px;
+        font-size: 10.5px;
+      }
+      .chips-row .chip-btn {
+        height: 20px;
+        font-size: 8px;
+        padding: 0 5px;
+      }
+      .footer-bar {
+        padding: 3px 10px;
+        font-size: 9px;
+      }
+    }
+
+    @media (max-height: 680px) {
+      .top-bar {
+        padding: 3px 8px;
+      }
+      .brand-title {
+        font-size: 12px;
+      }
+      .nav-bar-tabs {
+        padding: 2px 8px 0 8px;
+      }
+      .cockpit-grid {
+        padding: 6px;
+        gap: 6px;
+      }
+      .quadro {
+        padding: 6px 8px;
+        gap: 5px;
+      }
+      .rules-container, .logs-container {
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOP BAR DE TELEMETRIA -->
+  <header class="top-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">PokéIdle Auto-Sniper</h1>
+      <button type="button" id="btn-open-pix" class="btn btn-pix" style="height: 24px; padding: 0 8px; font-size: 9.5px; margin-left: 6px; border-radius: 0px;" title="Me pague um café">
+        Me pague um café
+      </button>
+    </div>
+
+    <div class="telemetry-group">
+      <div class="moeda-box">
+        <span class="moeda-label">Coins:</span>
+        <strong id="val-coins" class="moeda-valor-coins">-- GP</strong>
+      </div>
+      <div class="moeda-box">
+        <span class="moeda-label">Gemas:</span>
+        <strong id="val-gemas" class="moeda-valor-gemas">-- Gemas</strong>
+      </div>
+      <div class="moeda-box">
+        <img src="https://pokeidle.io/img/moeda-diamante.png" style="width: 14px; height: 14px; object-fit: contain; flex-shrink: 0;" alt="Diamantes">
+        <span class="moeda-label" style="color: #9fe4ff;">Diamantes:</span>
+        <strong id="val-diamantes" class="moeda-valor-diamantes" style="color: #9fe4ff;">-- Diamantes</strong>
+      </div>
+      <button type="button" id="btn-open-diamantes-modal" class="btn btn-roxo btn-mini" style="height: 24px; padding: 0 8px; font-size: 9.5px; border-radius: 0px;" title="Câmbio e Negociação de Diamantes">
+        💎 Diamantes
+      </button>
+      <div class="slot-pill" id="val-slots">0 / 5 SLOTS ATIVOS</div>
+      <div id="badge-vip-status" class="selo-vip" style="display: none; padding: 2px 7px; font-size: 8.5px; letter-spacing: 0.6px; text-transform: uppercase; box-shadow: 0 0 6px rgba(47, 143, 196, 0.5);">
+        👑 VIP POKÉIDLE
+      </div>
+      <div class="master-switch-box">
+        <span class="master-switch-title">Auto-Snipe:</span>
+        <input type="checkbox" id="toggle-master-sniper" checked title="Ativar ou desativar Auto-Snipe">
+      </div>
+    </div>
+  </header>
+
+  <!-- BARRA DE NAVEGAÇÃO PRINCIPAL -->
+  <nav class="nav-bar-tabs">
+    <button type="button" id="tab-nav-sniper" class="btn tab-nav-btn on">
+      🎯 Painel Sniper
+    </button>
+    <button type="button" id="tab-nav-market" class="btn tab-nav-btn apagado">
+      🛒 Mercado da Comunidade
+    </button>
+    <button type="button" id="tab-nav-stats" class="btn tab-nav-btn apagado">
+      📊 Estatísticas de Farm
+    </button>
+    <button type="button" id="tab-nav-hunts" class="btn tab-nav-btn apagado">
+      🗺️ Hunts & Rotas
+    </button>
+    <button type="button" id="tab-nav-oferendas" class="btn tab-nav-btn apagado">
+      🔮 Altar de Oferendas
+    </button>
+  </nav>
+
+  <!-- ÁREA PRINCIPAL: 3 COLUNAS -->
+  <main class="cockpit-grid" id="view-sniper">
+
+    <!-- COLUNA 1: CADASTRO DE REGRAS & RADAR GLOBAL -->
+    <div class="cockpit-col-left">
+
+      <!-- Quadro 1: Cadastrar Regra de Item -->
+      <section class="quadro">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Nova Regra de Compra</h2>
+            <span class="quadro-sub">Selecione o item ou digite o nome</span>
+          </div>
+        </div>
+
+        <!-- Filtros Rápidos de Categoria (Ordem Solicitada) -->
+        <div class="chips-row">
+          <button type="button" class="btn chip-btn on" data-cat="all">Todas</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="stone">Pedras</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="tm">TMs</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="rare_loot">Loots Raros</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="beast">Beast Balls</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="casa">Casas</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="box">Boxes</button>
+          <button type="button" class="btn chip-btn apagado" data-cat="bicicleta">Bicicletas</button>
+        </div>
+
+        <!-- Campo de Busca com Autocomplete -->
+        <div class="form-group sug-box">
+          <label class="form-label" for="input-search-item">Buscar Item / Pokémon:</label>
+          <input type="text" id="input-search-item" class="campo" placeholder="Ex: Fire Stone, TM AoE, Founder Box, Beast Ball..." autocomplete="off">
+          <div id="dropdown-suggestions" class="sug-list vao" style="display: none;"></div>
+        </div>
+
+        <!-- Card de Item Selecionado -->
+        <div id="box-selected-preview" class="vao preview-box" style="display: none;">
+          <img id="img-selected-item" class="preview-img" src="" alt="Icone">
+          <div class="preview-info">
+            <div id="lbl-selected-name" class="preview-name">Nome do Item</div>
+            <div id="lbl-selected-cat" class="preview-cat">Categoria</div>
+          </div>
+          <button type="button" id="btn-clear-selection" class="btn apagado btn-mini" title="Limpar seleção">Limpar</button>
+        </div>
+
+        <!-- Preço Teto em Coins e Gemas -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group" id="group-rule-coins">
+            <label class="form-label" for="input-rule-coins">Teto em Coins (GP):</label>
+            <input type="number" id="input-rule-coins" class="campo" placeholder="Ex: 100000 (ou 0)" min="0" style="height: 26px; font-size: 11px;">
+          </div>
+          <div class="form-group" id="group-rule-gemas">
+            <label class="form-label" for="input-rule-gemas">Teto em Gemas:</label>
+            <input type="number" id="input-rule-gemas" class="campo" placeholder="Ex: 10 (ou 0)" min="0" style="height: 26px; font-size: 11px;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+            <label class="form-label" for="input-rule-qty" id="lbl-input-qty-title" style="margin-bottom: 0;">Quantidade Máxima (Máx 20 un):</label>
+            <button type="button" id="btn-toggle-infinite-new" class="btn apagado btn-mini" style="font-size: 8px; padding: 1px 6px; height: 18px; border-radius: 0px;" title="Alternar para compra infinita">
+              ∞ Infinito
+            </button>
+          </div>
+          <input type="number" id="input-rule-qty" class="campo" value="1" min="1" max="20" placeholder="1 a 20" style="height: 26px; font-size: 11px;">
+        </div>
+
+        <button type="button" id="btn-add-rule" class="btn btn-roxo" style="width: 100%; height: 32px; flex-shrink: 0; margin-top: 4px;">
+          Cadastrar Regra de Compra
+        </button>
+      </section>
+
+      <!-- Quadro 2: Radar Global de Pokémons -->
+      <section class="quadro">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Radar Global de Pokémon</h2>
+            <span class="quadro-sub">1 Slot por cada Auto-Snipe Ativo</span>
+          </div>
+          <span id="lbl-radar-slot-badge" class="badge-slot" style="font-size: 8px; padding: 2px 6px; background: rgba(0,0,0,0.3); border-radius: 0px;">
+            0 / 3 Slots Usados
+          </span>
+        </div>
+
+        <!-- Qualquer Shiny -->
+        <div class="vao" style="padding: 6px 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <label for="chk-global-shiny" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chk-global-shiny">
+              <span style="font-size: 10.5px; font-weight: 700; color: #fff;">Auto-Snipe Qualquer Shiny</span>
+            </label>
+            <span class="badge-slot" style="font-size: 7.5px; color: var(--ouro); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 0px;">
+              1 Slot
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px;">
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto em Coins:</span>
+              <input type="number" id="cfg-shiny-coins" class="campo" placeholder="Ex: 500000" title="Preço Máximo em Coins" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto em Gemas:</span>
+              <input type="number" id="cfg-shiny-gemas" class="campo" placeholder="Ex: 50" title="Preço Máximo em Gemas" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Qualquer P5 -->
+        <div class="vao" style="padding: 6px 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <label for="chk-global-p5" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chk-global-p5">
+              <span style="font-size: 10.5px; font-weight: 700; color: #fff;">Auto-Snipe Qualquer P5 (Potência 5)</span>
+            </label>
+            <span class="badge-slot" style="font-size: 7.5px; color: #38bdf8; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 0px;">
+              1 Slot
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px;">
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto em Coins:</span>
+              <input type="number" id="cfg-p5-coins" class="campo" placeholder="Ex: 300000" title="Preço Máximo em Coins" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto em Gemas:</span>
+              <input type="number" id="cfg-p5-gemas" class="campo" placeholder="Ex: 30" title="Preço Máximo em Gemas" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Nota Mínima -->
+        <div class="vao" style="padding: 6px 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <label for="chk-global-note" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chk-global-note">
+              <span style="font-size: 10.5px; font-weight: 700; color: #fff;">Auto-Snipe por Nota Mínima</span>
+            </label>
+            <span class="badge-slot" style="font-size: 7.5px; color: #c084fc; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 0px;">
+              1 Slot
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: 0.9fr 1.1fr 1fr; gap: 4px; margin-top: 2px;">
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Nota Corte:</span>
+              <input type="number" id="cfg-note-val" class="campo" placeholder="7.0" step="0.1" min="1" max="10" title="Nota de corte oficial" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto Coins:</span>
+              <input type="number" id="cfg-note-coins" class="campo" placeholder="Ex: 250000" title="Preço Máximo em Coins" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+            <div>
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); display: block; margin-bottom: 2px; text-transform: uppercase;">Teto Gemas:</span>
+              <input type="number" id="cfg-note-gemas" class="campo" placeholder="Ex: 25" title="Preço Máximo em Gemas" style="height: 24px; font-size: 9.5px; width: 100%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Informativo de Slot e Calibração Nativa -->
+        <div class="vao" style="padding: 6px 8px; font-size: 8.5px; color: var(--sobre-mad-dim); display: flex; align-items: center; justify-content: space-between;">
+          <span>Consumo do Radar:</span>
+          <b id="lbl-radar-slot-status" style="color: var(--ouro);">Inativo (0 slots)</b>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- COLUNA 2: LISTA DE REGRAS ATIVAS & PROGRESSO -->
+    <section class="quadro" style="min-height: 0;">
+      <div class="quadro-header">
+        <div>
+          <h2 class="quadro-titulo">Regras de Compra Ativas</h2>
+          <span class="quadro-sub" id="lbl-rules-count">0 de 5 slots utilizados</span>
+        </div>
+        <div class="brand-badge">Proteção de Saldo</div>
+      </div>
+
+      <!-- Feed de Regras -->
+      <div id="container-rules-list" class="rules-container">
+        <div style="text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+          Nenhuma regra cadastrada. Cadastre até 5 regras no painel à esquerda.
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUNA 3: TERMINAL DE LOGS & HISTÓRICO AO VIVO -->
+    <section class="quadro" style="min-height: 0;">
+      <div class="quadro-header">
+        <div>
+          <h2 class="quadro-titulo">Feed de Eventos</h2>
+          <span class="quadro-sub">Histórico de ofertas e disparos</span>
+        </div>
+        <button type="button" id="btn-clear-logs" class="btn apagado btn-mini">Limpar</button>
+      </div>
+
+      <!-- Container do Feed -->
+      <div id="container-logs-list" class="vao logs-container">
+        <div style="text-align: center; padding: 30px 10px; color: var(--vao-dim); font-size: 10px;">
+          Aguardando anúncios do mercado...
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TELA 2: MERCADO DA COMUNIDADE & MEUS ANÚNCIOS -->
+  <section class="market-view-container" id="view-market" style="display: none;">
+    <!-- SUB-NAVEGAÇÃO DO MERCADO -->
+    <div class="market-subnav">
+      <div class="market-subnav-left">
+        <button type="button" id="subtab-my-listings" class="btn chip-btn on">
+          💼 Meus Anúncios à Venda
+        </button>
+        <button type="button" id="subtab-community-items" class="btn chip-btn apagado">
+          📦 Catálogo da Comunidade
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" id="btn-refresh-market" class="btn btn-roxo btn-mini" style="height: 26px; padding: 0 10px;" title="Atualizar dados do mercado agora">
+          🔄 Atualizar Dados
+        </button>
+      </div>
+    </div>
+
+    <!-- PAINEL A: MEUS ANÚNCIOS (O QUE O JOGADOR BOTOU PRA VENDER) -->
+    <div id="panel-my-listings" class="market-content-panel">
+      <div class="quadro" style="flex: 1; min-height: 0;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Meus Anúncios à Venda</h2>
+            <span class="quadro-sub">O que você colocou à venda no mercado da comunidade</span>
+          </div>
+          <div id="lbl-my-listings-summary" class="brand-badge">
+            0 anúncios ativos
+          </div>
+        </div>
+
+        <!-- Grid de Anúncios do Jogador -->
+        <div id="container-my-listings-list" class="market-cards-grid">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+            Carregando seus anúncios à venda...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL B: CATÁLOGO DE ITENS DA COMUNIDADE -->
+    <div id="panel-community-items" class="market-content-panel" style="display: none;">
+      <div class="quadro" style="flex: 1; min-height: 0;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Catálogo da Comunidade</h2>
+            <span class="quadro-sub">Visão organizada com menores preços em Coins e Gemas</span>
+          </div>
+          <div class="search-box" style="width: min(220px, 100%);">
+            <input type="text" id="input-search-market" class="campo" placeholder="Filtrar item anunciado..." style="height: 24px; font-size: 10px;">
+          </div>
+        </div>
+
+        <!-- Chips de Categoria -->
+        <div class="chips-row" style="margin-bottom: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn chip-btn on market-cat-btn" data-cat="all">Todas</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="diamante">💎 Diamantes</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="stone">Pedras</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="tm">TMs</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="rare_loot">Loots Raros</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="box">Boxes</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="beast">Beast Balls</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="casa">Casas</button>
+          <button type="button" class="btn chip-btn apagado market-cat-btn" data-cat="bicicleta">Bicicletas</button>
+        </div>
+
+        <!-- Grid de Itens Anunciados -->
+        <div id="container-community-items-list" class="market-cards-grid">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+            Aguardando dados do mercado da comunidade...
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- TELA 3: ESTATÍSTICAS DE FARM AO VIVO                                       -->
+  <!-- ========================================================================= -->
+  <section id="view-stats" class="stats-view-container" style="display: none;">
+    <!-- Sub-Header com Status da Sessão e Botão Reset -->
+    <div class="stats-header-bar">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="stats-live-badge">
+          <span class="live-dot"></span> TELEMETRIA DA SESSÃO AO VIVO
+        </div>
+        <span id="stats-session-timer" class="stats-timer-label">00:00:00</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" id="btn-reset-farm-stats" class="btn btn-cancelar btn-mini" style="height: 26px; padding: 0 10px; font-size: 9.5px; border-radius: 0px;" title="Zerar todos os contadores da sessão atual">
+          🔄 Zerar Sessão
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid de Métricas Principais -->
+    <div class="stats-summary-grid">
+      <!-- Card: Kills -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">Abates (Kills)</span>
+          <span class="stats-card-icon">⚔️</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-kills-total">0</div>
+        <div class="stats-card-rate" id="stat-kills-rate">0.0 / min</div>
+      </div>
+
+      <!-- Card: Capturas -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">Capturas</span>
+          <span class="stats-card-icon">🎯</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-catches-total">0</div>
+        <div class="stats-card-rate" id="stat-catches-rate">0 / h</div>
+      </div>
+
+      <!-- Card: Treinador XP -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">XP Treinador</span>
+          <span class="stats-card-icon">📈</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-trainer-xp" style="color: #9fe4ff;">0</div>
+        <div class="stats-card-rate" id="stat-trainer-xp-rate">0 XP / h</div>
+      </div>
+
+      <!-- Card: Pokémon XP -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">XP Pokémon</span>
+          <span class="stats-card-icon">🐾</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-poke-xp" style="color: #c084fc;">0</div>
+        <div class="stats-card-rate" id="stat-poke-xp-rate">0 XP / h</div>
+      </div>
+
+      <!-- Card: Coins (GP) -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">Coins (GP)</span>
+          <span class="stats-card-icon">🪙</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-gold-total" style="color: var(--coins);">0 GP</div>
+        <div class="stats-card-rate" id="stat-gold-rate">0 GP / h</div>
+      </div>
+
+      <!-- Card: Shinies -->
+      <div class="quadro stats-metric-card">
+        <div class="stats-card-top">
+          <span class="stats-card-label">Shinies</span>
+          <span class="stats-card-icon">✨</span>
+        </div>
+        <div class="stats-card-main-val" id="stat-shinies-total" style="color: #ffd700;">0</div>
+        <div class="stats-card-rate" id="stat-shinies-sub">0 Capturados</div>
+      </div>
+    </div>
+
+    <!-- Área Inferior Dividida: Dashboard de Rendimento por Hunt + Drops Acumulados -->
+    <div class="stats-lower-split">
+      <!-- Painel Esquerdo: Dashboard de Rendimento por Hunt -->
+      <div class="quadro" style="flex: 1.4; display: flex; flex-direction: column; min-height: 0; min-width: 0;">
+        <div class="quadro-header" style="flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h2 class="quadro-titulo">🏆 Rendimento por Hunt (Médias & Ranking)</h2>
+            <span class="quadro-sub">Eficiência comparativa de XP/h, GP/h e Taxa de Captura</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="brand-badge" id="stat-hunts-count" style="color: var(--ouro);">0 hunts</div>
+            <button type="button" id="btn-reset-hunts-stats" class="btn btn-cancelar btn-mini" style="height: 22px; padding: 0 8px; font-size: 8.5px; border-radius: 0px;" title="Limpar histórico de hunts salvas">
+              🗑️ Limpar
+            </button>
+          </div>
+        </div>
+
+        <!-- Banner de Hunt Ativa em Tempo Real -->
+        <div id="bar-active-hunt" class="stat-active-hunt-banner" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: rgba(0, 0, 0, 0.4); border-bottom: 1px solid var(--mad-linha);">
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+            <span class="live-dot" style="width: 6px; height: 6px;"></span>
+            <span style="font-size: 10px; color: var(--sobre-mad-dim); text-transform: uppercase; font-weight: 700;">Hunt Atual:</span>
+            <span id="active-hunt-name" style="font-size: 11px; color: #fff; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Aguardando batalha...</span>
+            <span id="active-hunt-tier-badge" class="badge-tier" style="display: none; font-size: 8.5px; padding: 1px 5px; border-radius: 0px; background: var(--roxo); color: #fff; font-weight: 800;">T1</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; font-family: var(--fonte-mono, monospace); font-size: 10px; flex-shrink: 0;">
+            <span style="color: var(--ouro);" id="active-hunt-timer">⏱️ 00:00</span>
+            <span style="color: #c084fc;" id="active-hunt-live-xp">🐾 0 XP/h</span>
+            <span style="color: var(--coins);" id="active-hunt-live-gp">🪙 0 GP/h</span>
+            <span style="color: var(--verde-luz);" id="active-hunt-live-catches">🎯 0 capturas</span>
+            <span style="color: #ffd700;" id="active-hunt-live-shinies">✨ 0 vistos (0 capt.)</span>
+          </div>
+        </div>
+
+        <!-- Filtros de Ordenação do Ranking -->
+        <div style="display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: var(--vao); border-bottom: 1px solid var(--mad-linha); flex-wrap: wrap;">
+          <span style="font-size: 8.5px; color: var(--sobre-mad-dim); font-weight: 700; text-transform: uppercase; margin-right: 4px;">Ordenar:</span>
+          <button type="button" class="btn chip-btn on hunt-sort-btn" data-sort="xp" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">🐾 Top XP/h</button>
+          <button type="button" class="btn chip-btn apagado hunt-sort-btn" data-sort="gp" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">🪙 Top GP/h</button>
+          <button type="button" class="btn chip-btn apagado hunt-sort-btn" data-sort="kills" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">⚔️ Top Kills/h</button>
+          <button type="button" class="btn chip-btn apagado hunt-sort-btn" data-sort="catch" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">🎯 Taxa Captura %</button>
+          <button type="button" class="btn chip-btn apagado hunt-sort-btn" data-sort="shinies" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">✨ Mais Shinies</button>
+          <button type="button" class="btn chip-btn apagado hunt-sort-btn" data-sort="time" style="height: 20px; padding: 0 8px; font-size: 9px; border-radius: 0px;">⏱️ Mais Farmadas</button>
+        </div>
+
+        <!-- Lista de Cards Comparativos de Hunts -->
+        <div id="container-hunts-dashboard" class="stats-hunts-scroll" style="flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim); font-size: 11px;">
+            Nenhuma hunt registrada nesta sessão ainda.<br>
+            <span style="font-size: 9px; opacity: 0.8;">Inicie batalhas em qualquer hunt do PokéIdle para ver as médias de XP/h, GP/h e capturas.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel Direito: Drops Acumulados -->
+      <div class="quadro" style="flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Drops & Loots da Sessão</h2>
+            <span class="quadro-sub">Itens dropados durante suas batalhas e hunts</span>
+          </div>
+          <div class="brand-badge" id="stat-drops-count">0 tipos de itens</div>
+        </div>
+        <div class="stats-drops-grid" id="container-farm-drops">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+            Nenhum drop registrado nesta sessão ainda.<br>
+            <span style="font-size: 9px; opacity: 0.8;">Bata em monstros no jogo para acumular loots.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- TELA 4: HUNTS, ROTAS DE UP & BOSSES                                        -->
+  <!-- ========================================================================= -->
+  <section id="view-hunts" class="hunts-view-container" style="display: none;">
+    <!-- Sub-Navegação: Hunts vs Bosses -->
+    <div class="hunts-subnav">
+      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <button type="button" id="subtab-hunts-list" class="btn chip-btn on" style="height: 26px; padding: 0 12px; font-size: 10px; border-radius: 0px;">
+          🗺️ Criaturas & Hunts
+        </button>
+        <button type="button" id="subtab-bosses-list" class="btn chip-btn apagado" style="height: 26px; padding: 0 12px; font-size: 10px; border-radius: 0px;">
+          ⚔️ Chefes & Bosses Diários
+        </button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="search-box" style="width: min(240px, 100%);">
+          <input type="text" id="input-search-hunts" class="campo" placeholder="Buscar Pokémon, Drop ou Mapa..." style="height: 24px; font-size: 10px; border-radius: 0px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros de Nível e Fraquezas Elementais (Usados na Aba Hunts) -->
+    <div id="box-hunts-filters" class="vao" style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-radius: 0px;">
+      <!-- Filtro por Faixa de Nível -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 9px; color: var(--sobre-mad-dim); text-transform: uppercase; font-weight: 700; width: 65px;">Nível:</span>
+        <div class="chips-row" style="flex: 1; flex-wrap: wrap; gap: 4px;">
+          <button type="button" class="btn chip-btn on hunt-lvl-filter" data-lvl="all">Todos</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="1-20">1 - 20</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="21-40">21 - 40</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="41-60">41 - 60</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="61-80">61 - 80</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="81-100">81 - 100</button>
+          <button type="button" class="btn chip-btn apagado hunt-lvl-filter" data-lvl="100+">100+</button>
+        </div>
+      </div>
+
+      <!-- Filtro por Fraqueza Elemental -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="font-size: 9px; color: var(--sobre-mad-dim); text-transform: uppercase; font-weight: 700; width: 65px;">Fraqueza:</span>
+        <div class="chips-row" style="flex: 1; flex-wrap: wrap; gap: 4px;">
+          <button type="button" class="btn chip-btn on hunt-type-filter" data-type="all">Qualquer</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="FIRE">Fogo</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="WATER">Água</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="GRASS">Planta</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="ELECTRIC">Elétrico</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="ICE">Gelo</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="FIGHTING">Lutador</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="GROUND">Terra</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="FLYING">Voador</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="PSYCHIC">Psíquico</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="BUG">Inseto</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="ROCK">Pedra</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="GHOST">Fantasma</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="DRAGON">Dragão</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="STEEL">Aço</button>
+          <button type="button" class="btn chip-btn apagado hunt-type-filter" data-type="FAIRY">Fada</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel 1: Grid de Hunts & Criaturas -->
+    <div id="panel-hunts-list" class="market-content-panel">
+      <div class="quadro" style="flex: 1; min-height: 0;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Enciclopédia de Hunts & Criaturas</h2>
+            <span class="quadro-sub">Análise de rendimento de XP, GP, fraquezas 4x/2x e loots</span>
+          </div>
+          <div class="brand-badge" id="lbl-hunts-counter">0 criaturas catalogadas</div>
+        </div>
+
+        <div id="container-hunts-grid" class="hunts-cards-grid">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+            Carregando enciclopédia de hunts...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel 2: Grid de Bosses & Calculadora Probabilística de Tokens -->
+    <div id="panel-bosses-list" class="market-content-panel" style="display: none;">
+      <div class="quadro" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Chefes & Bosses Diários</h2>
+            <span class="quadro-sub">Entradas diárias, níveis recomendados e tabelas de recompensas raras</span>
+          </div>
+          <div class="brand-badge" id="lbl-bosses-counter">0 chefes catalogados</div>
+        </div>
+
+        <!-- Widget: Calculadora Probabilística de Boss Tokens -->
+        <div class="vao" style="padding: 10px; margin-bottom: 8px; border-radius: 0px; display: flex; flex-direction: column; gap: 8px; flex: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 13px;">🎲</span>
+              <span style="font-size: 11px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Calculadora Oficial de Drops & Boss Tokens</span>
+            </div>
+            <!-- Filtro de foco: Todos / AoE TM / TM Single -->
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn chip-btn on boss-filter-focus" data-focus="all" style="height: 22px; font-size: 8.5px; padding: 0 8px;">Todos os Chefes</button>
+              <button type="button" class="btn chip-btn apagado boss-filter-focus" data-focus="aoe" style="height: 22px; font-size: 8.5px; padding: 0 8px;">⚡ Foco: AoE TM Piece</button>
+              <button type="button" class="btn chip-btn apagado boss-filter-focus" data-focus="tm" style="height: 22px; font-size: 8.5px; padding: 0 8px;">💿 Foco: TM Piece</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr 90px 90px auto; gap: 8px; align-items: flex-end;">
+            <!-- Chefe Oficial -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Chefe Oficial do PokéIdle:</label>
+              <select id="boss-calc-select" class="campo" style="height: 26px; font-size: 10px; border-radius: 0px;">
+                <!-- Preenchido dinamicamente com os 25 bosses canônicos -->
+              </select>
+            </div>
+
+            <!-- Drop Real do Chefe -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label style="font-size: 9px; color: var(--ouro); font-weight: 700;">Drop Oficial do Chefe:</label>
+              <select id="boss-calc-reward" class="campo" style="height: 26px; font-size: 10px; border-radius: 0px;">
+                <!-- Preenchido dinamicamente com os drops reais do chefe selecionado -->
+              </select>
+            </div>
+
+            <!-- Meta Quantidade -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Meta (Qtd):</label>
+              <input type="number" id="boss-calc-target-qty" class="campo" min="1" max="500" value="10" style="height: 26px; font-size: 10px; font-weight: 800; color: #fff; border-radius: 0px;">
+            </div>
+
+            <!-- Chance Oficial do Drop (%) -->
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Chance / Run (%):</label>
+              <input type="number" id="boss-calc-drop-chance" class="campo" min="0.01" max="100" step="0.1" value="1.5" style="height: 26px; font-size: 10px; border-radius: 0px;">
+            </div>
+
+            <!-- Botão Simular -->
+            <button type="button" id="btn-run-boss-calc" class="btn btn-ouro" style="height: 26px; padding: 0 14px; font-size: 10px; font-weight: 800; border-radius: 0px; white-space: nowrap;">
+              🧮 Calcular
+            </button>
+          </div>
+
+          <!-- Informação do Chefe Ativo na Calculadora -->
+          <div id="boss-calc-info-banner" style="display: flex; align-items: center; justify-content: space-between; font-size: 9px; color: var(--sobre-mad-dim); background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 0px;">
+            <div id="boss-calc-details-txt">Carregando informações do chefe...</div>
+            <div id="boss-calc-entry-cost" style="color: var(--ouro); font-weight: 700;">Entrada: 1× Bronze Boss Token</div>
+          </div>
+
+          <!-- Cards de Resultados Probabilísticos -->
+          <div id="box-boss-calc-results" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 2px;">
+            <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+              <span style="font-size: 8px; color: var(--sobre-mad-dim); text-transform: uppercase;">Média Esperada:</span>
+              <div id="res-boss-expected" style="font-size: 12.5px; font-weight: 800; color: #fff; margin-top: 2px;">~ 667 Tokens</div>
+              <span id="res-boss-expected-gp" style="font-size: 7.5px; color: var(--ouro);">~ 46.7M GP no mercado</span>
+            </div>
+
+            <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+              <span style="font-size: 8px; color: var(--verde-luz); text-transform: uppercase;">Com Sorte (P25):</span>
+              <div id="res-boss-lucky" style="font-size: 12.5px; font-weight: 800; color: var(--verde-luz); margin-top: 2px;">~ 495 Tokens</div>
+              <span style="font-size: 7.5px; color: var(--vao-dim);">25% dos mais sortudos</span>
+            </div>
+
+            <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+              <span style="font-size: 8px; color: #ffd166; text-transform: uppercase;">Margem Segura (P90):</span>
+              <div id="res-boss-safe" style="font-size: 12.5px; font-weight: 800; color: #ffd166; margin-top: 2px;">~ 995 Tokens</div>
+              <span style="font-size: 7.5px; color: var(--vao-dim);">Supera o azar estatístico</span>
+            </div>
+
+            <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+              <span style="font-size: 8px; color: #9fe4ff; text-transform: uppercase;">Entradas Diárias:</span>
+              <div id="res-boss-days" style="font-size: 12.5px; font-weight: 800; color: #9fe4ff; margin-top: 2px;">~ 667 Dias</div>
+              <span style="font-size: 7.5px; color: var(--vao-dim);">A 1 entrada grátis/dia</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="container-bosses-grid" class="hunts-cards-grid">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+            Carregando chefes e bosses...
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================== -->
+  <!-- ABA 5: ALTAR PRO — OFERENDA EM LOTE TURBO           -->
+  <!-- =================================================== -->
+  <section class="stats-view-container" id="view-oferendas" style="display: none;">
+    <!-- Barra Superior -->
+    <div class="stats-header-bar">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px;">🔮</span>
+        <div>
+          <h2 style="font-size: 12px; text-transform: uppercase; color: #fff; letter-spacing: 0.8px; margin: 0;">
+            Altar Pro — Oferenda em Lote Turbo
+          </h2>
+          <span style="font-size: 8.5px; color: var(--sobre-mad-dim);">
+            Sacrifique lotes de 5 Pokémons instantaneamente direto no WebSocket (100% de pedra garantida)
+          </span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="selo-vip" style="font-size: 8.5px; padding: 2px 7px;">100% GARANTIDO (0% VAZIO)</span>
+        <button type="button" id="btn-refresh-oferenda-depot" class="btn btn-roxo btn-mini" style="font-size: 8.5px; padding: 3px 8px; border-radius: 0px;">
+          🔄 Atualizar Depot
+        </button>
+      </div>
+    </div>
+
+    <!-- Painel de Configuração e Filtros -->
+    <div class="quadro" style="padding: 8px 12px; gap: 8px; flex: none;">
+      <div style="display: grid; grid-template-columns: minmax(210px, 1.3fr) 1fr 0.9fr 0.8fr auto; gap: 8px; align-items: flex-end;">
+        <!-- Corte por Nota (Manual + Presets Rápidos) -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Nota Máxima de Corte:</label>
+            <span style="font-size: 7.5px; color: var(--ouro); font-weight: 700;">Manual / Preset</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <input type="number" id="input-oferenda-nota-manual" class="campo" step="0.1" min="0" max="10" value="5.0" style="width: 52px; height: 26px; text-align: center; font-weight: 800; font-size: 11px; color: var(--ouro); padding: 0 2px; border-radius: 0px;" placeholder="5.0" title="Digite a nota máxima de corte desejada">
+            <div style="display: flex; gap: 2px; flex: 1;">
+              <button type="button" class="btn chip-btn apagado btn-mini ofr-nota-filter" data-nota="3.5" style="flex: 1; font-size: 8px; padding: 3px 0;">&lt; 3.5</button>
+              <button type="button" class="btn chip-btn on btn-mini ofr-nota-filter" data-nota="5.0" style="flex: 1; font-size: 8px; padding: 3px 0;">&lt; 5.0</button>
+              <button type="button" class="btn chip-btn apagado btn-mini ofr-nota-filter" data-nota="7.0" style="flex: 1; font-size: 8px; padding: 3px 0;">&lt; 7.0</button>
+              <button type="button" class="btn chip-btn apagado btn-mini ofr-nota-filter" data-nota="10.0" style="flex: 1; font-size: 8px; padding: 3px 0;">Todos</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Foco em Tipo Elementar -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <label style="font-size: 9px; color: var(--ouro); font-weight: 700;">Foco em Tipo Elementar:</label>
+          <select id="select-oferenda-tipo" class="campo" style="height: 26px; font-size: 10px; border-radius: 0px;">
+            <option value="ALL">Todos os Tipos (Qualquer Pedra)</option>
+            <option value="WATER">Água (Water Stone)</option>
+            <option value="FIRE">Fogo (Fire Stone)</option>
+            <option value="GRASS">Planta (Leaf Stone)</option>
+            <option value="ELECTRIC">Elétrico (Thunder Stone)</option>
+            <option value="NORMAL">Normal (Heart/Sun)</option>
+            <option value="FLYING">Voador (Feather Stone)</option>
+            <option value="BUG">Inseto (Cocoon Stone)</option>
+            <option value="POISON">Veneno (Venom Stone)</option>
+            <option value="GROUND">Terra (Earth Stone)</option>
+            <option value="ROCK">Pedra (Rock Stone)</option>
+            <option value="FIGHTING">Lutador (Punch Stone)</option>
+            <option value="PSYCHIC">Psíquico (Enigma Stone)</option>
+            <option value="GHOST">Fantasma (Darkness Stone)</option>
+            <option value="DRAGON">Dragão (Ancient Stone)</option>
+            <option value="DARK">Sombrio (Darkness Stone)</option>
+            <option value="STEEL">Aço (Metal Stone)</option>
+            <option value="ICE">Gelo (Ice Stone)</option>
+          </select>
+        </div>
+
+        <!-- Limite de Giros -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Limite de Giros:</label>
+          <select id="select-oferenda-max-batches" class="campo" style="height: 26px; font-size: 10px; border-radius: 0px;">
+            <option value="0">Máximo do Depot</option>
+            <option value="1">1 Giro (5 Pokés)</option>
+            <option value="5">5 Giros (25 Pokés)</option>
+            <option value="10">10 Giros (50 Pokés)</option>
+            <option value="20">20 Giros (100 Pokés)</option>
+          </select>
+        </div>
+
+        <!-- Delay / Pacing por Giro -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <label style="font-size: 9px; color: var(--sobre-mad-dim); font-weight: 700;">Delay por Giro:</label>
+          <select id="select-oferenda-pacing" class="campo" style="height: 26px; font-size: 10px; border-radius: 0px;" title="Intervalo entre giros consecutivos de 5 Pokémons">
+            <option value="500">500ms</option>
+            <option value="800" selected>800ms (Padrão)</option>
+            <option value="1200">1200ms (Seguro)</option>
+            <option value="1500">1500ms (Lento)</option>
+            <option value="2000">2000ms (Suave)</option>
+          </select>
+        </div>
+
+        <!-- Botão Executar -->
+        <button type="button" id="btn-run-oferenda-batch" class="btn btn-roxo" style="height: 28px; padding: 0 14px; font-size: 10px; font-weight: 800; border-radius: 0px; white-space: nowrap;">
+          🔮 Executar Lote
+        </button>
+      </div>
+
+      <!-- Telemetria do Lote -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px;">
+        <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+          <span style="font-size: 8px; color: var(--sobre-mad-dim); text-transform: uppercase;">Pokémons Elegíveis:</span>
+          <div id="lbl-ofr-candidatos" style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;">0</div>
+        </div>
+        <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+          <span style="font-size: 8px; color: var(--rx-luz); text-transform: uppercase;">Pedras Garantidas (0% Vazio):</span>
+          <div id="lbl-ofr-pedras" style="font-size: 13px; font-weight: 800; color: var(--rx-clr); margin-top: 2px;">0 Pedras</div>
+        </div>
+        <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+          <span style="font-size: 8px; color: var(--verde-luz); text-transform: uppercase;">🛡️ Protegidos (Shinies/P5/Trava):</span>
+          <div id="lbl-ofr-protegidos" style="font-size: 13px; font-weight: 800; color: var(--verde-luz); margin-top: 2px;">0</div>
+        </div>
+        <div class="vao" style="padding: 6px 8px; text-align: center; border-radius: 0px;">
+          <span style="font-size: 8px; color: var(--sobre-mad-dim); text-transform: uppercase;">Sobra no Depot:</span>
+          <div id="lbl-ofr-sobra" style="font-size: 13px; font-weight: 800; color: var(--ouro); margin-top: 2px;">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Progresso Durante Envio -->
+    <div id="ofr-progress-bar-container" style="display: none; padding: 8px 12px; background: var(--vao); border-radius: 0px; flex-direction: column; gap: 4px; flex: none;">
+      <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; color: var(--rx-luz);">
+        <span id="ofr-progress-status-txt">Despachando giros para o servidor via WebSocket...</span>
+        <span id="ofr-progress-count-txt">Lote 0 / 0</span>
+      </div>
+      <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.5); border-radius: 0px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--mad-linha);">
+        <div id="ofr-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--rx), var(--rx-rosa)); transition: width 0.3s ease;"></div>
+      </div>
+    </div>
+
+    <!-- Quadro de Resumo Final das Pedras Obtidas -->
+    <div id="ofr-result-summary-box" class="vao" style="display: none; padding: 10px 14px; border-radius: 0px; flex-direction: column; gap: 6px; flex: none; border: 1px solid var(--rx-esc);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 11px; font-weight: 800; color: var(--verde-luz);">
+          ✅ Oferenda em Lote Finalizada com Sucesso!
+        </span>
+        <span id="ofr-result-totals-txt" style="font-size: 9.5px; color: var(--sobre-mad);">0 Pokémons sacrificados em 0 giros</span>
+      </div>
+      <div id="ofr-result-stones-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+        <!-- Chips das pedras recebidas -->
+      </div>
+    </div>
+
+    <!-- Grade com a Prévia dos Pokémons que Serão Ofertados -->
+    <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px;">
+        <span style="font-size: 9.5px; font-weight: 700; color: var(--sobre-mad-dim);">
+          Prévia dos Pokémons que serão sacrificados (em ordem crescente de Nota):
+        </span>
+        <span style="font-size: 8.5px; color: var(--vao-dim);">5 Pokémons = 1 Pedra Garantida</span>
+      </div>
+      <div id="container-oferenda-preview-grid" class="hunts-cards-grid" style="flex: 1; min-height: 0; overflow-y: auto;">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
+          Carregando Pokémons do Depot...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODAL DE VENDEDORES / OFERTAS DE UM ITEM ESPECÍFICO -->
+  <div id="modal-item-offers" class="modal-overlay">
+    <div class="modal-caixa" style="max-width: 520px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img id="offers-modal-icon" src="" style="width: 24px; height: 24px; object-fit: contain;">
+          <div>
+            <h3 id="offers-modal-title" class="modal-title" style="margin: 0;">Ofertas do Item</h3>
+            <span id="offers-modal-sub" style="font-size: 9px; color: var(--sobre-mad-dim);">Vendedores na comunidade</span>
+          </div>
+        </div>
+        <button type="button" id="btn-close-offers-modal" class="btn apagado btn-mini">✕</button>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--vao); border-bottom: 2px solid var(--mad-linha);">
+        <div style="display: flex; gap: 4px;">
+          <button type="button" id="btn-offers-gold" class="btn chip-btn on" style="height: 22px; font-size: 9px;">Coins (GP)</button>
+          <button type="button" id="btn-offers-gems" class="btn chip-btn apagado" style="height: 22px; font-size: 9px;">Gemas</button>
+        </div>
+        <button type="button" id="btn-quick-create-rule" class="btn btn-roxo btn-mini" style="height: 22px; font-size: 8.5px;" title="Criar regra de sniper para este item">
+          + Criar Regra Sniper
+        </button>
+      </div>
+
+      <div id="container-offers-sellers" class="vao" style="flex: 1; min-height: 180px; max-height: 380px; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="text-align: center; padding: 20px; color: var(--vao-dim);">Carregando ofertas deste item...</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btn-close-offers-bottom" class="btn apagado">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE REGRA -->
+  <div id="modal-edit-rule" class="modal-overlay">
+    <div class="modal-caixa">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Regra de Compra</h3>
+        <button type="button" id="btn-close-modal" class="btn apagado btn-mini">X</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="edit-rule-name">Alvo:</label>
+          <input type="text" id="edit-rule-name" class="campo" readonly style="opacity: 0.85;">
+        </div>
+
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group" id="group-edit-coins">
+            <label class="form-label" for="edit-rule-coins">Teto em Coins:</label>
+            <input type="number" id="edit-rule-coins" class="campo" min="0">
+          </div>
+          <div class="form-group" id="group-edit-gemas">
+            <label class="form-label" for="edit-rule-gemas">Teto em Gemas:</label>
+            <input type="number" id="edit-rule-gemas" class="campo" min="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+            <label class="form-label" for="edit-rule-qty" id="lbl-edit-qty-title" style="margin-bottom: 0;">Quantidade Máxima (Máx 20 un):</label>
+            <button type="button" id="btn-toggle-infinite-edit" class="btn apagado btn-mini" style="font-size: 8px; padding: 1px 6px; height: 18px; border-radius: 0px;" title="Alternar para compra infinita">
+              ∞ Infinito
+            </button>
+          </div>
+          <input type="number" id="edit-rule-qty" class="campo" min="1" max="20" placeholder="1 a 20">
+        </div>
+
+        <div class="vao" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px;">
+          <span style="font-size: 10px; color: var(--sobre-mad-dim);">Comprados: <b id="lbl-edit-bought" style="color: #fff;">0</b></span>
+          <button type="button" id="btn-reset-bought" class="btn apagado btn-mini" title="Zerar contador para comprar novamente">Zerar Contador</button>
+        </div>
+
+        <div class="vao global-row">
+          <span class="form-label" style="margin: 0;">Regra Ativa:</span>
+          <input type="checkbox" id="edit-rule-active">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btn-cancel-modal" class="btn apagado">Cancelar</button>
+        <button type="button" id="btn-save-modal" class="btn btn-roxo">Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PIX (ME PAGUE UM CAFE) -->
+  <div id="modal-pix" class="modal-overlay">
+    <div class="modal-caixa" style="max-width: 420px; border-radius: 0px;">
+      <div class="modal-header">
+        <span class="modal-title">Me pague um café</span>
+        <button type="button" id="btn-close-pix" class="btn apagado" style="padding: 2px 8px; font-size: 11px;">✕</button>
+      </div>
+
+      <div class="modal-body" style="align-items: center; text-align: center; gap: 10px;">
+        <p style="font-size: 10px; color: var(--sobre-mad); margin: 0; line-height: 1.4;">
+          Gostou do <b>PokéIdle Auto-Sniper</b>? Me pague um café via Pix para fortalecer o desenvolvimento e manter o assistente sempre atualizado!
+        </p>
+
+        <!-- QR CODE CONTAINER -->
+        <div id="pix-qrcode-container" class="vao" style="background: #ffffff; padding: 10px; border-radius: 0px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; min-height: 180px; min-width: 180px;">
+          <!-- QR Code SVG inserido dinamicamente -->
+        </div>
+
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 6px;">
+          <!-- Chave Pix Copiar -->
+          <div class="vao" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 0px;">
+            <div style="display: flex; flex-direction: column; align-items: flex-start; overflow: hidden; margin-right: 6px;">
+              <span style="font-size: 8px; color: var(--vao-dim); text-transform: uppercase;">Chave Pix:</span>
+              <b id="pix-key-display" style="font-size: 10.5px; color: var(--ouro); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 250px;">46196ec9-a442-41d9-b350-d0d1123987a7</b>
+            </div>
+            <button type="button" id="btn-copy-pix-key" class="btn btn-roxo" style="padding: 4px 8px; font-size: 9px; flex-shrink: 0; border-radius: 0px;">
+              Copiar Chave
+            </button>
+          </div>
+
+          <!-- Botão Copia e Cola -->
+          <button type="button" id="btn-copy-pix-payload" class="btn btn-pix" style="width: 100%; height: 30px; font-size: 10px; border-radius: 0px;">
+            Copiar Pix Copia e Cola
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="border-radius: 0px;">
+        <button type="button" id="btn-pix-fechar-bottom" class="btn apagado" style="border-radius: 0px;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CÂMBIO & NEGOCIAÇÃO DE DIAMANTES -->
+  <div id="modal-diamantes" class="modal-overlay">
+    <div class="modal-caixa" style="width: min(560px, 95vw); max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; border-radius: 0px; box-sizing: border-box;">
+      <div class="modal-header" style="border-radius: 0px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="https://pokeidle.io/img/moeda-diamante.png" style="width: 26px; height: 26px; object-fit: contain;">
+          <div>
+            <h3 class="modal-title" style="margin: 0; color: #9fe4ff; letter-spacing: 0.5px;">COMPRA & VENDA DE DIAMANTES</h3>
+            <span style="font-size: 9.5px; color: var(--sobre-mad-dim);">Compre, venda e anuncie Diamantes na comunidade PokéIdle</span>
+          </div>
+        </div>
+        <button type="button" id="btn-close-diamantes-modal" class="btn apagado btn-mini" style="border-radius: 0px;">✕</button>
+      </div>
+
+      <!-- Abas Internas do Modal de Diamantes -->
+      <div style="display: flex; gap: 6px; padding: 6px 10px; background: var(--vao); border-bottom: 2px solid var(--mad-linha); flex-wrap: wrap; align-items: center; justify-content: space-between;">
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="tab-diamante-comprar" class="btn chip-btn on" style="border-radius: 0px; font-size: 9px; padding: 3px 8px;">
+            🛒 Comprar no Mercado
+          </button>
+          <button type="button" id="tab-diamante-vender" class="btn chip-btn apagado" style="border-radius: 0px; font-size: 9px; padding: 3px 8px;">
+            📢 Anunciar Venda
+          </button>
+        </div>
+        <button type="button" id="tab-diamante-recarga" class="btn chip-btn apagado" style="border-radius: 0px; font-size: 9px; padding: 3px 8px;">
+          ⚡ Recarga Oficial (PIX)
+        </button>
+      </div>
+
+      <!-- Painel 1: Comprar Diamantes da Comunidade -->
+      <div id="panel-diamante-comprar" class="modal-body" style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 380px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; background: rgba(0,0,0,0.2); gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 9.5px; color: var(--sobre-mad-dim);">Filtrar:</span>
+            <button type="button" id="btn-filter-diamonds-all" class="btn chip-btn on btn-mini" style="font-size: 8.5px; padding: 1px 6px; border-radius: 0px;">Todas</button>
+            <button type="button" id="btn-filter-diamonds-gold" class="btn chip-btn apagado btn-mini" style="font-size: 8.5px; padding: 1px 6px; border-radius: 0px;">🪙 GP</button>
+            <button type="button" id="btn-filter-diamonds-gems" class="btn chip-btn apagado btn-mini" style="font-size: 8.5px; padding: 1px 6px; border-radius: 0px;">💎 Gemas</button>
+          </div>
+          <button type="button" id="btn-refresh-diamantes-market" class="btn btn-roxo btn-mini" style="font-size: 8.5px; padding: 2px 6px; border-radius: 0px;">
+            🔄 Atualizar Ofertas
+          </button>
+        </div>
+        <div id="container-diamantes-offers" style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="text-align: center; padding: 30px 10px; color: var(--sobre-mad-dim); font-size: 10.5px;">
+            Buscando ofertas de Diamantes no mercado...
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel 2: Anunciar Diamantes à Venda -->
+      <div id="panel-diamante-vender" class="modal-body" style="display: none; flex-direction: column; gap: 10px;">
+        <div style="padding: 8px; background: var(--vao); border-radius: 0px;">
+          <span style="font-size: 10px; color: var(--sobre-mad);">Coloque seus Diamantes à venda no mercado oficial da comunidade do PokéIdle.</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 9.5px; color: var(--sobre-mad-dim);">Quantidade de Diamantes:</label>
+          <input type="number" id="input-sell-diamantes-qtd" class="campo" min="1" max="99999" value="10" placeholder="Ex: 10" style="height: 28px; border-radius: 0px;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 9.5px; color: var(--sobre-mad-dim);">Preço Unitário:</label>
+            <input type="number" id="input-sell-diamantes-preco" class="campo" min="1" placeholder="Ex: 50000" style="height: 28px; border-radius: 0px;">
+          </div>
+          <div style="width: 140px; display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 9.5px; color: var(--sobre-mad-dim);">Receber Em:</label>
+            <select id="select-sell-diamantes-moeda" class="campo" style="height: 28px; border-radius: 0px;">
+              <option value="gold">🪙 Coins (GP)</option>
+              <option value="orb">💎 Gemas</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="box-sell-diamantes-resumo" class="vao" style="padding: 8px; font-size: 10px; color: var(--ouro); border-radius: 0px;">
+          Total a receber: <b>0 GP</b>
+        </div>
+
+        <button type="button" id="btn-submit-sell-diamantes" class="btn btn-ouro" style="height: 32px; font-size: 11px; border-radius: 0px;">
+          📢 Publicar Anúncio de Diamantes
+        </button>
+      </div>
+
+      <!-- Painel 3: Recarga Oficial via PIX (Link/Direto) -->
+      <div id="panel-diamante-recarga" class="modal-body" style="display: none; flex-direction: column; gap: 10px;">
+        <div style="padding: 8px; background: var(--vao); border-radius: 0px;">
+          <span style="font-size: 10px; color: var(--sobre-mad);">A compra oficial de Diamantes no PokéIdle é feita com PIX/cartão e creditada instantaneamente na sua conta.</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="vao" style="padding: 10px; text-align: center; border-radius: 0px;">
+            <div style="font-size: 14px; color: #9fe4ff; font-weight: 800;">50 Diamantes</div>
+            <div style="font-size: 11px; color: var(--ouro); margin: 4px 0;">R$ 10,00</div>
+            <a href="https://pokeidle.io/app#diamantes" target="_blank" class="btn btn-mini" style="display: inline-block; padding: 4px 8px; border-radius: 0px; text-decoration: none; color: #fff;">Comprar no Jogo</a>
+          </div>
+          <div class="vao" style="padding: 10px; text-align: center; border-radius: 0px;">
+            <div style="font-size: 14px; color: #9fe4ff; font-weight: 800;">120 Diamantes</div>
+            <div style="font-size: 11px; color: var(--ouro); margin: 4px 0;">R$ 20,00</div>
+            <a href="https://pokeidle.io/app#diamantes" target="_blank" class="btn btn-mini" style="display: inline-block; padding: 4px 8px; border-radius: 0px; text-decoration: none; color: #fff;">Comprar no Jogo</a>
+          </div>
+          <div class="vao" style="padding: 10px; text-align: center; border-radius: 0px;">
+            <div style="font-size: 14px; color: #9fe4ff; font-weight: 800;">350 Diamantes</div>
+            <div style="font-size: 11px; color: var(--ouro); margin: 4px 0;">R$ 50,00</div>
+            <a href="https://pokeidle.io/app#diamantes" target="_blank" class="btn btn-mini" style="display: inline-block; padding: 4px 8px; border-radius: 0px; text-decoration: none; color: #fff;">Comprar no Jogo</a>
+          </div>
+          <div class="vao" style="padding: 10px; text-align: center; border-radius: 0px;">
+            <div style="font-size: 14px; color: #9fe4ff; font-weight: 800;">800 Diamantes</div>
+            <div style="font-size: 11px; color: var(--ouro); margin: 4px 0;">R$ 100,00</div>
+            <a href="https://pokeidle.io/app#diamantes" target="_blank" class="btn btn-mini" style="display: inline-block; padding: 4px 8px; border-radius: 0px; text-decoration: none; color: #fff;">Comprar no Jogo</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="border-radius: 0px;">
+        <button type="button" id="btn-close-diamantes-modal-bottom" class="btn apagado" style="border-radius: 0px;">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER BAR -->
+  <footer class="footer-bar">
+    <span id="footer-status">Varrendo mercado da comunidade automaticamente...</span>
+    <span>PokéIdle Sniper v1.5.0</span>
+  </footer>
+
+  <script src="chrome-bridge.js"></script>
+  <script src="qrcode.js"></script>
+  <script src="items_db.js"></script>
+  <script src="hunts_db.js"></script>
+  <script src="cockpit.js"></script>
+</body>
+
+</html>

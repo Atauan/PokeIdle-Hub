@@ -30,4 +30,7 @@ contextBridge.exposeInMainWorld('pf', {
   showInFolder: (filePath) => ipcRenderer.send('show-in-folder', filePath),
   quitApp: () => ipcRenderer.send('quit-app'),
   onDownloadProgress: (cb) => ipcRenderer.on('update-download-progress', (_e, data) => cb(data)),
+  openRotomCockpit: (accId, accName) => ipcRenderer.invoke('open-rotom-cockpit', { accId: String(accId), accName: String(accName) }),
+  sendRotomFromWebview: (accId, data) => ipcRenderer.send('rotom-from-webview', { accId: String(accId), data }),
+  onRotomForwardToGame: (cb) => ipcRenderer.on('rotom-forward-to-game', (_e, payload) => cb(payload)),
 });

@@ -311,6 +311,7 @@ input[type=text] { min-width: 0; }
 .icon-svg.icon-link { mask-image: url('assets/icons/game-link.svg'); -webkit-mask-image: url('assets/icons/game-link.svg'); }
 .icon-svg.icon-edge { mask-image: url('assets/icons/game-edge.svg'); -webkit-mask-image: url('assets/icons/game-edge.svg'); }
 .icon-svg.icon-settings { mask-image: url('assets/icons/nav-settings.svg'); -webkit-mask-image: url('assets/icons/nav-settings.svg'); }
+.icon-svg.icon-target { mask-image: url('assets/icons/game-sniper.svg'); -webkit-mask-image: url('assets/icons/game-sniper.svg'); }
 
 .bar-part { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: visible; }
 #channel-input { flex: 1; }
@@ -749,6 +750,26 @@ webview { background: #0b0b0c; }
   color: #0b0c10;
   font-weight: 700;
   border-color: var(--accent);
+}
+
+.game-sniper-btn {
+  font-weight: 600;
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+.game-sniper-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fff;
+}
+.game-pane-btn.sniper {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+.game-pane-btn.sniper:hover {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
 }
 
 .account-column {

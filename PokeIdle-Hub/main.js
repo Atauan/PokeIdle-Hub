@@ -336,6 +336,7 @@ function setupSession(part) {
   regPreload('pf-pokeidle-hunt', 'pokeidle-hunt.js');
   regPreload('pf-twitch-economy', 'twitch-economy.js');
   regPreload('pf-kick-economy', 'kick-economy.js');
+  regPreload('pf-rotom-addon', 'rotom-addon.js');
 }
 
 const fromApp = (e) => !!(e.senderFrame && String(e.senderFrame.url).startsWith('file://'));
@@ -809,6 +810,71 @@ ipcMain.handle('clean-ram', async (e) => {
   }
 });
 
+// MARK: Gerenciamento do Cockpit Sniper (Janela Standalone por conta)
+const cockpitWindows = new Map();
+
+function openRotomCockpitWindow(accId, accName) {
+  const existing = cockpitWindows.get(accId);
+  if (existing && !existing.isDestroyed()) {
+    if (existing.isMinimized()) existing.restore();
+    existing.show();
+    existing.focus();
+    return { ok: true, focused: true };
+  }
+
+  const cpWin = new BrowserWindow({
+    width: 1160,
+    height: 760,
+    minWidth: 900,
+    minHeight: 600,
+    title: `Sniper — Cockpit [${accName || accId}]`,
+    icon: getAppIcon(),
+    backgroundColor: '#33202b',
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'assets', 'addons', 'rotom-sniper', 'cockpit-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      spellcheck: false,
+    },
+  });
+
+  cockpitWindows.set(accId, cpWin);
+
+  cpWin.once('ready-to-show', () => {
+    cpWin.show();
+    cpWin.focus();
+  });
+
+  cpWin.on('closed', () => {
+    cockpitWindows.delete(accId);
+  });
+
+  const htmlPath = path.join(__dirname, 'assets', 'addons', 'rotom-sniper', 'cockpit.html');
+  const fileUrl = `file://${htmlPath.replace(/\\/g, '/')}?acc=${encodeURIComponent(accId)}&name=${encodeURIComponent(accName || 'Conta')}`;
+  cpWin.loadURL(fileUrl);
+  return { ok: true, created: true };
+}
+
+ipcMain.handle('open-rotom-cockpit', (event, { accId, accName }) => {
+  return openRotomCockpitWindow(String(accId), String(accName));
+});
+
+ipcMain.on('rotom-to-game', (event, { accId, message }) => {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('rotom-forward-to-game', { accId, message });
+  }
+});
+
+ipcMain.on('rotom-from-webview', (event, { accId, data }) => {
+  const cpWin = cockpitWindows.get(accId);
+  if (cpWin && !cpWin.isDestroyed()) {
+    cpWin.webContents.send('rotom-from-game', data);
+  }
+});
+
 function migrateLegacySessions() {
   try {
     const currentDataDir = app.getPath('userData');
@@ -917,6 +983,10 @@ app.on('before-quit', () => {
   quitting = true;
   clearTimeout(trayClickTimer);
   if (updateTimer) clearInterval(updateTimer);
+  for (const w of cockpitWindows.values()) {
+    try { if (!w.isDestroyed()) w.close(); } catch (_) {}
+  }
+  cockpitWindows.clear();
 });
 app.on('will-quit', () => {
   if (tray && !tray.isDestroyed()) tray.destroy();

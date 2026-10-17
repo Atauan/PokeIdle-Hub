@@ -1329,6 +1329,16 @@ function createGamePaneHeader(a, wv, isMarket) {
     ),
     el('div', { class: 'game-pane-actions' },
       el('button', {
+        class: 'game-pane-btn sniper',
+        title: 'Abrir Cockpit Sniper desta conta',
+        onclick: (e) => {
+          e.stopPropagation();
+          if (window.pf?.openRotomCockpit) {
+            window.pf.openRotomCockpit(a.id, a.name);
+          }
+        },
+      }, el('span', { class: 'icon-svg icon-target' }), ' Sniper'),
+      el('button', {
         class: 'game-pane-btn focus',
         title: 'Focar nesta conta em tela cheia',
         onclick: (e) => {
@@ -1425,6 +1435,11 @@ function setupGame() {
         try {
           if (/(^|\.)pokeidle\.io$/.test(new URL(wv.getURL()).hostname)) receiveGameChannels(e.args[0]);
         } catch (_) { /* a página já foi fechada/navegou */ }
+      }
+      if (e.channel === 'rotom-msg') {
+        if (window.pf?.sendRotomFromWebview) {
+          window.pf.sendRotomFromWebview(a.id, e.args[0]);
+        }
       }
     });
     const header = createGamePaneHeader(a, wv, market);
@@ -2091,6 +2106,12 @@ function setupBar() {
     const g = games.get(currentAccount().id);
     if (g) reloadWebview(g.wv);
   });
+  $('#game-open-sniper')?.addEventListener('click', () => {
+    const a = currentAccount();
+    if (a && window.pf?.openRotomCockpit) {
+      window.pf.openRotomCockpit(a.id, a.name);
+    }
+  });
   $('#game-toggle-mosaic')?.addEventListener('click', () => toggleGameMosaic());
   $('#game-edge').addEventListener('click', () => window.pf.openEdge(GAME_URL));
   $('#game-login').addEventListener('click', () => {
@@ -2114,6 +2135,14 @@ function setupBar() {
   window.pf.onOpenTab((tab) => setTab(tab));
   // Link de live clicado no jogo: vira bloco na aba Lives (o jogo continua aberto)
   window.pf.onAddLive(addFromGame);
+  if (window.pf?.onRotomForwardToGame) {
+    window.pf.onRotomForwardToGame(({ accId, message }) => {
+      const g = games.get(accId);
+      if (g && g.wv && typeof g.wv.send === 'function') {
+        g.wv.send('rotom-cmd', message);
+      }
+    });
+  }
 
   $('#chat-backdrop').addEventListener('click', collapseChat);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') collapseChat(); });

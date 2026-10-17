@@ -47,6 +47,7 @@
       "preload.js",
       "webview-preload.js",
       "pokeidle-hunt.js",
+      "rotom-addon.js",
       "renderer/**",
       "assets/**",
       "package.json"
@@ -54,6 +55,7 @@
     "asar": true,
     "asarUnpack": [
       "pokeidle-hunt.js",
+      "rotom-addon.js",
       "game-session.js",
       "game-channels.js",
       "twitch-economy.js",
