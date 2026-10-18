@@ -69,30 +69,13 @@
 
     <header id="bar">
       <div class="bar-part" id="bar-lives">
-        <div class="seg" id="target" aria-label="Plataforma padrão para novos canais">
+        <div class="seg seg-compact" id="target" aria-label="Plataforma padrão para novos canais">
           <button data-target="kick">Kick</button>
           <button data-target="twitch">Twitch</button>
         </div>
         <input id="channel-input" type="text" aria-label="Canal ou link"
                placeholder="Canal ou link (vários separados por vírgula)">
         <button id="add-btn" class="primary"><span class="icon-svg icon-add"></span> Adicionar</button>
-        <label class="inline">Colunas
-          <select id="columns" aria-label="Colunas"></select>
-        </label>
-        <button id="reset-layout" class="icon" title="Reorganizar: volta todos os blocos para a grade (arraste o título para mover, bordas/canto para redimensionar)" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
-        <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
-        <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
-        <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
-          <select id="quality" aria-label="Qualidade das lives">
-            <option value="160">Mínima (160p)</option>
-            <option value="360">Baixa (360p)</option>
-            <option value="480">Média (480p)</option>
-            <option value="0">Automática</option>
-          </select>
-        </label>
-        <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
-        <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir Todos</button>
-        <button id="reload-all" class="icon" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span></button>
         <div class="menu">
           <button class="menu-btn"><span class="icon-svg icon-trash"></span> Limpar ▾</button>
           <div class="menu-list right">
@@ -101,6 +84,8 @@
             <button data-clear="all">Tudo</button>
           </div>
         </div>
+        <span class="spacer"></span>
+        <button id="btn-toggle-live-actions" class="btn-actions-toggle" title="Ocultar ferramentas e opções de lives">▲ Opções</button>
       </div>
 
       <div class="bar-part" id="bar-game" hidden>
@@ -133,6 +118,94 @@
       <button id="btn-collapse-topbar" class="icon bar-collapse-btn" title="Ocultar barra de ferramentas superior para ganhar espaço vertical">▲</button>
     </header>
 
+    <div id="lives-actions-bar" class="lives-actions-subbar" hidden>
+      <div class="subbar-group">
+        <label class="inline">Colunas
+          <select id="columns" aria-label="Colunas"></select>
+        </label>
+        <button id="reset-layout" class="icon" title="Reorganizar: volta todos os blocos para a grade (arraste o título para mover, bordas/canto para redimensionar)" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
+        <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
+        <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
+      </div>
+
+      <div class="subbar-divider"></div>
+
+      <div class="subbar-group">
+        <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
+          <select id="quality" aria-label="Qualidade das lives">
+            <option value="160">Mínima (160p)</option>
+            <option value="360">Baixa (360p)</option>
+            <option value="480">Média (480p)</option>
+            <option value="0">Automática</option>
+          </select>
+        </label>
+        <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
+        <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir Todos</button>
+        <button id="reload-all" class="icon" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span></button>
+      </div>
+
+      <div class="subbar-divider"></div>
+
+      <div class="subbar-group">
+        <span id="live-summary" class="muted small" role="status"></span>
+        <label class="inline" title="Liga ou desliga as verificações periódicas, preservando as lives abertas">
+          <input type="checkbox" id="auto-lives"> Auto
+        </label>
+        <select id="live-poll" aria-label="Intervalo de verificação das lives" title="Intervalo de verificação automática">
+          <option value="30">30 s</option>
+          <option value="60">1 min</option>
+          <option value="120">2 min</option>
+          <option value="300">5 min</option>
+        </select>
+        <button id="check-lives" title="Busca os canais do jogo e abre os online, mesmo com o automático desligado">Verificar agora</button>
+
+        <div class="menu">
+          <button class="menu-btn" title="Configurações de limites universais e modos econômicos de lives">⚙ Ajustes ▾</button>
+          <div class="menu-list right subbar-menu-panel">
+            <div class="menu-panel-row">
+              <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
+                <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
+                  <option value="0">0 (desativado)</option>
+                  <option value="1">1 live</option>
+                  <option value="2">2 lives</option>
+                  <option value="3">3 lives</option>
+                  <option value="4">4 lives</option>
+                  <option value="5">5 lives</option>
+                  <option value="6">6 lives</option>
+                  <option value="99">Ilimitado</option>
+                </select>
+              </label>
+              <label class="inline" title="Quantidade máxima de lives da Twitch por conta">Máx Twitch:
+                <select id="universal-limit-twitch" aria-label="Limite universal Twitch por conta">
+                  <option value="0">0 (desativado)</option>
+                  <option value="1">1 live</option>
+                  <option value="2">2 lives</option>
+                  <option value="3">3 lives</option>
+                  <option value="4">4 lives</option>
+                  <option value="5">5 lives</option>
+                  <option value="6">6 lives</option>
+                  <option value="99">Ilimitado</option>
+                </select>
+              </label>
+            </div>
+            <div class="subbar-menu-divider"></div>
+            <div class="menu-panel-col">
+              <label class="inline" title="Um chat compartilhado, sem vídeos. Não garante Pontos do Canal da Twitch.">
+                <input type="checkbox" id="twitch-economy"> Twitch econômica
+              </label>
+              <label class="inline" title="Vídeo em qualidade mínima e mensagens ocultas na faixa de pontos.">
+                <input type="checkbox" id="kick-economy"> Kick econômica
+              </label>
+            </div>
+            <div id="twitch-economy-status" role="status" class="muted small"></div>
+            <button id="twitch-economy-reload" class="small" hidden>Reconectar Twitch</button>
+            <span id="twitch-economy-help" class="muted small" hidden></span>
+            <span id="kick-economy-help" class="muted small" hidden></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="game-actions-bar" class="game-actions-subbar" hidden>
       <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
       <button id="game-reload"><span class="icon-svg icon-reload"></span> Recarregar jogo</button>
@@ -164,56 +237,6 @@
 
   <main id="stage">
     <section id="panel-lives" class="panel">
-      <div id="live-controls">
-        <label class="inline" title="Liga ou desliga as verificações periódicas, preservando as lives abertas">
-          <input type="checkbox" id="auto-lives"> Gerenciar lives automaticamente
-        </label>
-        <label class="inline">Verificar a cada
-          <select id="live-poll" aria-label="Intervalo de verificação das lives">
-            <option value="30">30 s</option>
-            <option value="60">1 min</option>
-            <option value="120">2 min</option>
-            <option value="300">5 min</option>
-          </select>
-        </label>
-        <span id="live-summary" class="muted" role="status"></span>
-        <div class="universal-limits" title="Limite universal de lives por conta (aplica a todas)">
-          <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
-            <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
-              <option value="0">0 (desativado)</option>
-              <option value="1">1 live</option>
-              <option value="2">2 lives</option>
-              <option value="3">3 lives</option>
-              <option value="4">4 lives</option>
-              <option value="5">5 lives</option>
-              <option value="6">6 lives</option>
-              <option value="99">Ilimitado</option>
-            </select>
-          </label>
-          <label class="inline" title="Quantidade máxima de lives da Twitch por conta">Máx Twitch:
-            <select id="universal-limit-twitch" aria-label="Limite universal Twitch por conta">
-              <option value="0">0 (desativado)</option>
-              <option value="1">1 live</option>
-              <option value="2">2 lives</option>
-              <option value="3">3 lives</option>
-              <option value="4">4 lives</option>
-              <option value="5">5 lives</option>
-              <option value="6">6 lives</option>
-              <option value="99">Ilimitado</option>
-            </select>
-          </label>
-        </div>
-        <span class="spacer"></span>
-        <button id="check-lives" title="Busca os canais do jogo e abre os online, mesmo com o automático desligado">Verificar agora</button>
-      </div>
-      <div id="twitch-economy-controls">
-        <label class="inline"><input type="checkbox" id="twitch-economy"> Twitch econômica (experimental)</label>
-        <label class="inline" title="Qualidade mínima e chat leve, mantendo o vídeo e a faixa de pontos"><input type="checkbox" id="kick-economy"> Kick econômica</label>
-        <span id="twitch-economy-status" role="status" class="muted"></span>
-        <button id="twitch-economy-reload" hidden>Reconectar Twitch</button>
-        <span id="twitch-economy-help" class="muted small" hidden>Um chat compartilhado, sem vídeos. Confira os bônus no Pokeidle; este modo não garante Pontos do Canal da Twitch.</span>
-        <span id="kick-economy-help" class="muted small" hidden>Kick: vídeo em qualidade mínima e mensagens ocultas na faixa de pontos. Abra o chat para consultar ou resgatar; novas mensagens voltam a aparecer.</span>
-      </div>
       <div id="live-area">
         <div id="grid">
           <div id="chat-backdrop" hidden>

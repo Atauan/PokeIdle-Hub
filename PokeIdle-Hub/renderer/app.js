@@ -60,6 +60,7 @@ const S = {
     return u && typeof u === 'object' ? u : { kick: 2, twitch: 3 };
   })(),
   gameActionsVisible: load('pf.gameActionsVisible', true) !== false,
+  liveActionsVisible: load('pf.liveActionsVisible', true) !== false,
   accountZoom: load('pf.accountZoom', {}),
 };
 function persist() {
@@ -68,6 +69,7 @@ function persist() {
   save('pf.accounts', S.accounts); save('pf.gameAccount', S.gameAccount);
   save('pf.gameMosaic', S.gameMosaic);
   save('pf.gameActionsVisible', S.gameActionsVisible);
+  save('pf.liveActionsVisible', S.liveActionsVisible);
   save('pf.accountZoom', S.accountZoom);
   save('pf.autoLives', S.autoLives); save('pf.livePoll', S.livePoll);
   save('pf.twitchEconomy', S.twitchEconomy);
@@ -1844,6 +1846,9 @@ function setTab(tab) {
   const actionsBar = $('#game-actions-bar');
   if (actionsBar) actionsBar.hidden = tab !== 'game' || S.gameActionsVisible === false;
   updateGameActionsToggleBtn();
+  const liveActionsBar = $('#lives-actions-bar');
+  if (liveActionsBar) liveActionsBar.hidden = tab !== 'lives' || S.liveActionsVisible === false;
+  updateLiveActionsToggleBtn();
   if (tab === 'alerts') renderAlerts();
   if (tab === 'afk' && window.PF?.FarmAfk?.init) window.PF.FarmAfk.init();
   if (tab === 'settings') renderSettings();
@@ -1859,6 +1864,17 @@ function updateGameActionsToggleBtn() {
   btn.title = isVisible
     ? 'Ocultar barra de ações do jogo'
     : 'Mostrar barra de ações do jogo';
+  btn.classList.toggle('active', isVisible);
+}
+
+function updateLiveActionsToggleBtn() {
+  const btn = $('#btn-toggle-live-actions');
+  if (!btn) return;
+  const isVisible = S.liveActionsVisible !== false;
+  btn.innerHTML = isVisible ? '▲ Opções' : '▼ Opções';
+  btn.title = isVisible
+    ? 'Ocultar barra de ferramentas e opções de lives'
+    : 'Mostrar barra de ferramentas e opções de lives';
   btn.classList.toggle('active', isVisible);
 }
 
@@ -2028,11 +2044,13 @@ function setupBar() {
   const bar = $('#bar');
   const updateBar = $('#update-bar');
   const gameActionsBar = $('#game-actions-bar');
+  const livesActionsBar = $('#lives-actions-bar');
   const floatingRestore = $('#bars-floating-restore');
   const setBarsCollapsed = (hide) => {
     bar?.classList.toggle('bar-collapsed', hide);
     updateBar?.classList.toggle('bar-collapsed', hide);
     gameActionsBar?.classList.toggle('bar-collapsed', hide);
+    livesActionsBar?.classList.toggle('bar-collapsed', hide);
     if (floatingRestore) floatingRestore.hidden = !hide;
     save('pf.barsCollapsed', hide);
     if (S.tab === 'lives') layout();
@@ -2085,6 +2103,15 @@ function setupBar() {
       gameActionsBar.hidden = S.tab !== 'game' || !S.gameActionsVisible;
     }
     updateGameActionsToggleBtn();
+  });
+  $('#btn-toggle-live-actions')?.addEventListener('click', () => {
+    S.liveActionsVisible = !S.liveActionsVisible;
+    persist();
+    if (livesActionsBar) {
+      livesActionsBar.hidden = S.tab !== 'lives' || !S.liveActionsVisible;
+    }
+    updateLiveActionsToggleBtn();
+    if (S.tab === 'lives') layout();
   });
 
   // Controles de Zoom da Sub-barra do Jogo
@@ -2246,12 +2273,17 @@ function setupBar() {
   }));
 
   // Menus suspensos
-  $$('.menu').forEach((m) => $('.menu-btn', m).addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = !m.classList.contains('open');
-    $$('.menu').forEach((x) => x.classList.remove('open'));
-    m.classList.toggle('open', open);
-  }));
+  $$('.menu').forEach((m) => {
+    $('.menu-btn', m)?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = !m.classList.contains('open');
+      $$('.menu').forEach((x) => x.classList.remove('open'));
+      m.classList.toggle('open', open);
+    });
+    $('.menu-list', m)?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  });
   document.addEventListener('click', () => $$('.menu').forEach((x) => x.classList.remove('open')));
 
   $('#game-reload').addEventListener('click', () => {
