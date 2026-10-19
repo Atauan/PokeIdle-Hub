@@ -13,12 +13,9 @@ const donations = require('./assets/donations/developers.json');
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// User-agent de Chrome estável real (sem "Electron" nem sufixo ".0.0.0"), compatível com Google OAuth e Cloudflare Turnstile
-const RAW_CHROME = String(process.versions.chrome || '132.0.6834.196');
-const CHROME_VER = /^\d+\.\d+\.\d+\.\d+$/.test(RAW_CHROME) && !RAW_CHROME.endsWith('.0.0.0')
-  ? RAW_CHROME
-  : `${RAW_CHROME.split('.')[0] || '132'}.0.6834.196`;
-const CHROME_MAJOR = CHROME_VER.split('.')[0];
+// User-agent e Client Hints de Chrome estável de mercado (compatível com Google OAuth, Cloudflare Turnstile, Twitch e Kick)
+const CHROME_VER = '132.0.6834.196';
+const CHROME_MAJOR = '132';
 const OS_UA = process.platform === 'darwin'
   ? 'Macintosh; Intel Mac OS X 10_15_7'
   : (process.platform === 'linux' ? 'X11; Linux x86_64' : 'Windows NT 10.0; Win64; x64');
@@ -240,10 +237,12 @@ function addLive(link) {
 // Sessão de cada conta extra do Pokeidle: persist:pokeidlehub-acc-<id>
 const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{1,60}$/i;
 const configuredSessions = new Set();
+const loginWebContentsIds = new Set();
 
-// Domínios conhecidos de telemetria, rastreamento e publicidade pesada da Twitch e Kick.
-// Bloquear essas requisições reduz drasticamente o consumo de banda, CPU e tempo de carga,
-// preservando intactos o vídeo HLS, chat WebSocket, pontuação de canal e logins.
+// Domínios conhecidos de telemetria pesada e publicidade de terceiros.
+// Bloquear essas requisições reduz drasticamente o consumo de banda, CPU e tempo de carga nas lives.
+// Endpoints essenciais de integridade, antifraude e login (como spade.twitch.tv, fls-na.amazon.com
+// e telemetry.kick.com) são rigorosamente preservados para não impedir login em nenhuma plataforma.
 const BLOCKED_TRACKER_SUFFIXES = [
   'amazon-adsystem.com',
   'scorecardresearch.com',
@@ -265,12 +264,8 @@ const BLOCKED_TRACKER_SUFFIXES = [
 
 const BLOCKED_TRACKER_HOSTS = new Set([
   'countess.twitch.tv',
-  'spade.twitch.tv',
   'science.twitch.tv',
-  'telemetry.kick.com',
   'analytics.kick.com',
-  'stats.kick.com',
-  'fls-na.amazon.com',
   'imasdk.googleapis.com',
   'pubads.g.doubleclick.net',
 ]);
@@ -298,6 +293,11 @@ function setupSession(part) {
   ses.webRequest.onBeforeRequest((details, callback) => {
     let cancel = false;
     try {
+      // Nunca cancela requisições vindas de janelas ou popups de login/autenticação
+      if (details.webContentsId && loginWebContentsIds.has(details.webContentsId)) {
+        callback({ cancel: false });
+        return;
+      }
       if (isTrackerOrAd(details.url)) {
         cancel = true;
       }
@@ -313,6 +313,9 @@ function setupSession(part) {
     }
     if (headers['sec-ch-ua-full-version-list']) {
       headers['sec-ch-ua-full-version-list'] = `"Not A(Brand";v="8.0.0.0", "Chromium";v="${CHROME_VER}", "Google Chrome";v="${CHROME_VER}"`;
+    }
+    if (headers['sec-ch-ua-mobile']) {
+      headers['sec-ch-ua-mobile'] = '?0';
     }
     if (headers['sec-ch-ua-platform']) {
       headers['sec-ch-ua-platform'] = process.platform === 'darwin'
@@ -728,6 +731,8 @@ function openLoginWindow(url, title, part, platform) {
     width: 540, height: 760, title, autoHideMenuBar: true, show: false,
     webPreferences: { partition: part, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
+  loginWebContentsIds.add(w.webContents.id);
+  w.once('closed', () => loginWebContentsIds.delete(w.webContents.id));
   // UA de navegador real (sem "Electron"); o Google bloqueia webview/apps embutidos
   w.webContents.setUserAgent(CHROME_UA);
   // Pop-up do OAuth (Google etc.): abre como janela-filha na MESMA sessão, não bloqueia
@@ -740,6 +745,8 @@ function openLoginWindow(url, title, part, platform) {
   };
   w.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   w.webContents.on('did-create-window', (child) => {
+    loginWebContentsIds.add(child.webContents.id);
+    child.once('closed', () => loginWebContentsIds.delete(child.webContents.id));
     child.webContents.setUserAgent(CHROME_UA);
     child.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   });
