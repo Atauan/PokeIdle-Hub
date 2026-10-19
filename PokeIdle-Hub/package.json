@@ -16,6 +16,9 @@
     "donation-qr": "node tools/make-donation-qr.js",
     "icon": "node tools/make-icon.js",
     "start": "node tools/make-icon.js && electron .",
+    "dev": "node tools/make-icon.js && electron .",
+    "dev:reset": "node tools/make-icon.js && electron . --dev-reset",
+    "test": "node --test",
     "dist:mac": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac",
     "dist:win": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --win",
     "dist:linux": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --linux",
@@ -35,6 +38,7 @@
     },
     "files": [
       "main.js",
+      "dev-profile.js",
       "app-version.js",
       "live-status.js",
       "release-updates.js",

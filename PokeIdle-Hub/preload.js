@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('pf', {
   platform: process.platform,
   openAbout: () => ipcRenderer.send('open-about'),
   updateState: () => ipcRenderer.invoke('update-state'),
+  appEnvironment: () => ipcRenderer.invoke('app-environment'),
   checkUpdates: () => ipcRenderer.invoke('check-updates'),
   openUpdate: () => ipcRenderer.invoke('open-update'),
   onUpdateState: (cb) => ipcRenderer.on('update-state', (_e, state) => cb(state)),

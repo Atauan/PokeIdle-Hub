@@ -7,8 +7,11 @@ const { spawn } = require('child_process');
 const { createLiveStatusService } = require('./live-status');
 const { createReleaseChecker } = require('./release-updates');
 const { resolveVersion } = require('./app-version');
+const { initializeDevProfile } = require('./dev-profile');
+const IS_DEVELOPMENT = !app.isPackaged;
 const APP_VERSION = resolveVersion({ fallbackVersion: app.getVersion(), isPackaged: app.isPackaged });
 const donations = require('./assets/donations/developers.json');
+const DEV_RESET_REQUESTED = process.argv.includes('--dev-reset') || app.commandLine.hasSwitch('dev-reset');
 
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
@@ -25,10 +28,37 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,WebBluetooth');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.userAgentFallback = CHROME_UA;
-app.setName('PokeIdle Hub');
-if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
+let startupReady = true;
+let lockAcquired = false;
+if (app.isPackaged) {
+  try {
+    initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
+  } catch (error) {
+    console.error(`Inicialização recusada: ${error.message}`);
+    startupReady = false;
+    app.exit(1);
+  }
+  if (startupReady) {
+    app.setName('PokeIdle Hub');
+    if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
+    lockAcquired = app.requestSingleInstanceLock();
+  }
+} else {
+  if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app.dev');
+  try {
+    const profile = initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
+    lockAcquired = profile.lockAcquired;
+  } catch (error) {
+    console.error(`Falha ao preparar o perfil de dev: ${error.message}`);
+    startupReady = false;
+    app.exit(1);
+  }
+}
 
-if (!app.requestSingleInstanceLock()) {
+if (!lockAcquired && startupReady) {
+  if (DEV_RESET_REQUESTED) {
+    console.error('O reset de dev foi recusado porque já existe uma instância de dev ativa.');
+  }
   app.quit();
 }
 
@@ -65,7 +95,7 @@ function createTray() {
   const icon = nativeImage.createFromPath(getAppIcon())
     .resize({ width: size, height: size });
   tray = new Tray(icon);
-  tray.setToolTip('PokeIdle Hub');
+  tray.setToolTip(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
   const menu = Menu.buildFromTemplate([
     { label: 'Sobre', click: showAbout },
     { type: 'separator' },
@@ -290,7 +320,7 @@ function createWindow() {
     height: 880,
     minWidth: 1000,
     minHeight: 560,
-    title: 'PokeIdle Hub',
+    title: IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub',
     backgroundColor: '#141416',
     autoHideMenuBar: true,
     icon: getAppIcon(),
@@ -305,6 +335,10 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.webContents.on('page-title-updated', event => {
+    event.preventDefault();
+    if (win && !win.isDestroyed()) win.setTitle(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
+  });
   // A janela principal nunca navega para fora nem abre pop-ups
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
@@ -393,8 +427,9 @@ ipcMain.handle('session-summary', async e => {
 ipcMain.on('session-open', e => { if (fromSummaryWindow(e)) showWindow(); });
 ipcMain.on('session-close', e => { if (fromSummaryWindow(e)) summaryWindow.hide(); });
 ipcMain.on('open-about', e => { if (fromMainWindow(e)) showAbout(); });
-ipcMain.handle('update-state', e => fromMainWindow(e) ? updateChecker?.getState() : null);
-ipcMain.handle('check-updates', e => fromMainWindow(e) ? updateChecker?.check() : null);
+ipcMain.handle('update-state', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.getState() : null);
+ipcMain.handle('app-environment', e => fromMainWindow(e) ? { isDevelopment: IS_DEVELOPMENT } : null);
+ipcMain.handle('check-updates', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.check() : null);
 function isRunningAsPortable() {
   if (process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE) return true;
   try {
@@ -433,7 +468,7 @@ function getBestUpdateAsset(assets) {
 let currentDownloadAbort = null;
 
 ipcMain.handle('get-update-target', (e) => {
-  if (!fromMainWindow(e)) return null;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return null;
   const release = updateChecker?.getState().release;
   const asset = getBestUpdateAsset(release?.assets);
   return {
@@ -445,7 +480,7 @@ ipcMain.handle('get-update-target', (e) => {
 });
 
 ipcMain.handle('open-update', async e => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   const url = updateChecker?.getState().release?.url;
   if (!url) return false;
   try { await shell.openExternal(url); return true; } catch (_) { return false; }
@@ -453,6 +488,7 @@ ipcMain.handle('open-update', async e => {
 
 ipcMain.handle('download-update', async (e) => {
   if (!fromMainWindow(e)) return { ok: false, error: 'Unauthorized' };
+  if (IS_DEVELOPMENT) return { ok: false, error: 'Atualizações não estão disponíveis em dev.' };
   const release = updateChecker?.getState().release;
   if (!release) return { ok: false, error: 'Nenhuma versão disponível' };
 
@@ -525,7 +561,7 @@ ipcMain.handle('download-update', async (e) => {
 });
 
 ipcMain.handle('cancel-download-update', (e) => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   if (currentDownloadAbort) {
     currentDownloadAbort.abort();
     currentDownloadAbort = null;
@@ -535,7 +571,7 @@ ipcMain.handle('cancel-download-update', (e) => {
 });
 
 ipcMain.handle('install-update', async (e, filePath) => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) return false;
 
   try {
@@ -718,7 +754,7 @@ ipcMain.handle('clean-ram', async (e) => {
   if (!fromApp(e)) return { ok: false };
   try {
     const partitions = new Set([PARTITION, ...configuredSessions]);
-    const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
+    const partitionsDir = path.join(app.getPath('sessionData'), 'Partitions');
     if (fs.existsSync(partitionsDir)) {
       try {
         const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
@@ -905,17 +941,21 @@ function migrateLegacySessions() {
 
 // MARK: Ciclo de vida
 
-app.on('second-instance', showWindow);
+app.on('second-instance', (_event, commandLine = []) => {
+  if (commandLine.includes('--dev-reset')) return;
+  showWindow();
+});
 
 app.whenReady().then(() => {
-  migrateLegacySessions();
+  if (!startupReady || !lockAcquired) return;
+  if (app.isPackaged) migrateLegacySessions();
   setupSession(PARTITION);
   // Mac/PC não dormem com o app aberto (inclusive com a tela bloqueada)
   powerSaveBlocker.start('prevent-app-suspension');
   powerSaveBlocker.start('prevent-display-sleep');
   createTray();
   createWindow();
-  startUpdateChecks();
+  if (app.isPackaged) startUpdateChecks();
   app.on('activate', () => { if (!summaryWindow?.isVisible()) showWindow(); });
 });
 
