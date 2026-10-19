@@ -19,7 +19,9 @@ const CHROME_VER = /^\d+\.\d+\.\d+\.\d+$/.test(RAW_CHROME) && !RAW_CHROME.endsWi
   ? RAW_CHROME
   : `${RAW_CHROME.split('.')[0] || '132'}.0.6834.196`;
 const CHROME_MAJOR = CHROME_VER.split('.')[0];
-const OS_UA = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'Windows NT 10.0; Win64; x64';
+const OS_UA = process.platform === 'darwin'
+  ? 'Macintosh; Intel Mac OS X 10_15_7'
+  : (process.platform === 'linux' ? 'X11; Linux x86_64' : 'Windows NT 10.0; Win64; x64');
 const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
 
 // Rodar 24h: nada é pausado/desacelerado com janela atrás, minimizada ou tela bloqueada
@@ -313,7 +315,9 @@ function setupSession(part) {
       headers['sec-ch-ua-full-version-list'] = `"Not A(Brand";v="8.0.0.0", "Chromium";v="${CHROME_VER}", "Google Chrome";v="${CHROME_VER}"`;
     }
     if (headers['sec-ch-ua-platform']) {
-      headers['sec-ch-ua-platform'] = process.platform === 'darwin' ? '"macOS"' : '"Windows"';
+      headers['sec-ch-ua-platform'] = process.platform === 'darwin'
+        ? '"macOS"'
+        : (process.platform === 'linux' ? '"Linux"' : '"Windows"');
     }
     callback({ requestHeaders: headers });
   });
