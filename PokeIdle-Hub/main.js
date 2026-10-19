@@ -731,8 +731,9 @@ function openLoginWindow(url, title, part, platform) {
     width: 540, height: 760, title, autoHideMenuBar: true, show: false,
     webPreferences: { partition: part, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
-  loginWebContentsIds.add(w.webContents.id);
-  w.once('closed', () => loginWebContentsIds.delete(w.webContents.id));
+  const webContentsId = w.webContents.id;
+  loginWebContentsIds.add(webContentsId);
+  w.once('closed', () => loginWebContentsIds.delete(webContentsId));
   // UA de navegador real (sem "Electron"); o Google bloqueia webview/apps embutidos
   w.webContents.setUserAgent(CHROME_UA);
   // Pop-up do OAuth (Google etc.): abre como janela-filha na MESMA sessão, não bloqueia
@@ -745,8 +746,9 @@ function openLoginWindow(url, title, part, platform) {
   };
   w.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   w.webContents.on('did-create-window', (child) => {
-    loginWebContentsIds.add(child.webContents.id);
-    child.once('closed', () => loginWebContentsIds.delete(child.webContents.id));
+    const childWebContentsId = child.webContents.id;
+    loginWebContentsIds.add(childWebContentsId);
+    child.once('closed', () => loginWebContentsIds.delete(childWebContentsId));
     child.webContents.setUserAgent(CHROME_UA);
     child.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   });
