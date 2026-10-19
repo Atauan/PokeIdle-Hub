@@ -13,13 +13,10 @@ const donations = require('./assets/donations/developers.json');
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// User-agent e Client Hints de Chrome estável de mercado (compatível com Google OAuth, Cloudflare Turnstile, Twitch e Kick)
-const CHROME_VER = '132.0.6834.196';
-const CHROME_MAJOR = '132';
-const OS_UA = process.platform === 'darwin'
-  ? 'Macintosh; Intel Mac OS X 10_15_7'
-  : (process.platform === 'linux' ? 'X11; Linux x86_64' : 'Windows NT 10.0; Win64; x64');
-const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
+// User-agent de Chrome normal (sem "Electron"), para Twitch/Kick servirem o site padrão
+const CHROME_MAJOR = String(process.versions.chrome || '140').split('.')[0];
+const OS_UA = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'Windows NT 10.0; Win64; x64';
+const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_MAJOR}.0.0.0 Safari/537.36`;
 
 // Rodar 24h: nada é pausado/desacelerado com janela atrás, minimizada ou tela bloqueada
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -197,7 +194,7 @@ function startUpdateChecks() {
 
 const LOGIN_URLS = {
   twitch: 'https://www.twitch.tv/login',
-  kick: 'https://kick.com/login',
+  kick: 'https://kick.com/',
 };
 
 // Só abre no Edge endereços destes sites, e só com caracteres seguros
@@ -237,50 +234,6 @@ function addLive(link) {
 // Sessão de cada conta extra do Pokeidle: persist:pokeidlehub-acc-<id>
 const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{1,60}$/i;
 const configuredSessions = new Set();
-const loginWebContentsIds = new Set();
-
-// Domínios conhecidos de telemetria pesada e publicidade de terceiros.
-// Bloquear essas requisições reduz drasticamente o consumo de banda, CPU e tempo de carga nas lives.
-// Endpoints essenciais de integridade, antifraude e login (como spade.twitch.tv, fls-na.amazon.com
-// e telemetry.kick.com) são rigorosamente preservados para não impedir login em nenhuma plataforma.
-const BLOCKED_TRACKER_SUFFIXES = [
-  'amazon-adsystem.com',
-  'scorecardresearch.com',
-  'quantserve.com',
-  'doubleclick.net',
-  'googletagmanager.com',
-  'google-analytics.com',
-  'analytics.google.com',
-  'segment.io',
-  'sentry.io',
-  'browser.sentry-cdn.com',
-  'datadoghq.com',
-  'hotjar.com',
-  'amplitude.com',
-  'facebook.com',
-  'branch.io',
-  'appsflyer.com',
-];
-
-const BLOCKED_TRACKER_HOSTS = new Set([
-  'countess.twitch.tv',
-  'science.twitch.tv',
-  'analytics.kick.com',
-  'imasdk.googleapis.com',
-  'pubads.g.doubleclick.net',
-]);
-
-function isTrackerOrAd(urlStr) {
-  try {
-    const u = new URL(urlStr);
-    const host = u.hostname.toLowerCase();
-    if (BLOCKED_TRACKER_HOSTS.has(host)) return true;
-    for (const suffix of BLOCKED_TRACKER_SUFFIXES) {
-      if (host === suffix || host.endsWith('.' + suffix)) return true;
-    }
-  } catch (_) {}
-  return false;
-}
 
 /** User-agent e scripts iguais em todas as sessões (a principal e a de cada conta). */
 function setupSession(part) {
@@ -289,40 +242,19 @@ function setupSession(part) {
   const ses = session.fromPartition(part);
   ses.setUserAgent(CHROME_UA);
 
-  // Bloqueio nativo cirúrgico de telemetria, rastreadores e scripts de anúncios pesados
+  // Uma página de live pode abrir dezenas de iframes de sincronização de anúncios,
+  // cada um com seu renderer. Impede só esse frame conhecido, dentro das webviews
+  // de lives; players, chat, desafios de login e janelas de OAuth passam intactos.
   ses.webRequest.onBeforeRequest((details, callback) => {
     let cancel = false;
     try {
-      // Nunca cancela requisições vindas de janelas ou popups de login/autenticação
-      if (details.webContentsId && loginWebContentsIds.has(details.webContentsId)) {
-        callback({ cancel: false });
-        return;
-      }
-      if (isTrackerOrAd(details.url)) {
+      const u = new URL(details.url);
+      if (['www.facebook.com', 'facebook.com', 'use1-turn.fpjs.io', 'fpjs.io'].includes(u.hostname) ||
+          (u.hostname === 's.amazon-adsystem.com' && details.resourceType === 'subFrame')) {
         cancel = true;
       }
-    } catch (_) { /* preserva a requisição em caso de erro */ }
+    } catch (_) { /* página em navegação/fechada: preserva a requisição */ }
     callback({ cancel });
-  });
-  // Sanitiza cabeçalhos sec-ch-ua para permitir login social do Google sem bloqueio de "app não seguro"
-  ses.webRequest.onBeforeSendHeaders((details, callback) => {
-    const headers = details.requestHeaders || {};
-    headers['User-Agent'] = CHROME_UA;
-    if (headers['sec-ch-ua']) {
-      headers['sec-ch-ua'] = `"Not A(Brand";v="8", "Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_MAJOR}"`;
-    }
-    if (headers['sec-ch-ua-full-version-list']) {
-      headers['sec-ch-ua-full-version-list'] = `"Not A(Brand";v="8.0.0.0", "Chromium";v="${CHROME_VER}", "Google Chrome";v="${CHROME_VER}"`;
-    }
-    if (headers['sec-ch-ua-mobile']) {
-      headers['sec-ch-ua-mobile'] = '?0';
-    }
-    if (headers['sec-ch-ua-platform']) {
-      headers['sec-ch-ua-platform'] = process.platform === 'darwin'
-        ? '"macOS"'
-        : (process.platform === 'linux' ? '"Linux"' : '"Windows"');
-    }
-    callback({ requestHeaders: headers });
   });
 
   const resolvePreloadPath = (filename) => {
@@ -413,7 +345,6 @@ app.on('web-contents-created', (_e, contents) => {
       if (link) { e.preventDefault(); addLive(link); }
     });
     contents.on('did-create-window', (child) => {
-      child.webContents.setUserAgent(CHROME_UA);
       if (!isGame(contents)) return;
       // Pop-up aberto em branco e depois mandado para a live
       child.webContents.on('will-navigate', (e, url) => {
@@ -731,9 +662,6 @@ function openLoginWindow(url, title, part, platform) {
     width: 540, height: 760, title, autoHideMenuBar: true, show: false,
     webPreferences: { partition: part, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
-  const webContentsId = w.webContents.id;
-  loginWebContentsIds.add(webContentsId);
-  w.once('closed', () => loginWebContentsIds.delete(webContentsId));
   // UA de navegador real (sem "Electron"); o Google bloqueia webview/apps embutidos
   w.webContents.setUserAgent(CHROME_UA);
   // Pop-up do OAuth (Google etc.): abre como janela-filha na MESMA sessão, não bloqueia
@@ -746,9 +674,6 @@ function openLoginWindow(url, title, part, platform) {
   };
   w.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   w.webContents.on('did-create-window', (child) => {
-    const childWebContentsId = child.webContents.id;
-    loginWebContentsIds.add(childWebContentsId);
-    child.once('closed', () => loginWebContentsIds.delete(childWebContentsId));
     child.webContents.setUserAgent(CHROME_UA);
     child.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   });
@@ -756,33 +681,6 @@ function openLoginWindow(url, title, part, platform) {
     w.show();
     w.focus();
   });
-  if (platform === 'game' || String(url).includes('pokeidle.io')) {
-    w.webContents.on('dom-ready', () => {
-      w.webContents.executeJavaScript(`
-        (() => {
-          if (window.__pfTurnstileWatchdog) return;
-          window.__pfTurnstileWatchdog = true;
-          let tries = 0;
-          const check = () => {
-            tries++;
-            try {
-              const wrap = document.getElementById('turnstile-entrar');
-              const portal = document.getElementById('portal');
-              const login = document.getElementById('login');
-              const isLoginVisible = portal && !portal.classList.contains('hidden') && login && !login.classList.contains('hidden');
-              if (isLoginVisible && wrap && wrap.children.length === 0) {
-                if (typeof window.onTurnstilePronto === 'function') {
-                  window.onTurnstilePronto();
-                }
-              }
-            } catch (_) {}
-            if (tries < 25) setTimeout(check, 800);
-          };
-          check();
-        })();
-      `).catch(() => {});
-    });
-  }
   w.on('closed', () => {
     BrowserWindow.getAllWindows().forEach((bw) => {
       if (bw !== w && !bw.isDestroyed()) {
