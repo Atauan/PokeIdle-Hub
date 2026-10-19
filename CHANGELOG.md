@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Não publicado]
 
+### Adicionado
+
+- Ambiente Electron de desenvolvimento com perfil local separado, persistente em `npm run dev` e reset completo opcional por `npm run dev:reset`; o reset remove logins e configurações locais de addons, preservando dados remotos e produção. A migração de perfis legados continua exclusiva do app empacotado. Ver `docs/changes/2026-10-19-1835--isolamento-dados-dev.md`.
+
+- Instaladas 25 skills de desenvolvimento de `addyosmani/agent-skills` em `.agents/skills/`, com referências compartilhadas, licença e revisão de origem; adicionado `AGENTS.md` específico do PokeIdle Hub e instruções de uso no README. Registro local em `docs/changes/2026-10-19-1733--skills-por-projeto-e-agents.md`.
+
+### Segurança
+
+- O reset exige marcador válido, caminho fixo e bloqueio exclusivo do perfil dev; execução empacotada e opções de linha de comando que redirecionariam os dados são recusadas. O marcador bloqueia a inicialização normal após limpeza parcial.
+
 ### Corrigido
 - Erro `Object has been destroyed` ao fechar janelas de login: `openLoginWindow` agora captura o ID de cada `webContents` antes do fechamento e usa o valor salvo para limpar o conjunto de autenticação, incluindo pop-ups OAuth (`PokeIdle-Hub/main.js`). Registro em `docs/changes/2026-10-19-1914--corrigir-fechamento-janelas-login.md`.
 
