@@ -67,6 +67,22 @@ npm install
 npm start
 ```
 
+`npm start` e `npm run dev` executam a versão não empacotada com um perfil local separado da instalação de produção. O ambiente dev pode acessar Pokeidle, Twitch e Kick; use contas de teste.
+
+Para preservar o perfil entre execuções, use:
+
+```bash
+npm run dev
+```
+
+Para apagar os dados locais de dev e começar com um perfil vazio, use:
+
+```bash
+npm run dev:reset
+```
+
+O reset remove logins, contas salvas, preferências, histórico, caches e configurações dos addons armazenados no perfil dev. Ele não apaga contas ou dados nos serviços remotos nem altera o perfil da versão de produção. Artefatos temporários do bloqueio de instância do Electron são preservados durante a execução. Se um reset falhar no meio, a inicialização normal permanece bloqueada até que `npm run dev:reset` termine.
+
 ---
 
 ## Compilação e Distribuição (Build Local)
@@ -104,6 +120,8 @@ O repositório inclui esteira automatizada configurada em [`.github/workflows/po
 ## Estrutura do Projeto
 
 ```text
+├── .agents/                      # Skills por projeto, referências e origem do pacote
+├── AGENTS.md                     # Orientações para agentes no PokeIdle Hub
 ├── .github/
 │   ├── scripts/release.cjs       # Automação de versionamento e release
 │   └── workflows/pokeidle-hub.yml# Workflow de CI/CD para Electron e Swift
@@ -112,6 +130,8 @@ O repositório inclui esteira automatizada configurada em [`.github/workflows/po
 │   ├── assets/                   # Ícones e recursos visuais
 │   ├── renderer/                 # Interface do usuário (HTML, CSS, JS modular)
 │   ├── main.js                   # Processo principal do Electron e janelas
+│   ├── dev-profile.js            # Perfil local isolado e reset seguro de desenvolvimento
+│   ├── tests/                    # Testes sintéticos de isolamento do perfil dev
 │   ├── pokeidle-hunt.js          # Motor de telemetria matemática de hunt e AFK
 │   ├── live-status.js            # Consulta e auditoria de canais Twitch e Kick
 │   └── package.json              # Metadados e configuração do electron-builder
@@ -120,6 +140,24 @@ O repositório inclui esteira automatizada configurada em [`.github/workflows/po
 ├── LICENSE                       # Licença MIT
 └── README.md                     # Documentação geral do projeto
 ```
+
+## Desenvolvimento com Agentes
+
+As orientações específicas do projeto estão em [AGENTS.md](AGENTS.md). O pacote
+[Agent Skills, de Addy Osmani](https://github.com/addyosmani/agent-skills) está
+instalado em `.agents/skills/`, com 25 skills e referências compartilhadas em
+`.agents/references/`. A versão e o commit importados estão em
+[.agents/agent-skills.json](.agents/agent-skills.json).
+
+Para preparar uma especificação, invoque `$spec-driven-development` em uma sessão
+Codex aberta neste projeto. Também é possível pedir explicitamente a leitura de
+[seu SKILL.md](.agents/skills/spec-driven-development/SKILL.md). A instalação por
+projeto segue o diretório `.agents/skills/`; a descoberta das novas skills depende
+da atualização do catálogo da sessão.
+
+As skills complementam as instruções do usuário e do projeto. Instalar o pacote
+não autoriza commits, publicação, deploy ou operações destrutivas. Algumas skills
+dependem de ferramentas adicionais, que devem ser verificadas antes do uso.
 
 ## Créditos e Reconhecimentos
 

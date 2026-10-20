@@ -495,33 +495,6 @@ function limitFps() {
   } catch (_) {}
 }
 
-/** Watchdog para garantir que o Cloudflare Turnstile seja desenhado no formulário de login */
-function turnstileWatchdog() {
-  if (window.__pfTurnstileWatchdog) return;
-  window.__pfTurnstileWatchdog = true;
-  let tries = 0;
-  const check = () => {
-    tries++;
-    try {
-      const wrap = document.getElementById('turnstile-entrar');
-      const portal = document.getElementById('portal');
-      const login = document.getElementById('login');
-      const isLoginVisible = portal && !portal.classList.contains('hidden') && login && !login.classList.contains('hidden');
-      if (isLoginVisible && wrap && wrap.children.length === 0) {
-        if (typeof window.onTurnstilePronto === 'function') {
-          window.onTurnstilePronto();
-        }
-      }
-    } catch (_) {}
-    if (tries < 25) setTimeout(check, 800);
-  };
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', check, { once: true });
-  } else {
-    check();
-  }
-}
-
 /** Detecta o nickname do jogador no jogo e repassa para o app */
 function detectPlayerNick() {
   let lastNick = '';
@@ -554,7 +527,6 @@ inject(keepAlive);
 if (/pokeidle\.io$/.test(host)) {
   inject(limitFps);
   inject(market);
-  inject(turnstileWatchdog);
   inject(detectPlayerNick);
   // Página -> app (o mundo isolado escuta as mensagens da página)
   window.addEventListener('message', (e) => {

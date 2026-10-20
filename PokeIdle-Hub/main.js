@@ -7,19 +7,19 @@ const { spawn } = require('child_process');
 const { createLiveStatusService } = require('./live-status');
 const { createReleaseChecker } = require('./release-updates');
 const { resolveVersion } = require('./app-version');
+const { initializeDevProfile } = require('./dev-profile');
+const { applyBrowserIdentityHeaders, createBrowserIdentity } = require('./browser-identity');
+const IS_DEVELOPMENT = !app.isPackaged;
 const APP_VERSION = resolveVersion({ fallbackVersion: app.getVersion(), isPackaged: app.isPackaged });
 const donations = require('./assets/donations/developers.json');
+const DEV_RESET_REQUESTED = process.argv.includes('--dev-reset') || app.commandLine.hasSwitch('dev-reset');
 
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// User-agent e Client Hints de Chrome estável de mercado (compatível com Google OAuth, Cloudflare Turnstile, Twitch e Kick)
-const CHROME_VER = '132.0.6834.196';
-const CHROME_MAJOR = '132';
-const OS_UA = process.platform === 'darwin'
-  ? 'Macintosh; Intel Mac OS X 10_15_7'
-  : (process.platform === 'linux' ? 'X11; Linux x86_64' : 'Windows NT 10.0; Win64; x64');
-const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_VER} Safari/537.36`;
+// Mantém o user-agent e os Client Hints coerentes com o Chromium empacotado e o SO.
+const BROWSER_IDENTITY = createBrowserIdentity(process.platform, process.versions.chrome);
+const CHROME_UA = BROWSER_IDENTITY.userAgent;
 
 // Rodar 24h: nada é pausado/desacelerado com janela atrás, minimizada ou tela bloqueada
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -28,10 +28,37 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,WebBluetooth');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.userAgentFallback = CHROME_UA;
-app.setName('PokeIdle Hub');
-if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
+let startupReady = true;
+let lockAcquired = false;
+if (app.isPackaged) {
+  try {
+    initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
+  } catch (error) {
+    console.error(`Inicialização recusada: ${error.message}`);
+    startupReady = false;
+    app.exit(1);
+  }
+  if (startupReady) {
+    app.setName('PokeIdle Hub');
+    if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
+    lockAcquired = app.requestSingleInstanceLock();
+  }
+} else {
+  if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app.dev');
+  try {
+    const profile = initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
+    lockAcquired = profile.lockAcquired;
+  } catch (error) {
+    console.error(`Falha ao preparar o perfil de dev: ${error.message}`);
+    startupReady = false;
+    app.exit(1);
+  }
+}
 
-if (!app.requestSingleInstanceLock()) {
+if (!lockAcquired && startupReady) {
+  if (DEV_RESET_REQUESTED) {
+    console.error('O reset de dev foi recusado porque já existe uma instância de dev ativa.');
+  }
   app.quit();
 }
 
@@ -68,7 +95,7 @@ function createTray() {
   const icon = nativeImage.createFromPath(getAppIcon())
     .resize({ width: size, height: size });
   tray = new Tray(icon);
-  tray.setToolTip('PokeIdle Hub');
+  tray.setToolTip(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
   const menu = Menu.buildFromTemplate([
     { label: 'Sobre', click: showAbout },
     { type: 'separator' },
@@ -197,7 +224,7 @@ function startUpdateChecks() {
 
 const LOGIN_URLS = {
   twitch: 'https://www.twitch.tv/login',
-  kick: 'https://kick.com/login',
+  kick: 'https://kick.com/',
 };
 
 // Só abre no Edge endereços destes sites, e só com caracteres seguros
@@ -237,50 +264,6 @@ function addLive(link) {
 // Sessão de cada conta extra do Pokeidle: persist:pokeidlehub-acc-<id>
 const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{1,60}$/i;
 const configuredSessions = new Set();
-const loginWebContentsIds = new Set();
-
-// Domínios conhecidos de telemetria pesada e publicidade de terceiros.
-// Bloquear essas requisições reduz drasticamente o consumo de banda, CPU e tempo de carga nas lives.
-// Endpoints essenciais de integridade, antifraude e login (como spade.twitch.tv, fls-na.amazon.com
-// e telemetry.kick.com) são rigorosamente preservados para não impedir login em nenhuma plataforma.
-const BLOCKED_TRACKER_SUFFIXES = [
-  'amazon-adsystem.com',
-  'scorecardresearch.com',
-  'quantserve.com',
-  'doubleclick.net',
-  'googletagmanager.com',
-  'google-analytics.com',
-  'analytics.google.com',
-  'segment.io',
-  'sentry.io',
-  'browser.sentry-cdn.com',
-  'datadoghq.com',
-  'hotjar.com',
-  'amplitude.com',
-  'facebook.com',
-  'branch.io',
-  'appsflyer.com',
-];
-
-const BLOCKED_TRACKER_HOSTS = new Set([
-  'countess.twitch.tv',
-  'science.twitch.tv',
-  'analytics.kick.com',
-  'imasdk.googleapis.com',
-  'pubads.g.doubleclick.net',
-]);
-
-function isTrackerOrAd(urlStr) {
-  try {
-    const u = new URL(urlStr);
-    const host = u.hostname.toLowerCase();
-    if (BLOCKED_TRACKER_HOSTS.has(host)) return true;
-    for (const suffix of BLOCKED_TRACKER_SUFFIXES) {
-      if (host === suffix || host.endsWith('.' + suffix)) return true;
-    }
-  } catch (_) {}
-  return false;
-}
 
 /** User-agent e scripts iguais em todas as sessões (a principal e a de cada conta). */
 function setupSession(part) {
@@ -289,40 +272,25 @@ function setupSession(part) {
   const ses = session.fromPartition(part);
   ses.setUserAgent(CHROME_UA);
 
-  // Bloqueio nativo cirúrgico de telemetria, rastreadores e scripts de anúncios pesados
+  // O site recebe os mesmos dados de plataforma/versão em todas as requisições,
+  // incluindo login e pop-ups OAuth que compartilham esta sessão.
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    callback({ requestHeaders: applyBrowserIdentityHeaders(details.requestHeaders || {}, BROWSER_IDENTITY) });
+  });
+
+  // Uma página de live pode abrir dezenas de iframes de sincronização de anúncios,
+  // cada um com seu renderer. Impede só esse frame conhecido, dentro das webviews
+  // de lives; players, chat, desafios de login e janelas de OAuth passam intactos.
   ses.webRequest.onBeforeRequest((details, callback) => {
     let cancel = false;
     try {
-      // Nunca cancela requisições vindas de janelas ou popups de login/autenticação
-      if (details.webContentsId && loginWebContentsIds.has(details.webContentsId)) {
-        callback({ cancel: false });
-        return;
-      }
-      if (isTrackerOrAd(details.url)) {
+      const u = new URL(details.url);
+      if (['www.facebook.com', 'facebook.com', 'use1-turn.fpjs.io', 'fpjs.io'].includes(u.hostname) ||
+          (u.hostname === 's.amazon-adsystem.com' && details.resourceType === 'subFrame')) {
         cancel = true;
       }
-    } catch (_) { /* preserva a requisição em caso de erro */ }
+    } catch (_) { /* página em navegação/fechada: preserva a requisição */ }
     callback({ cancel });
-  });
-  // Sanitiza cabeçalhos sec-ch-ua para permitir login social do Google sem bloqueio de "app não seguro"
-  ses.webRequest.onBeforeSendHeaders((details, callback) => {
-    const headers = details.requestHeaders || {};
-    headers['User-Agent'] = CHROME_UA;
-    if (headers['sec-ch-ua']) {
-      headers['sec-ch-ua'] = `"Not A(Brand";v="8", "Chromium";v="${CHROME_MAJOR}", "Google Chrome";v="${CHROME_MAJOR}"`;
-    }
-    if (headers['sec-ch-ua-full-version-list']) {
-      headers['sec-ch-ua-full-version-list'] = `"Not A(Brand";v="8.0.0.0", "Chromium";v="${CHROME_VER}", "Google Chrome";v="${CHROME_VER}"`;
-    }
-    if (headers['sec-ch-ua-mobile']) {
-      headers['sec-ch-ua-mobile'] = '?0';
-    }
-    if (headers['sec-ch-ua-platform']) {
-      headers['sec-ch-ua-platform'] = process.platform === 'darwin'
-        ? '"macOS"'
-        : (process.platform === 'linux' ? '"Linux"' : '"Windows"');
-    }
-    callback({ requestHeaders: headers });
   });
 
   const resolvePreloadPath = (filename) => {
@@ -358,7 +326,7 @@ function createWindow() {
     height: 880,
     minWidth: 1000,
     minHeight: 560,
-    title: 'PokeIdle Hub',
+    title: IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub',
     backgroundColor: '#141416',
     autoHideMenuBar: true,
     icon: getAppIcon(),
@@ -373,6 +341,10 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.webContents.on('page-title-updated', event => {
+    event.preventDefault();
+    if (win && !win.isDestroyed()) win.setTitle(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
+  });
   // A janela principal nunca navega para fora nem abre pop-ups
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
@@ -413,7 +385,6 @@ app.on('web-contents-created', (_e, contents) => {
       if (link) { e.preventDefault(); addLive(link); }
     });
     contents.on('did-create-window', (child) => {
-      child.webContents.setUserAgent(CHROME_UA);
       if (!isGame(contents)) return;
       // Pop-up aberto em branco e depois mandado para a live
       child.webContents.on('will-navigate', (e, url) => {
@@ -462,8 +433,9 @@ ipcMain.handle('session-summary', async e => {
 ipcMain.on('session-open', e => { if (fromSummaryWindow(e)) showWindow(); });
 ipcMain.on('session-close', e => { if (fromSummaryWindow(e)) summaryWindow.hide(); });
 ipcMain.on('open-about', e => { if (fromMainWindow(e)) showAbout(); });
-ipcMain.handle('update-state', e => fromMainWindow(e) ? updateChecker?.getState() : null);
-ipcMain.handle('check-updates', e => fromMainWindow(e) ? updateChecker?.check() : null);
+ipcMain.handle('update-state', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.getState() : null);
+ipcMain.handle('app-environment', e => fromMainWindow(e) ? { isDevelopment: IS_DEVELOPMENT } : null);
+ipcMain.handle('check-updates', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.check() : null);
 function isRunningAsPortable() {
   if (process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE) return true;
   try {
@@ -502,7 +474,7 @@ function getBestUpdateAsset(assets) {
 let currentDownloadAbort = null;
 
 ipcMain.handle('get-update-target', (e) => {
-  if (!fromMainWindow(e)) return null;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return null;
   const release = updateChecker?.getState().release;
   const asset = getBestUpdateAsset(release?.assets);
   return {
@@ -514,7 +486,7 @@ ipcMain.handle('get-update-target', (e) => {
 });
 
 ipcMain.handle('open-update', async e => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   const url = updateChecker?.getState().release?.url;
   if (!url) return false;
   try { await shell.openExternal(url); return true; } catch (_) { return false; }
@@ -522,6 +494,7 @@ ipcMain.handle('open-update', async e => {
 
 ipcMain.handle('download-update', async (e) => {
   if (!fromMainWindow(e)) return { ok: false, error: 'Unauthorized' };
+  if (IS_DEVELOPMENT) return { ok: false, error: 'Atualizações não estão disponíveis em dev.' };
   const release = updateChecker?.getState().release;
   if (!release) return { ok: false, error: 'Nenhuma versão disponível' };
 
@@ -594,7 +567,7 @@ ipcMain.handle('download-update', async (e) => {
 });
 
 ipcMain.handle('cancel-download-update', (e) => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   if (currentDownloadAbort) {
     currentDownloadAbort.abort();
     currentDownloadAbort = null;
@@ -604,7 +577,7 @@ ipcMain.handle('cancel-download-update', (e) => {
 });
 
 ipcMain.handle('install-update', async (e, filePath) => {
-  if (!fromMainWindow(e)) return false;
+  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
   if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) return false;
 
   try {
@@ -731,8 +704,6 @@ function openLoginWindow(url, title, part, platform) {
     width: 540, height: 760, title, autoHideMenuBar: true, show: false,
     webPreferences: { partition: part, contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
-  loginWebContentsIds.add(w.webContents.id);
-  w.once('closed', () => loginWebContentsIds.delete(w.webContents.id));
   // UA de navegador real (sem "Electron"); o Google bloqueia webview/apps embutidos
   w.webContents.setUserAgent(CHROME_UA);
   // Pop-up do OAuth (Google etc.): abre como janela-filha na MESMA sessão, não bloqueia
@@ -745,8 +716,6 @@ function openLoginWindow(url, title, part, platform) {
   };
   w.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   w.webContents.on('did-create-window', (child) => {
-    loginWebContentsIds.add(child.webContents.id);
-    child.once('closed', () => loginWebContentsIds.delete(child.webContents.id));
     child.webContents.setUserAgent(CHROME_UA);
     child.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
   });
@@ -754,33 +723,6 @@ function openLoginWindow(url, title, part, platform) {
     w.show();
     w.focus();
   });
-  if (platform === 'game' || String(url).includes('pokeidle.io')) {
-    w.webContents.on('dom-ready', () => {
-      w.webContents.executeJavaScript(`
-        (() => {
-          if (window.__pfTurnstileWatchdog) return;
-          window.__pfTurnstileWatchdog = true;
-          let tries = 0;
-          const check = () => {
-            tries++;
-            try {
-              const wrap = document.getElementById('turnstile-entrar');
-              const portal = document.getElementById('portal');
-              const login = document.getElementById('login');
-              const isLoginVisible = portal && !portal.classList.contains('hidden') && login && !login.classList.contains('hidden');
-              if (isLoginVisible && wrap && wrap.children.length === 0) {
-                if (typeof window.onTurnstilePronto === 'function') {
-                  window.onTurnstilePronto();
-                }
-              }
-            } catch (_) {}
-            if (tries < 25) setTimeout(check, 800);
-          };
-          check();
-        })();
-      `).catch(() => {});
-    });
-  }
   w.on('closed', () => {
     BrowserWindow.getAllWindows().forEach((bw) => {
       if (bw !== w && !bw.isDestroyed()) {
@@ -818,7 +760,7 @@ ipcMain.handle('clean-ram', async (e) => {
   if (!fromApp(e)) return { ok: false };
   try {
     const partitions = new Set([PARTITION, ...configuredSessions]);
-    const partitionsDir = path.join(app.getPath('userData'), 'Partitions');
+    const partitionsDir = path.join(app.getPath('sessionData'), 'Partitions');
     if (fs.existsSync(partitionsDir)) {
       try {
         const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
@@ -1005,17 +947,21 @@ function migrateLegacySessions() {
 
 // MARK: Ciclo de vida
 
-app.on('second-instance', showWindow);
+app.on('second-instance', (_event, commandLine = []) => {
+  if (commandLine.includes('--dev-reset')) return;
+  showWindow();
+});
 
 app.whenReady().then(() => {
-  migrateLegacySessions();
+  if (!startupReady || !lockAcquired) return;
+  if (app.isPackaged) migrateLegacySessions();
   setupSession(PARTITION);
   // Mac/PC não dormem com o app aberto (inclusive com a tela bloqueada)
   powerSaveBlocker.start('prevent-app-suspension');
   powerSaveBlocker.start('prevent-display-sleep');
   createTray();
   createWindow();
-  startUpdateChecks();
+  if (app.isPackaged) startUpdateChecks();
   app.on('activate', () => { if (!summaryWindow?.isVisible()) showWindow(); });
 });
 

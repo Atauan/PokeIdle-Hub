@@ -6,7 +6,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Não publicado]
 
+### Adicionado
+
+- Ambiente Electron de desenvolvimento com perfil local separado, persistente em `npm run dev` e reset completo opcional por `npm run dev:reset`; o reset remove logins e configurações locais de addons, preservando dados remotos e produção. A migração de perfis legados continua exclusiva do app empacotado. Ver `docs/changes/2026-10-19-1835--isolamento-dados-dev.md`.
+
+- Instaladas 25 skills de desenvolvimento de `addyosmani/agent-skills` em `.agents/skills/`, com referências compartilhadas, licença e revisão de origem; adicionado `AGENTS.md` específico do PokeIdle Hub e instruções de uso no README. Registro local em `docs/changes/2026-10-19-1733--skills-por-projeto-e-agents.md`.
+
+### Segurança
+
+- O reset exige marcador válido, caminho fixo e bloqueio exclusivo do perfil dev; execução empacotada e opções de linha de comando que redirecionariam os dados são recusadas. O marcador bloqueia a inicialização normal após limpeza parcial.
+
 ### Corrigido
+- Login da Twitch no Linux: user-agent e Client Hints agora anunciam a plataforma real e a versão Chromium empacotada; as requisições de integridade permanecem habilitadas. Inclui teste para Linux, macOS e Windows e registro em `docs/changes/2026-10-19-2102--corrigir-identidade-navegador-linux-login-twitch.md`.
+- Erro `Object has been destroyed` ao fechar janelas de login: `openLoginWindow` agora captura o ID de cada `webContents` antes do fechamento e usa o valor salvo para limpar o conjunto de autenticação, incluindo pop-ups OAuth (`PokeIdle-Hub/main.js`). Registro em `docs/changes/2026-10-19-1914--corrigir-fechamento-janelas-login.md`.
 
 - Correção de compatibilidade de login na Twitch e Kick, fixação do Chrome 132 e isenção de autenticação (`main.js`): fixada a versão pública do navegador para a release estável do Google Chrome desktop (`132.0.6834.196` com `CHROME_MAJOR = '132'`) em substituição à numeração interna `152` do Electron, eliminando o erro de navegador incompatível na Twitch e a nota de risco de bot no Cloudflare Turnstile no Windows 11; removidos os endpoints essenciais de integridade e antifraude (`spade.twitch.tv`, `fls-na.amazon.com`, `telemetry.kick.com`, `stats.kick.com`) do bloqueador de rastreadores e garantida isenção irrestrita de bloqueio de rede para as janelas dedicadas de login (`openLoginWindow`) e popups OAuth (com referência em `docs/changes/2026-10-19-1320--correcao-login-twitch-kick-chrome-132-e-desbloqueio-auth.md`).
 - Compatibilidade de autenticação e Cloudflare Turnstile no Linux (`main.js`): detecção dinâmica do ambiente Linux (`process.platform === 'linux'`) no User-Agent (`X11; Linux x86_64`) e no cabeçalho Client Hint `sec-ch-ua-platform` (`"Linux"`), eliminando a divergência com o `navigator.platform` e drivers WebGL que gerava detecção de bot e impedia a resolução do captcha de login (com referência em `docs/changes/2026-10-19-1210--compatibilidade-linux-turnstile-useragent.md`).
@@ -21,6 +33,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Alterado
 
+- Restaurado o fluxo de autenticação ao comportamento do commit inicial `196c52e`: User-Agent derivado do Chromium empacotado, URL inicial da Kick, filtros de requisição e ausência das alterações de Client Hints, bypass de rastreadores e watchdogs de Turnstile introduzidas nos commits de autenticação posteriores. Registro local em `docs/changes/2026-10-19-1958--restaurar-login-inicial.md`.
 - Reestruturação da barra de Lives em dois níveis e dock suspenso de restauração (`index.html`, `styles.css`, `app.js`): pills compactos Kick/Twitch, campo de link/canal com largura total expansiva (`flex: 1`), nova sub-barra retrátil `#lives-actions-bar` com grupos dedicados de grade, mídia e menu suspenso de automação/modos econômicos, liberação de mais de 100px de altura vertical útil no grid de streamers e botão flutuante `#bars-floating-restore` reformulado como aba azul estilo dock do macOS centralizada no topo da janela (com referência em `docs/changes/2026-10-17-2105--reestruturacao-barra-lives-dock-restaurar.md`).
 - Reestruturação da Game Bar em dois níveis responsivos (`index.html`, `styles.css`, `app.js` e `webview-preload.js`), eliminando o campo de texto redundante de nome de conta e dividindo o cabeçalho em linha de abas de contas com alternância retrátil (`▲ Opções` / `▼ Opções`) e sub-barra dedicada de ações do jogo (`Ver Todas`, `Recarregar`, `Sniper`, `Conectar Lives`, `Entrar`, `Edge`, `Remover conta`), garantindo visibilidade integral de todos os botões em telas de 1366x768 e 720p, com suporte a renomeação por duplo clique e sincronização automática do nickname do treinador em campo (com referência em `docs/changes/2026-10-17-1850--gamebar-duas-linhas-responsiva-e-autonick.md`).
 

@@ -3,6 +3,8 @@
 (() => {
   const status = document.getElementById('update-status');
   const check = document.getElementById('check-updates');
+  const devIndicator = document.getElementById('dev-mode-indicator');
+  const devUpdateNotice = document.getElementById('dev-update-notice');
   const open = document.getElementById('open-update');
   const dialog = document.getElementById('update-dialog');
   const dismiss = document.getElementById('dismiss-update');
@@ -95,9 +97,30 @@
     }
   }
 
-  if (window.pf?.onUpdateState) {
-    window.pf.onUpdateState(render);
-    window.pf.updateState().then(render).catch(() => { if (status) status.textContent = messages.error; });
+  function initializeUpdates(isDevelopment) {
+    if (check) check.disabled = false;
+    if (isDevelopment) {
+      if (check) check.hidden = true;
+      if (devIndicator) devIndicator.hidden = false;
+      if (devUpdateNotice) devUpdateNotice.hidden = false;
+      const versionEl = document.getElementById('app-version');
+      if (versionEl) versionEl.textContent = 'PokeIdle Hub [DEV]';
+      return;
+    }
+
+    if (window.pf?.onUpdateState) {
+      window.pf.onUpdateState(render);
+      window.pf.updateState().then(render).catch(() => { if (status) status.textContent = messages.error; });
+    }
+  }
+
+  if (window.pf?.appEnvironment) {
+    if (check) check.disabled = true;
+    window.pf.appEnvironment()
+      .then(environment => initializeUpdates(environment?.isDevelopment === true))
+      .catch(() => initializeUpdates(false));
+  } else {
+    initializeUpdates(false);
   }
 
   if (window.pf?.onDownloadProgress) {
