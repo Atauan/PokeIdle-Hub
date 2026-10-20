@@ -8,6 +8,7 @@ const { createLiveStatusService } = require('./live-status');
 const { createReleaseChecker } = require('./release-updates');
 const { resolveVersion } = require('./app-version');
 const { initializeDevProfile } = require('./dev-profile');
+const { applyBrowserIdentityHeaders, createBrowserIdentity } = require('./browser-identity');
 const IS_DEVELOPMENT = !app.isPackaged;
 const APP_VERSION = resolveVersion({ fallbackVersion: app.getVersion(), isPackaged: app.isPackaged });
 const donations = require('./assets/donations/developers.json');
@@ -16,10 +17,9 @@ const DEV_RESET_REQUESTED = process.argv.includes('--dev-reset') || app.commandL
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// User-agent de Chrome normal (sem "Electron"), para Twitch/Kick servirem o site padrão
-const CHROME_MAJOR = String(process.versions.chrome || '140').split('.')[0];
-const OS_UA = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'Windows NT 10.0; Win64; x64';
-const CHROME_UA = `Mozilla/5.0 (${OS_UA}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_MAJOR}.0.0.0 Safari/537.36`;
+// Mantém o user-agent e os Client Hints coerentes com o Chromium empacotado e o SO.
+const BROWSER_IDENTITY = createBrowserIdentity(process.platform, process.versions.chrome);
+const CHROME_UA = BROWSER_IDENTITY.userAgent;
 
 // Rodar 24h: nada é pausado/desacelerado com janela atrás, minimizada ou tela bloqueada
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -271,6 +271,12 @@ function setupSession(part) {
   configuredSessions.add(part);
   const ses = session.fromPartition(part);
   ses.setUserAgent(CHROME_UA);
+
+  // O site recebe os mesmos dados de plataforma/versão em todas as requisições,
+  // incluindo login e pop-ups OAuth que compartilham esta sessão.
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    callback({ requestHeaders: applyBrowserIdentityHeaders(details.requestHeaders || {}, BROWSER_IDENTITY) });
+  });
 
   // Uma página de live pode abrir dezenas de iframes de sincronização de anúncios,
   // cada um com seu renderer. Impede só esse frame conhecido, dentro das webviews

@@ -38,6 +38,7 @@
     },
     "files": [
       "main.js",
+      "browser-identity.js",
       "dev-profile.js",
       "app-version.js",
       "live-status.js",
