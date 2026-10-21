@@ -1,28 +1,41 @@
-# Builds
+# Builds e pacotes
 PokeIdle-Hub.app/
 KickMulti.app/
+dist/
+dist*/
 PokeIdle-Hub/dist/
-PokeIdle-Hub/node_modules/
+PokeIdle-Hub/dist*/
+release-assets/
 PokeIdle-Hub/build/*
 !PokeIdle-Hub/build/icon.ico
 !PokeIdle-Hub/build/icon.png
-release-assets/
-dist/
+
+# Dependências
 node_modules/
+PokeIdle-Hub/node_modules/
 
-# macOS
+# Planejamento, especificações e tarefas locais
+tasks/
+
+# Agentes e configurações locais
+.agents/
+
+# Documentação interna, notas e arquivos pessoais
+docs/
+**/docs/
+
+# IDE e sistema operacional
 .DS_Store
-
-# IDE
 .idea/
 .vscode/
 
-# Arquivos temporários
+# Arquivos temporários e dumps
 temp_*
 *.log
+NVIDIA Corporation/
+**/NVIDIA Corporation/
 
-# Artefatos locais e documentação interna
+# Artefatos locais e ícones
 _metadata/
 /icons/
 !PokeIdle-Hub/renderer/assets/icons/**
-docs/
