@@ -18,23 +18,6 @@ function createBrowserIdentity(platform, chromiumVersion) {
 
   return Object.freeze({
     userAgent: `Mozilla/5.0 (${platformIdentity.userAgentPlatform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`,
-    clientHintPlatform: platformIdentity.clientHintPlatform,
-    brands: `"Not A(Brand";v="8", "Chromium";v="${major}", "Google Chrome";v="${major}"`,
-    fullVersionList: `"Not A(Brand";v="8.0.0.0", "Chromium";v="${version}", "Google Chrome";v="${version}"`,
   });
 }
-
-function applyBrowserIdentityHeaders(requestHeaders, identity) {
-  const headers = { ...requestHeaders, 'User-Agent': identity.userAgent };
-  if (Object.hasOwn(headers, 'sec-ch-ua')) headers['sec-ch-ua'] = identity.brands;
-  if (Object.hasOwn(headers, 'sec-ch-ua-full-version-list')) {
-    headers['sec-ch-ua-full-version-list'] = identity.fullVersionList;
-  }
-  if (Object.hasOwn(headers, 'sec-ch-ua-mobile')) headers['sec-ch-ua-mobile'] = '?0';
-  if (Object.hasOwn(headers, 'sec-ch-ua-platform')) {
-    headers['sec-ch-ua-platform'] = identity.clientHintPlatform;
-  }
-  return headers;
-}
-
-module.exports = { createBrowserIdentity, applyBrowserIdentityHeaders };
+module.exports = { createBrowserIdentity };

@@ -5,11 +5,43 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { createLiveStatusService } = require('./live-status');
+const { registerLiveStatusHandler } = require('./live-status-ipc');
+const { registerMainWindowCommandHandlers } = require('./main-window-command-ipc');
+const { registerAppShellHandlers } = require('./app-shell-ipc');
+const { registerAppLifecycle } = require('./app-lifecycle');
+const { createMainWindowService } = require('./main-window-service');
+const { createTrayService } = require('./tray-service');
+const { channelURL } = require('./live-channel-url');
+const { createLoginWindowService } = require('./login-window-service');
+const { createAboutWindowService } = require('./about-window-service');
+const { migrateLegacySessions } = require('./legacy-session-migration');
+const { createProviderConnectionService } = require('./provider-connection-service');
+const { createProviderSessionCleanup } = require('./provider-session-cleanup');
+const { registerProviderConnectionHandlers } = require('./provider-connection-ipc');
+const { createRotomCockpitService } = require('./rotom-cockpit-service');
+const { registerNotificationHandlers } = require('./notification-service');
 const { createReleaseChecker } = require('./release-updates');
+const { createUpdateNotificationService } = require('./update-notification-service');
+const { createUpdateDownloadService, isRunningAsPortable } = require('./update-download-service');
+const { registerSessionMaintenanceHandlers } = require('./session-maintenance-service');
+const { registerHubWorkingSetCleanupHandler } = require('./hub-working-set-cleanup-service');
+const { createWindowsWorkingSetTrimmer } = require('./windows-working-set-trimmer');
+const { createSessionSummaryService } = require('./session-summary-service');
+const { createElectronSessionService } = require('./electron-session-service');
+const { registerElectronWebContentsHandlers } = require('./electron-webcontents-service');
+const { registerMarketSampleHandler } = require('./market-sample-ipc');
+const { registerRotomCockpitHandlers } = require('./rotom-cockpit-ipc');
+const { createLiveContentRegistry } = require('./live-content-purpose');
+const { isAdditionalPartition } = require('./account-partition');
 const { resolveVersion } = require('./app-version');
 const { initializeDevProfile } = require('./dev-profile');
-const { applyBrowserIdentityHeaders, createBrowserIdentity } = require('./browser-identity');
-const IS_DEVELOPMENT = !app.isPackaged;
+const { initializeQaProfile } = require('./qa-profile');
+const { createBrowserIdentity } = require('./browser-identity');
+const QA_BUILD = app.isPackaged && require('./package.json').pokeidleHubQaBuild === true;
+const IS_DEVELOPMENT = !app.isPackaged || QA_BUILD;
+const APP_USER_MODEL_ID = QA_BUILD
+  ? 'com.pokeidlehub.app.qa'
+  : app.isPackaged ? 'com.pokeidlehub.app' : 'com.pokeidlehub.app.dev';
 const APP_VERSION = resolveVersion({ fallbackVersion: app.getVersion(), isPackaged: app.isPackaged });
 const donations = require('./assets/donations/developers.json');
 const DEV_RESET_REQUESTED = process.argv.includes('--dev-reset') || app.commandLine.hasSwitch('dev-reset');
@@ -17,7 +49,8 @@ const DEV_RESET_REQUESTED = process.argv.includes('--dev-reset') || app.commandL
 // Todas as lives, chats, jogo e janelas de login usam a mesma sessão: logou uma vez, vale para tudo
 const PARTITION = 'persist:pokeidlehub';
 
-// Mantém o user-agent e os Client Hints coerentes com o Chromium empacotado e o SO.
+// Mantém o User-Agent de Chrome alinhado ao Chromium empacotado e ao SO real;
+// os cabeçalhos Client Hints permanecem sob controle do Electron, como no PokeFarm.
 const BROWSER_IDENTITY = createBrowserIdentity(process.platform, process.versions.chrome);
 const CHROME_UA = BROWSER_IDENTITY.userAgent;
 
@@ -30,7 +63,17 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.userAgentFallback = CHROME_UA;
 let startupReady = true;
 let lockAcquired = false;
-if (app.isPackaged) {
+if (QA_BUILD) {
+  try {
+    const profile = initializeQaProfile(app, { reset: DEV_RESET_REQUESTED });
+    lockAcquired = profile.lockAcquired;
+    if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+  } catch (error) {
+    console.error(`Inicialização QA recusada: ${error.message}`);
+    startupReady = false;
+    app.exit(1);
+  }
+} else if (app.isPackaged) {
   try {
     initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
   } catch (error) {
@@ -40,11 +83,11 @@ if (app.isPackaged) {
   }
   if (startupReady) {
     app.setName('PokeIdle Hub');
-    if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app');
+    if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
     lockAcquired = app.requestSingleInstanceLock();
   }
 } else {
-  if (process.platform === 'win32') app.setAppUserModelId('com.pokeidlehub.app.dev');
+  if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
   try {
     const profile = initializeDevProfile(app, { reset: DEV_RESET_REQUESTED });
     lockAcquired = profile.lockAcquired;
@@ -63,24 +106,58 @@ if (!lockAcquired && startupReady) {
 }
 
 let win = null;
-let aboutWindow = null;
-let summaryWindow = null;
-let trayClickTimer = null;
-let ignoreTrayClickUntil = 0;
-let tray = null;
 let quitting = false;
-let updateChecker = null;
-let updateTimer = null;
+const aboutWindowService = createAboutWindowService({
+  BrowserWindow,
+  ipcMain,
+  shell,
+  clipboard,
+  appDirectory: __dirname,
+  appVersion: APP_VERSION,
+  getAppIcon,
+  donations,
+  isQuitting: () => quitting,
+});
+
+const mainWindowService = createMainWindowService({
+  BrowserWindow,
+  appDirectory: __dirname,
+  isDevelopment: IS_DEVELOPMENT,
+  platform: process.platform,
+  appUserModelId: APP_USER_MODEL_ID,
+  getAppIcon,
+  getTaskbarIconPath: () => (app.isPackaged ? process.execPath : getAppIcon()),
+  getWindow: () => win,
+  setWindow: value => { win = value; },
+  isQuitting: () => quitting,
+  getTray: () => trayService.getTray(),
+  setQuitting: value => { quitting = value; },
+});
 
 function showWindow() {
   if (quitting) return;
-  clearTimeout(trayClickTimer);
-  summaryWindow?.hide();
+  trayService.clearClickTimer();
+  sessionSummaryService.hide();
   if (!win || win.isDestroyed()) createWindow();
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
 }
+
+const trayService = createTrayService({
+  Tray,
+  Menu,
+  nativeImage,
+  app,
+  getAppIcon,
+  platform: process.platform,
+  isDevelopment: IS_DEVELOPMENT,
+  showMainWindow: showWindow,
+  showSessionSummary: () => sessionSummaryService.show(),
+  hideSessionSummary: () => sessionSummaryService.hide(),
+  isMainWindowHiddenOrMinimized: () => win && (!win.isVisible() || win.isMinimized()),
+  onAbout: aboutWindowService.show,
+});
 
 function getAppIcon() {
   if (process.platform === 'win32') {
@@ -91,167 +168,30 @@ function getAppIcon() {
 }
 
 function createTray() {
-  const size = process.platform === 'darwin' ? 18 : 32;
-  const icon = nativeImage.createFromPath(getAppIcon())
-    .resize({ width: size, height: size });
-  tray = new Tray(icon);
-  tray.setToolTip(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
-  const menu = Menu.buildFromTemplate([
-    { label: 'Sobre', click: showAbout },
-    { type: 'separator' },
-    { label: 'Sair', click: () => app.quit() },
-  ]);
-  tray.on('click', () => {
-    if (Date.now() < ignoreTrayClickUntil) return;
-    clearTimeout(trayClickTimer);
-    trayClickTimer = setTimeout(() => {
-      if (win && (!win.isVisible() || win.isMinimized())) showSessionSummary();
-      else showWindow();
-    }, 300);
-  });
-  tray.on('double-click', () => {
-    ignoreTrayClickUntil = Date.now() + 500;
-    showWindow();
-  });
-  // Menu explícito: setContextMenu também capturaria o clique esquerdo no macOS.
-  tray.on('right-click', () => {
-    clearTimeout(trayClickTimer);
-    summaryWindow?.hide();
-    tray.popUpContextMenu(menu);
-  });
+  trayService.create();
 }
 
-function showSessionSummary() {
-  if (quitting) return;
-  const bounds = tray.getBounds();
-  const area = screen.getDisplayMatching(bounds).workArea;
-  const width = Math.min(420, area.width - 16);
-  const height = Math.min(680, area.height - 16);
-  const x = Math.max(area.x + 8, Math.min(bounds.x + bounds.width - width, area.x + area.width - width - 8));
-  const below = bounds.y + bounds.height + 8;
-  const y = Math.max(area.y + 8, Math.min(below + height <= area.y + area.height ? below : bounds.y - height - 8, area.y + area.height - height - 8));
-  if (!summaryWindow || summaryWindow.isDestroyed()) {
-    const panel = new BrowserWindow({
-      width, height, x, y, frame: false, show: false, resizable: false,
-      skipTaskbar: true, alwaysOnTop: true, backgroundColor: '#141416',
-      webPreferences: { preload: path.join(__dirname, 'session-preload.js'),
-        contextIsolation: true, nodeIntegration: false, sandbox: true },
-    });
-    summaryWindow = panel;
-    panel.setMenu(null);
-    panel.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    panel.webContents.on('will-navigate', event => event.preventDefault());
-    panel.on('blur', () => panel.hide());
-    panel.on('closed', () => { summaryWindow = null; });
-    panel.once('ready-to-show', () => {
-      if (!quitting && win && (!win.isVisible() || win.isMinimized())) { panel.show(); panel.focus(); }
-    });
-    panel.loadFile(path.join(__dirname, 'renderer', 'session.html'));
-  } else {
-    summaryWindow.setBounds({ x, y, width, height });
-    summaryWindow.show(); summaryWindow.focus();
-  }
-}
-
-function showAbout() {
-  if (quitting) return;
-  if (aboutWindow && !aboutWindow.isDestroyed()) {
-    aboutWindow.show();
-    aboutWindow.focus();
-    return;
-  }
-  const window = new BrowserWindow({
-    title: 'Sobre o PokeIdle Hub', width: 440, height: 640, useContentSize: true,
-    resizable: false, minimizable: false, maximizable: false, show: false,
-    backgroundColor: '#141416', autoHideMenuBar: true,
-    icon: getAppIcon(),
-    webPreferences: { preload: path.join(__dirname, 'about-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
-  });
-  aboutWindow = window;
-  window.setMenu(null);
-  const aboutLinks = new Set([
-    donations.repository,
-    'https://github.com/RaullPereira/PokeFarm',
-    ...donations.developers.flatMap(profile => [profile.github, profile.linkedin]),
-  ]);
-  window.webContents.setWindowOpenHandler(({ url }) => {
-    if (aboutLinks.has(url)) void shell.openExternal(url).catch(() => {});
-    return { action: 'deny' };
-  });
-  window.webContents.on('will-navigate', event => event.preventDefault());
-  window.once('ready-to-show', () => { window.show(); window.focus(); });
-  window.on('closed', () => { aboutWindow = null; });
-  window.loadFile(path.join(__dirname, 'renderer', 'about.html'), {
-    query: { version: APP_VERSION },
-  });
-}
-
-ipcMain.handle('about-data', event => event.sender === aboutWindow?.webContents ? donations : null);
-ipcMain.handle('about-copy-pix', (event, id) => {
-  if (event.sender !== aboutWindow?.webContents) return false;
-  const profile = donations.developers.find(profile => profile.id === id);
-  if (!profile) return false;
-  clipboard.writeText(profile.pix);
-  return true;
+const sessionSummaryService = createSessionSummaryService({
+  ipcMain,
+  BrowserWindow,
+  screen,
+  getTray: () => trayService.getTray(),
+  getMainWindow: () => win,
+  isQuitting: () => quitting,
+  showMainWindow: showWindow,
+  appDirectory: __dirname,
 });
 
-function startUpdateChecks() {
-  const settingsFile = path.join(app.getPath('userData'), 'update-notifications.json');
-  let notifiedVersions = [];
-  try { notifiedVersions = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch (_) { /* primeira abertura */ }
-  updateChecker = createReleaseChecker({
-    currentVersion: APP_VERSION,
-    notifiedVersions,
-    persistNotified: versions => {
-      try { fs.writeFileSync(settingsFile, JSON.stringify(versions)); } catch (_) {}
-    },
-    onChange: state => {
-      if (win && !win.isDestroyed()) win.webContents.send('update-state', state);
-    },
-    onAvailable: update => {
-      if (!Notification.isSupported()) return;
-      const notification = new Notification({
-        title: 'Atualização do PokeIdle Hub',
-        body: `A versão ${update.version} está disponível. Clique para ver a release.`,
-      });
-      notification.on('click', () => { void shell.openExternal(update.url).catch(() => {}); });
-      notification.show();
-    },
-  });
-  void updateChecker.check();
-  updateTimer = setInterval(() => { void updateChecker.check(); }, 60 * 60 * 1000);
-}
-
-const LOGIN_URLS = {
-  twitch: 'https://www.twitch.tv/login',
-  kick: 'https://kick.com/',
-};
-
-// Só abre no Edge endereços destes sites, e só com caracteres seguros
-const SAFE_URL = /^https:\/\/([a-z0-9-]+\.)*(kick\.com|twitch\.tv|pokeidle\.io)(\/[A-Za-z0-9_\-/]*)?$/;
-
-// Caminhos da Twitch/Kick que não são canais
-const RESERVED = new Set([
-  'directory', 'videos', 'settings', 'login', 'signup', 'p', 'downloads', 'jobs', 'subscriptions',
-  'inventory', 'wallet', 'drops', 'search', 'friends', 'messages', 'payments', 'prime', 'turbo',
-  'store', 'popout', 'embed', 'moderator', 'categories', 'browse', 'following', 'dashboard',
-  'terms-of-service', 'privacy-policy', 'community-guidelines', 'about', 'help', 'privacy', 'terms',
-]);
-
-/** Se a URL for de um canal da Kick/Twitch, devolve o link limpo (ex.: https://twitch.tv/rodil). */
-function channelURL(raw) {
-  let u;
-  try { u = new URL(raw); } catch (_) { return null; }
-  const host = u.hostname.toLowerCase();
-  const twitch = host === 'twitch.tv' || host.endsWith('.twitch.tv');
-  const kick = host === 'kick.com' || host.endsWith('.kick.com');
-  if (!(twitch || kick) || /^(player|dashboard|id)\./.test(host)) return null;
-  const parts = u.pathname.split('/').filter(Boolean);
-  if (parts.length !== 1) return null;
-  const name = parts[0].toLowerCase();
-  if (!/^[a-z0-9_-]{2,40}$/.test(name) || RESERVED.has(name)) return null;
-  return `https://${twitch ? 'twitch.tv' : 'kick.com'}/${name}`;
-}
+const updateNotificationService = createUpdateNotificationService({
+  createReleaseChecker,
+  currentVersion: APP_VERSION,
+  getSettingsFile: () => path.join(app.getPath('userData'), 'update-notifications.json'),
+  readFileSync: (...args) => fs.readFileSync(...args),
+  writeFileSync: (...args) => fs.writeFileSync(...args),
+  Notification,
+  shell,
+  getMainWindow: () => win,
+});
 
 const isGame = (contents) => {
   try { return /(^|\.)pokeidle\.io$/.test(new URL(contents.getURL()).hostname); } catch (_) { return false; }
@@ -262,720 +202,195 @@ function addLive(link) {
 }
 
 // Sessão de cada conta extra do Pokeidle: persist:pokeidlehub-acc-<id>
-const ACCOUNT_PARTITION = /^persist:pokeidlehub-acc-[a-z0-9-]{1,60}$/i;
-const configuredSessions = new Set();
-
-/** User-agent e scripts iguais em todas as sessões (a principal e a de cada conta). */
-function setupSession(part) {
-  if (configuredSessions.has(part)) return;
-  configuredSessions.add(part);
-  const ses = session.fromPartition(part);
-  ses.setUserAgent(CHROME_UA);
-
-  // O site recebe os mesmos dados de plataforma/versão em todas as requisições,
-  // incluindo login e pop-ups OAuth que compartilham esta sessão.
-  ses.webRequest.onBeforeSendHeaders((details, callback) => {
-    callback({ requestHeaders: applyBrowserIdentityHeaders(details.requestHeaders || {}, BROWSER_IDENTITY) });
-  });
-
-  // Uma página de live pode abrir dezenas de iframes de sincronização de anúncios,
-  // cada um com seu renderer. Impede só esse frame conhecido, dentro das webviews
-  // de lives; players, chat, desafios de login e janelas de OAuth passam intactos.
-  ses.webRequest.onBeforeRequest((details, callback) => {
-    let cancel = false;
-    try {
-      const u = new URL(details.url);
-      if (['www.facebook.com', 'facebook.com', 'use1-turn.fpjs.io', 'fpjs.io'].includes(u.hostname) ||
-          (u.hostname === 's.amazon-adsystem.com' && details.resourceType === 'subFrame')) {
-        cancel = true;
-      }
-    } catch (_) { /* página em navegação/fechada: preserva a requisição */ }
-    callback({ cancel });
-  });
-
-  const resolvePreloadPath = (filename) => {
-    if (app.isPackaged) {
-      const unpacked = path.join(process.resourcesPath, 'app.asar.unpacked', filename);
-      if (fs.existsSync(unpacked)) return unpacked;
-    }
-    return path.join(__dirname, filename);
-  };
-  const regPreload = (id, filename) => {
-    try {
-      const filePath = resolvePreloadPath(filename);
-      if (fs.existsSync(filePath)) {
-        try { ses.unregisterPreloadScript(id); } catch (_) {}
-        ses.registerPreloadScript({ id, type: 'frame', filePath });
-      }
-    } catch (_) {}
-  };
-  regPreload('pf-game-channels', 'game-channels.js');
-  regPreload('pf-game-session', 'game-session.js');
-  regPreload('pf-pokeidle-hunt', 'pokeidle-hunt.js');
-  regPreload('pf-twitch-economy', 'twitch-economy.js');
-  regPreload('pf-kick-economy', 'kick-economy.js');
-  regPreload('pf-rotom-addon', 'rotom-addon.js');
-}
+const providerConnectionService = createProviderConnectionService({ session });
+const providerSessionCleanup = createProviderSessionCleanup({ session });
+const liveContentRegistry = createLiveContentRegistry();
+const electronSessionService = createElectronSessionService({
+  session,
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  appDirectory: __dirname,
+  existsSync: filePath => fs.existsSync(filePath),
+  joinPath: (...parts) => path.join(...parts),
+  userAgent: CHROME_UA,
+  getContentPurpose: webContentsId => liveContentRegistry.get(webContentsId),
+});
+const { setupSession, configuredPartitions: configuredSessions } = electronSessionService;
 
 const fromApp = (e) => !!(e.senderFrame && String(e.senderFrame.url).startsWith('file://'));
 const liveStatus = createLiveStatusService((url, options) => fetch(url, options));
+const loginWindowService = createLoginWindowService({
+  BrowserWindow,
+  userAgent: CHROME_UA,
+  onClosed: (closedWindow, { platform, partition, flowId }) => {
+    BrowserWindow.getAllWindows().forEach((browserWindow) => {
+      if (browserWindow !== closedWindow && !browserWindow.isDestroyed()) {
+        browserWindow.webContents.send('login-window-closed', { platform, partition, flowId });
+      }
+    });
+  },
+});
 
 function createWindow() {
-  win = new BrowserWindow({
-    width: 1440,
-    height: 880,
-    minWidth: 1000,
-    minHeight: 560,
-    title: IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub',
-    backgroundColor: '#141416',
-    autoHideMenuBar: true,
-    icon: getAppIcon(),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webviewTag: true,
-      backgroundThrottling: false,
-      spellcheck: false,
-    },
-  });
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  win.webContents.on('page-title-updated', event => {
-    event.preventDefault();
-    if (win && !win.isDestroyed()) win.setTitle(IS_DEVELOPMENT ? 'PokeIdle Hub [DEV]' : 'PokeIdle Hub');
-  });
-  // A janela principal nunca navega para fora nem abre pop-ups
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('will-navigate', (e) => e.preventDefault());
-  win.webContents.on('render-process-gone', () => setTimeout(() => win && !win.isDestroyed() && win.reload(), 2000));
-  win.on('close', event => {
-    if (quitting || !tray || tray.isDestroyed()) return;
-    event.preventDefault();
-    // Oculta sem destruir o renderer/webviews ou alterar o estado de áudio.
-    win.hide();
-  });
-  // O Windows não emite before-quit ao encerrar a sessão do usuário.
-  win.on('session-end', () => { quitting = true; });
-  win.on('closed', () => { win = null; });
+  mainWindowService.create();
 }
 
-app.on('web-contents-created', (_e, contents) => {
-  // Toda <webview> recebe o nosso preload e configurações seguras, na sessão compartilhada
-  contents.on('will-attach-webview', (event, webPreferences, params) => {
-    delete webPreferences.preloadURL;
-    webPreferences.preload = path.join(__dirname, 'webview-preload.js');
-    webPreferences.nodeIntegration = false;
-    webPreferences.contextIsolation = true;
-    webPreferences.sandbox = true;
-    webPreferences.backgroundThrottling = false;
-    // Contas extras do Pokeidle usam sessão própria (login separado); o resto, a compartilhada
-    const part = ACCOUNT_PARTITION.test(params.partition || '') ? params.partition : PARTITION;
-    setupSession(part);
-    webPreferences.partition = part;
-    if (!/^https:\/\//.test(params.src || '')) event.preventDefault();
-  });
-
-  // Pop-ups das páginas (login, OAuth) abrem numa janela própria, na mesma sessão
-  if (contents.getType() === 'webview') {
-    // No jogo, link/botão de live da Kick/Twitch vira bloco na aba Lives em vez de abrir
-    contents.on('will-navigate', (e, url) => {
-      if (!isGame(contents)) return;
-      const link = channelURL(url);
-      if (link) { e.preventDefault(); addLive(link); }
-    });
-    contents.on('did-create-window', (child) => {
-      if (!isGame(contents)) return;
-      // Pop-up aberto em branco e depois mandado para a live
-      child.webContents.on('will-navigate', (e, url) => {
-        const link = channelURL(url);
-        if (link) { e.preventDefault(); addLive(link); child.close(); }
-      });
-    });
-    contents.setWindowOpenHandler(({ url }) => {
-      if (isGame(contents)) {
-        const link = channelURL(url);
-        if (link) { addLive(link); return { action: 'deny' }; }
-      }
-      if (url === 'about:blank' && isGame(contents)) {
-        return { action: 'allow', overrideBrowserWindowOptions: { show: false, webPreferences: { session: contents.session, contextIsolation: true, sandbox: true, nodeIntegration: false } } };
-      }
-      if (!/^https:\/\//.test(url)) return { action: 'deny' };
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          width: 520,
-          height: 760,
-          title: 'Entrar',
-          autoHideMenuBar: true,
-          // Mesma sessão da página que abriu: o login de cada conta fica na conta certa
-          webPreferences: { session: contents.session, contextIsolation: true, sandbox: true, nodeIntegration: false },
-        },
-      };
-    });
-  }
+registerElectronWebContentsHandlers({
+  app,
+  preloadPath: path.join(__dirname, 'webview-preload.js'),
+  primaryPartition: PARTITION,
+  setupSession,
+  isGame,
+  channelURL,
+  addLive,
+  liveContentRegistry,
 });
 
 // MARK: IPC da interface
 
 const fromMainWindow = e => !!win && e.sender === win.webContents && e.senderFrame === win.webContents.mainFrame;
-const fromSummaryWindow = e => !!summaryWindow && e.sender === summaryWindow.webContents && e.senderFrame === summaryWindow.webContents.mainFrame;
-ipcMain.handle('session-summary', async e => {
-  if (!fromSummaryWindow(e) || !win || win.isDestroyed()) return null;
-  let timer;
-  try {
-    return await Promise.race([
-      win.webContents.executeJavaScript('window.__pfCollectSessions ? window.__pfCollectSessions() : ({accounts: []})'),
-      new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Game summary timeout')), 4000); }),
-    ]);
-  } finally { clearTimeout(timer); }
+registerAppShellHandlers({
+  ipcMain,
+  isAuthorized: fromMainWindow,
+  isDevelopment: IS_DEVELOPMENT,
+  showAbout: aboutWindowService.show,
+  updateNotificationService,
 });
-ipcMain.on('session-open', e => { if (fromSummaryWindow(e)) showWindow(); });
-ipcMain.on('session-close', e => { if (fromSummaryWindow(e)) summaryWindow.hide(); });
-ipcMain.on('open-about', e => { if (fromMainWindow(e)) showAbout(); });
-ipcMain.handle('update-state', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.getState() : null);
-ipcMain.handle('app-environment', e => fromMainWindow(e) ? { isDevelopment: IS_DEVELOPMENT } : null);
-ipcMain.handle('check-updates', e => fromMainWindow(e) && !IS_DEVELOPMENT ? updateChecker?.check() : null);
-function isRunningAsPortable() {
-  if (process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE) return true;
-  try {
-    const exeName = path.basename(app.getPath('exe')).toLowerCase();
-    return exeName.includes('portable');
-  } catch (_) {
-    return false;
-  }
-}
-
-function getBestUpdateAsset(assets) {
-  if (!Array.isArray(assets) || !assets.length) return null;
-  const isPortable = isRunningAsPortable();
-  const platform = process.platform;
-
-  if (platform === 'win32') {
-    if (isPortable) {
-      const p = assets.find(a => a.name.toLowerCase().includes('portable') && a.name.toLowerCase().endsWith('.exe'));
-      if (p) return { ...p, isPortable: true };
-    }
-    const s = assets.find(a => a.name.toLowerCase().includes('setup') && a.name.toLowerCase().endsWith('.exe'))
-      || assets.find(a => a.name.toLowerCase().endsWith('.exe'));
-    if (s) return { ...s, isPortable: false };
-  } else if (platform === 'darwin') {
-    const d = assets.find(a => a.name.toLowerCase().endsWith('.dmg'))
-      || assets.find(a => a.name.toLowerCase().endsWith('.zip'));
-    if (d) return { ...d, isPortable: false };
-  } else if (platform === 'linux') {
-    const l = assets.find(a => a.name.toLowerCase().endsWith('.appimage'))
-      || assets.find(a => a.name.toLowerCase().endsWith('.deb'));
-    if (l) return { ...l, isPortable: false };
-  }
-  return assets[0] ? { ...assets[0], isPortable } : null;
-}
-
-let currentDownloadAbort = null;
-
-ipcMain.handle('get-update-target', (e) => {
-  if (!fromMainWindow(e) || IS_DEVELOPMENT) return null;
-  const release = updateChecker?.getState().release;
-  const asset = getBestUpdateAsset(release?.assets);
-  return {
-    isPortable: isRunningAsPortable(),
-    platform: process.platform,
-    assetName: asset?.name || null,
-    assetSize: asset?.size || 0,
-  };
+createUpdateDownloadService({
+  ipcMain,
+  isAuthorized: fromMainWindow,
+  isDevelopment: IS_DEVELOPMENT,
+  platform: process.platform,
+  getRelease: () => updateNotificationService.getState()?.release,
+  getPortableStatus: () => isRunningAsPortable({
+    env: process.env,
+    getExecutablePath: () => app.getPath('exe'),
+  }),
+  getDownloadsPath: () => app.getPath('downloads'),
+  joinPath: (...parts) => path.join(...parts),
+  fetch: (url, options) => fetch(url, options),
+  createWriteStream: filePath => fs.createWriteStream(filePath),
+  existsSync: filePath => fs.existsSync(filePath),
+  spawn: (...args) => spawn(...args),
+  setTimeoutFn: (callback, delay) => setTimeout(callback, delay),
+  app,
+  shell,
+  getMainWindow: () => win,
 });
 
-ipcMain.handle('open-update', async e => {
-  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
-  const url = updateChecker?.getState().release?.url;
-  if (!url) return false;
-  try { await shell.openExternal(url); return true; } catch (_) { return false; }
+registerMainWindowCommandHandlers({
+  ipcMain,
+  isMainWindowAuthorized: fromMainWindow,
+  isTrustedAppSender: fromApp,
+  platform: process.platform,
+  app,
+  shell,
+  spawn: (...args) => spawn(...args),
 });
 
-ipcMain.handle('download-update', async (e) => {
-  if (!fromMainWindow(e)) return { ok: false, error: 'Unauthorized' };
-  if (IS_DEVELOPMENT) return { ok: false, error: 'Atualizações não estão disponíveis em dev.' };
-  const release = updateChecker?.getState().release;
-  if (!release) return { ok: false, error: 'Nenhuma versão disponível' };
-
-  const asset = getBestUpdateAsset(release.assets);
-  if (!asset || !asset.url) return { ok: false, error: 'Arquivo executável não encontrado na release' };
-
-  try {
-    if (currentDownloadAbort) {
-      currentDownloadAbort.abort();
-      currentDownloadAbort = null;
-    }
-    currentDownloadAbort = new AbortController();
-
-    const downloadsDir = app.getPath('downloads');
-    const destPath = path.join(downloadsDir, asset.name);
-
-    const response = await fetch(asset.url, {
-      signal: currentDownloadAbort.signal,
-      headers: {
-        'User-Agent': 'PokeIdleHub-Updater',
-        Accept: 'application/octet-stream',
-      },
-    });
-
-    if (!response.ok || !response.body) {
-      throw new Error(`Falha no download: HTTP ${response.status}`);
-    }
-
-    const totalBytes = Number(response.headers.get('content-length')) || asset.size || 0;
-    let downloadedBytes = 0;
-
-    const fileStream = fs.createWriteStream(destPath);
-    const reader = response.body.getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      downloadedBytes += value.length;
-      fileStream.write(Buffer.from(value));
-
-      const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
-      win?.webContents.send('update-download-progress', {
-        percent,
-        downloadedBytes,
-        totalBytes,
-        fileName: asset.name,
-      });
-    }
-
-    await new Promise((resolve, reject) => {
-      fileStream.end((err) => (err ? reject(err) : resolve()));
-    });
-
-    currentDownloadAbort = null;
-
-    return {
-      ok: true,
-      filePath: destPath,
-      fileName: asset.name,
-      isPortable: asset.isPortable,
-      version: release.version,
-    };
-  } catch (err) {
-    currentDownloadAbort = null;
-    if (err.name === 'AbortError') {
-      return { ok: false, aborted: true };
-    }
-    return { ok: false, error: String(err.message || err) };
-  }
+registerLiveStatusHandler({
+  ipcMain,
+  isAuthorized: fromMainWindow,
+  checkStatus: (platform, channels) => liveStatus.check(platform, channels),
 });
 
-ipcMain.handle('cancel-download-update', (e) => {
-  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
-  if (currentDownloadAbort) {
-    currentDownloadAbort.abort();
-    currentDownloadAbort = null;
-    return true;
-  }
-  return false;
+registerNotificationHandlers({
+  ipcMain,
+  Notification,
+  app,
+  platform: process.platform,
+  isTrustedSender: fromApp,
+  isQuitting: () => quitting,
+  showWindow,
+  getMainWindow: () => win,
 });
 
-ipcMain.handle('install-update', async (e, filePath) => {
-  if (!fromMainWindow(e) || IS_DEVELOPMENT) return false;
-  if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) return false;
-
-  try {
-    if (process.platform === 'win32') {
-      spawn(filePath, [], { detached: true, stdio: 'ignore' }).unref();
-      setTimeout(() => { app.quit(); }, 800);
-      return true;
-    } else {
-      await shell.openPath(filePath);
-      return true;
-    }
-  } catch (_) {
-    return false;
-  }
+registerProviderConnectionHandlers({
+  ipcMain,
+  primaryPartition: PARTITION,
+  isAdditionalPartition,
+  isTrustedSender: fromApp,
+  setupSession,
+  loginWindowService,
+  providerConnectionService,
 });
-
-ipcMain.on('show-in-folder', (e, filePath) => {
-  if (fromMainWindow(e) && filePath && typeof filePath === 'string') {
-    shell.showItemInFolder(filePath);
-  }
-});
-
-ipcMain.on('quit-app', (e) => {
-  if (fromMainWindow(e)) {
-    app.quit();
-  }
-});
-
-ipcMain.handle('live-status', (e, platform, channels) => {
-  if (!win || e.sender !== win.webContents || e.senderFrame !== win.webContents.mainFrame) {
-    return {};
-  }
-  return liveStatus.check(platform, channels);
-});
-
-ipcMain.on('notify', (e, msg) => {
-  if (!fromApp(e) || !msg || !Notification.isSupported()) return;
-  const n = new Notification({ title: String(msg.title).slice(0, 120), body: String(msg.body).slice(0, 300) });
-  n.on('click', () => {
-    if (quitting) return;
-    showWindow();
-    win.webContents.send('open-tab', 'game');
-  });
-  n.show();
-});
-
-ipcMain.on('attention', (e) => {
-  if (!fromApp(e) || !win) return;
-  if (process.platform === 'darwin' && app.dock) app.dock.bounce('informational');
-  else if (!win.isFocused()) win.flashFrame(true);
-});
-
-ipcMain.on('open-edge', (e, url) => {
-  if (!fromApp(e) || typeof url !== 'string' || !SAFE_URL.test(url)) return;
-  if (process.platform === 'darwin') {
-    const p = spawn('open', ['-a', 'Microsoft Edge', url], { stdio: 'ignore' });
-    p.on('error', () => shell.openExternal(url));
-    p.on('exit', (code) => { if (code !== 0) shell.openExternal(url); });
-  } else if (process.platform === 'win32') {
-    // O Windows registra o protocolo microsoft-edge: para abrir direto no Edge
-    shell.openExternal(`microsoft-edge:${url}`).catch(() => shell.openExternal(url));
-  } else {
-    shell.openExternal(url);
-  }
-});
-
-// Login numa janela própria (não numa webview): o Google recusa login dentro de webview embutida.
-// Aceita os pop-ups de OAuth (Google/Twitch/Kick) como janelas-filhas na mesma sessão.
-ipcMain.on('open-login', (e, platform, partition, label) => {
-  const url = LOGIN_URLS[platform];
-  if (!fromApp(e) || !url) return;
-  const part = ACCOUNT_PARTITION.test(partition || '') ? partition : PARTITION;
-  setupSession(part);
-  const platName = platform === 'twitch' ? 'Twitch' : 'Kick';
-  const cleanLabel = typeof label === 'string' && label.trim() ? ` (${label.trim().slice(0, 30)})` : '';
-  openLoginWindow(url, `Entrar na ${platName}${cleanLabel}`, part, platform);
-});
-
-ipcMain.on('open-game-login', (e, partition) => {
-  if (!fromApp(e)) return;
-  const part = ACCOUNT_PARTITION.test(partition || '') ? partition : PARTITION;
-  setupSession(part);
-  openLoginWindow('https://pokeidle.io/app', 'Entrar no Pokeidle', part, 'game');
-});
-
-ipcMain.handle('check-connections', async (e, partition) => {
-  if (!fromApp(e)) return { twitch: false, kick: false };
-  const part = ACCOUNT_PARTITION.test(partition || '') ? partition : PARTITION;
-  const ses = session.fromPartition(part);
-  let twitch = false;
-  let kick = false;
-  try {
-    const twitchCookies = await ses.cookies.get({ domain: 'twitch.tv' });
-    twitch = twitchCookies.some(c => c.name === 'auth-token' && !!c.value);
-  } catch (_) {}
-  try {
-    const kickCookies = await ses.cookies.get({ domain: 'kick.com' });
-    kick = kickCookies.some(c => ['session', 'kick_session', 'session_token', 'token'].includes(c.name.toLowerCase()) || (c.name.includes('session') && !!c.value));
-  } catch (_) {}
-  return { twitch, kick };
-});
-
-ipcMain.handle('clear-connection', async (e, platform, partition) => {
-  if (!fromApp(e) || !['twitch', 'kick'].includes(platform)) return false;
-  const part = !partition || partition === PARTITION || ACCOUNT_PARTITION.test(partition) ? (partition || PARTITION) : null;
-  if (!part) return false;
-  const domain = platform === 'twitch' ? 'twitch.tv' : 'kick.com';
-  try {
-    const ses = session.fromPartition(part);
-    const cookies = await ses.cookies.get({ domain });
-    await Promise.all(cookies.map(cookie => {
-      const host = cookie.domain.replace(/^\./, '');
-      const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookie.path || '/'}`;
-      return ses.cookies.remove(url, cookie.name);
-    }));
-    return true;
-  } catch (_) {
-    return false;
-  }
-});
-
-function openLoginWindow(url, title, part, platform) {
-  const w = new BrowserWindow({
-    width: 540, height: 760, title, autoHideMenuBar: true, show: false,
-    webPreferences: { partition: part, contextIsolation: true, sandbox: true, nodeIntegration: false },
-  });
-  // UA de navegador real (sem "Electron"); o Google bloqueia webview/apps embutidos
-  w.webContents.setUserAgent(CHROME_UA);
-  // Pop-up do OAuth (Google etc.): abre como janela-filha na MESMA sessão, não bloqueia
-  const childOpts = {
-    action: 'allow',
-    overrideBrowserWindowOptions: {
-      width: 540, height: 720, autoHideMenuBar: true,
-      webPreferences: { session: w.webContents.session, contextIsolation: true, sandbox: true, nodeIntegration: false },
-    },
-  };
-  w.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
-  w.webContents.on('did-create-window', (child) => {
-    child.webContents.setUserAgent(CHROME_UA);
-    child.webContents.setWindowOpenHandler(({ url: u }) => (/^https:\/\//.test(u) ? childOpts : { action: 'deny' }));
-  });
-  w.once('ready-to-show', () => {
-    w.show();
-    w.focus();
-  });
-  w.on('closed', () => {
-    BrowserWindow.getAllWindows().forEach((bw) => {
-      if (bw !== w && !bw.isDestroyed()) {
-        bw.webContents.send('login-window-closed', { platform, partition: part });
-      }
-    });
-  });
-  w.loadURL(url);
-}
 
 // Amostras brutas do mercado (ajudam a ajustar a leitura depois)
-ipcMain.on('write-sample', (e, msg) => {
-  if (!fromApp(e) || !msg) return;
-  const file = path.join(app.getPath('userData'), 'market-samples.jsonl');
-  try {
-    if (fs.existsSync(file) && fs.statSync(file).size > 3_000_000) return;
-    const line = JSON.stringify({ date: new Date().toISOString(), url: String(msg.url).slice(0, 500), body: String(msg.text).slice(0, 30000) });
-    fs.appendFileSync(file, line + '\n');
-  } catch (_) { /* ignora */ }
+registerMarketSampleHandler({
+  ipcMain,
+  isTrustedSender: fromApp,
+  getUserDataPath: () => app.getPath('userData'),
+  joinPath: (...parts) => path.join(...parts),
+  fs,
 });
 
-// Conta removida: apaga o login dela (só contas extras; a principal é a mesma das lives)
-ipcMain.handle('clear-account', async (e, id) => {
-  const part = `persist:pokeidlehub-acc-${String(id)}`;
-  if (!fromApp(e) || !ACCOUNT_PARTITION.test(part)) return false;
-  try { await session.fromPartition(part).clearStorageData(); return true; } catch (_) { return false; }
+registerSessionMaintenanceHandlers({
+  ipcMain,
+  isTrustedSender: fromApp,
+  session,
+  fs,
+  primaryPartition: PARTITION,
+  configuredPartitions: configuredSessions,
+  getSessionDataPath: () => app.getPath('sessionData'),
+  getUserDataPath: () => app.getPath('userData'),
+  joinPath: (...parts) => path.join(...parts),
+  openPath: dir => shell.openPath(dir),
+  garbageCollect: typeof global.gc === 'function' ? () => global.gc() : null,
+  getAppMetrics: () => app.getAppMetrics(),
+  relaunch: () => {
+    app.relaunch();
+    app.quit();
+  },
 });
 
-ipcMain.on('open-data-dir', (e) => {
-  if (fromApp(e)) shell.openPath(app.getPath('userData'));
+const trimHubWorkingSet = createWindowsWorkingSetTrimmer({
+  platform: process.platform,
+  helperPath: app.isPackaged
+    ? path.join(process.resourcesPath, 'win-memory-trimmer.exe')
+    : path.join(__dirname, 'build', 'win-memory-trimmer.exe'),
+  spawn: (...args) => spawn(...args),
 });
-
-// Limpeza cirúrgica de cache de requisições e memória temporária sem deslogar contas
-ipcMain.handle('clean-ram', async (e) => {
-  if (!fromApp(e)) return { ok: false };
-  try {
-    const partitions = new Set([PARTITION, ...configuredSessions]);
-    const partitionsDir = path.join(app.getPath('sessionData'), 'Partitions');
-    if (fs.existsSync(partitionsDir)) {
-      try {
-        const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory() && entry.name.startsWith('pokeidlehub-acc-')) {
-            partitions.add(`persist:${entry.name}`);
-          }
-        }
-      } catch (_) {}
-    }
-
-    await Promise.all([...partitions].map(async (part) => {
-      try {
-        const ses = session.fromPartition(part);
-        await ses.clearCache();
-      } catch (_) {}
-    }));
-
-    try {
-      await session.defaultSession.clearCache();
-    } catch (_) {}
-
-    if (typeof global.gc === 'function') {
-      try { global.gc(); } catch (_) {}
-    }
-
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: String(err) };
-  }
+registerHubWorkingSetCleanupHandler({
+  ipcMain,
+  platform: process.platform,
+  isTrustedSender: fromApp,
+  getAppMetrics: () => app.getAppMetrics(),
+  trimProcesses: processes => trimHubWorkingSet(processes),
 });
 
 // MARK: Gerenciamento do Cockpit Sniper (Janela Standalone por conta)
-const cockpitWindows = new Map();
-
-function openRotomCockpitWindow(accId, accName) {
-  const existing = cockpitWindows.get(accId);
-  if (existing && !existing.isDestroyed()) {
-    if (existing.isMinimized()) existing.restore();
-    existing.show();
-    existing.focus();
-    return { ok: true, focused: true };
-  }
-
-  const cpWin = new BrowserWindow({
-    width: 1160,
-    height: 760,
-    minWidth: 900,
-    minHeight: 600,
-    title: `Sniper — Cockpit [${accName || accId}]`,
-    icon: getAppIcon(),
-    backgroundColor: '#33202b',
-    autoHideMenuBar: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'assets', 'addons', 'rotom-sniper', 'cockpit-preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      spellcheck: false,
-    },
-  });
-
-  cockpitWindows.set(accId, cpWin);
-
-  cpWin.once('ready-to-show', () => {
-    cpWin.show();
-    cpWin.focus();
-  });
-
-  cpWin.on('closed', () => {
-    cockpitWindows.delete(accId);
-  });
-
-  const htmlPath = path.join(__dirname, 'assets', 'addons', 'rotom-sniper', 'cockpit.html');
-  const fileUrl = `file://${htmlPath.replace(/\\/g, '/')}?acc=${encodeURIComponent(accId)}&name=${encodeURIComponent(accName || 'Conta')}`;
-  cpWin.loadURL(fileUrl);
-  return { ok: true, created: true };
-}
-
-ipcMain.handle('open-rotom-cockpit', (event, { accId, accName }) => {
-  return openRotomCockpitWindow(String(accId), String(accName));
+const rotomCockpitService = createRotomCockpitService({
+  BrowserWindow,
+  assetDirectory: path.join(__dirname, 'assets', 'addons', 'rotom-sniper'),
+  getAppIcon,
+  getMainWindow: () => win,
 });
 
-ipcMain.on('rotom-to-game', (event, { accId, message }) => {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('rotom-forward-to-game', { accId, message });
-  }
+registerRotomCockpitHandlers({
+  ipcMain,
+  isMainWindowAuthorized: fromMainWindow,
+  rotomCockpitService,
 });
 
-ipcMain.on('rotom-from-webview', (event, { accId, data }) => {
-  const cpWin = cockpitWindows.get(accId);
-  if (cpWin && !cpWin.isDestroyed()) {
-    cpWin.webContents.send('rotom-from-game', data);
-  }
-});
-
-function migrateLegacySessions() {
-  try {
-    const currentDataDir = app.getPath('userData');
-    const parentDir = path.dirname(currentDataDir);
-    const partitionsDir = path.join(currentDataDir, 'Partitions');
-
-    // 1. Diretórios legados de onde podemos importar dados existentes
-    const candidateDirs = [];
-    if (process.env.PORTABLE_EXECUTABLE_DIR) {
-      candidateDirs.push(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'data'));
-    }
-    candidateDirs.push(
-      path.join(parentDir, 'PokeFarm'),
-      path.join(parentDir, 'pokefarm'),
-      path.join(parentDir, 'PokeFarm-Hub')
-    );
-
-    for (const legacyDir of candidateDirs) {
-      if (!fs.existsSync(legacyDir)) continue;
-
-      // Migração de Local Storage (contas cadastradas, regras e preferências)
-      const currentLocalStorage = path.join(currentDataDir, 'Local Storage');
-      const legacyLocalStorage = path.join(legacyDir, 'Local Storage');
-      const currentLevelDb = path.join(currentLocalStorage, 'leveldb');
-      const hasCurrentLevelDb = fs.existsSync(currentLevelDb) && fs.readdirSync(currentLevelDb).length > 2;
-
-      // Se o diretório atual ainda não tiver dados salvos e o legado tiver
-      if (!hasCurrentLevelDb && fs.existsSync(legacyLocalStorage)) {
-        try {
-          if (!fs.existsSync(currentLocalStorage)) fs.mkdirSync(currentLocalStorage, { recursive: true });
-          fs.cpSync(legacyLocalStorage, currentLocalStorage, { recursive: true });
-        } catch (_) {}
-      }
-
-      // Migração de Partições (cookies das contas do jogo Pokeidle, Twitch e Kick)
-      const legacyPartitions = path.join(legacyDir, 'Partitions');
-      if (fs.existsSync(legacyPartitions)) {
-        try {
-          if (!fs.existsSync(partitionsDir)) fs.mkdirSync(partitionsDir, { recursive: true });
-          const legacyEntries = fs.readdirSync(legacyPartitions, { withFileTypes: true });
-          for (const entry of legacyEntries) {
-            if (!entry.isDirectory()) continue;
-            let destName = null;
-            if (entry.name === 'pokefarm' || entry.name === 'pokeidlehub') {
-              destName = 'pokeidlehub';
-            } else if (entry.name.startsWith('pokefarm-acc-')) {
-              const suffix = entry.name.slice('pokefarm-acc-'.length);
-              destName = `pokeidlehub-acc-${suffix}`;
-            } else if (entry.name.startsWith('pokeidlehub-acc-')) {
-              destName = entry.name;
-            }
-            if (destName) {
-              const destPath = path.join(partitionsDir, destName);
-              if (!fs.existsSync(destPath)) {
-                fs.cpSync(path.join(legacyPartitions, entry.name), destPath, { recursive: true });
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      break;
-    }
-
-    // 2. Normalizar partições internas caso já existam pastas com prefixo 'pokefarm' dentro de Partitions
-    if (fs.existsSync(partitionsDir)) {
-      const entries = fs.readdirSync(partitionsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        if (entry.name === 'pokefarm') {
-          const dest = path.join(partitionsDir, 'pokeidlehub');
-          if (!fs.existsSync(dest)) {
-            fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
-          }
-        }
-        if (entry.name.startsWith('pokefarm-acc-')) {
-          const suffix = entry.name.slice('pokefarm-acc-'.length);
-          const dest = path.join(partitionsDir, `pokeidlehub-acc-${suffix}`);
-          if (!fs.existsSync(dest)) {
-            fs.cpSync(path.join(partitionsDir, entry.name), dest, { recursive: true });
-          }
-        }
-      }
-    }
-  } catch (_) { /* ignora erro de migração para não bloquear a inicialização */ }
-}
-
-// MARK: Ciclo de vida
-
-app.on('second-instance', (_event, commandLine = []) => {
-  if (commandLine.includes('--dev-reset')) return;
-  showWindow();
-});
-
-app.whenReady().then(() => {
-  if (!startupReady || !lockAcquired) return;
-  if (app.isPackaged) migrateLegacySessions();
-  setupSession(PARTITION);
-  // Mac/PC não dormem com o app aberto (inclusive com a tela bloqueada)
-  powerSaveBlocker.start('prevent-app-suspension');
-  powerSaveBlocker.start('prevent-display-sleep');
-  createTray();
-  createWindow();
-  if (app.isPackaged) startUpdateChecks();
-  app.on('activate', () => { if (!summaryWindow?.isVisible()) showWindow(); });
-});
-
-app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => {
-  quitting = true;
-  clearTimeout(trayClickTimer);
-  if (updateTimer) clearInterval(updateTimer);
-  for (const w of cockpitWindows.values()) {
-    try { if (!w.isDestroyed()) w.close(); } catch (_) {}
-  }
-  cockpitWindows.clear();
-});
-app.on('will-quit', () => {
-  if (tray && !tray.isDestroyed()) tray.destroy();
-  tray = null;
+registerAppLifecycle({
+  app,
+  qaBuild: QA_BUILD,
+  startupReady,
+  lockAcquired,
+  primaryPartition: PARTITION,
+  portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
+  migrateLegacySessions,
+  prepareProviderSessions: () => providerSessionCleanup.clearStaleProviderData(app.getPath('userData')),
+  setupSession,
+  powerSaveBlocker,
+  createTray,
+  createWindow,
+  showWindow,
+  isSessionSummaryVisible: () => sessionSummaryService.isVisible(),
+  updateNotificationService,
+  rotomCockpitService,
+  setQuitting: value => { quitting = value; },
+  clearTrayClickTimer: () => trayService.clearClickTimer(),
+  getTray: () => trayService.getTray(),
+  setTray: value => trayService.setTray(value),
 });

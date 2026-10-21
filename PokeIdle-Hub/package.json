@@ -15,14 +15,15 @@
   "scripts": {
     "donation-qr": "node tools/make-donation-qr.js",
     "icon": "node tools/make-icon.js",
-    "start": "node tools/make-icon.js && electron .",
-    "dev": "node tools/make-icon.js && electron .",
-    "dev:reset": "node tools/make-icon.js && electron . --dev-reset",
+    "start": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron .",
+    "dev": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron .",
+    "dev:reset": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron . --dev-reset",
     "test": "node --test",
     "dist:mac": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac",
-    "dist:win": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --win",
+    "dist:win": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.config.cjs --win",
+    "dist:win:qa": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.qa.config.cjs --win",
     "dist:linux": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --linux",
-    "dist": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac --win --linux"
+    "dist": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.config.cjs --mac --win --linux"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -38,10 +39,45 @@
     },
     "files": [
       "main.js",
+      "about-window-service.js",
+      "app-lifecycle.js",
+      "main-window-service.js",
+      "tray-service.js",
+      "app-shell-ipc.js",
+      "legacy-session-migration.js",
+      "account-partition.js",
+      "provider-connections.js",
+      "live-account-preferences.js",
+      "live-follow-service.js",
+      "live-policy.js",
+      "live-discovery.js",
+      "live-runtime.js",
+      "login-window-service.js",
+      "notification-service.js",
+      "update-notification-service.js",
+      "update-download-service.js",
+      "hub-working-set-cleanup-service.js",
+      "windows-working-set-trimmer.js",
+      "session-maintenance-service.js",
+      "session-summary-service.js",
+      "electron-session-service.js",
+      "electron-webcontents-service.js",
+      "live-content-purpose.js",
+      "provider-connection-service.js",
+      "provider-session-cleanup.js",
+      "provider-connection-ipc.js",
+      "rotom-cockpit-service.js",
+      "rotom-cockpit-ipc.js",
       "browser-identity.js",
+      "qa-profile.js",
       "dev-profile.js",
       "app-version.js",
       "live-status.js",
+      "live-channel-url.js",
+      "live-channel-policy.js",
+      "live-status-ipc.js",
+      "main-window-command-ipc.js",
+      "market-sample-ipc.js",
       "release-updates.js",
       "game-channels.js",
       "game-session.js",
@@ -95,7 +131,13 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "extraResources": [
+        {
+          "from": "build/win-memory-trimmer.exe",
+          "to": "win-memory-trimmer.exe"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
