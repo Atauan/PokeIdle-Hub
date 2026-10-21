@@ -51,9 +51,9 @@
     <div class="sidebar-spacer"></div>
 
     <div class="sidebar-footer">
-      <button id="btn-clean-ram" class="sidebar-footer-btn" title="Liberar cache de rede e memória RAM temporária sem deslogar contas">
+      <button id="btn-clean-ram" class="sidebar-footer-btn" title="Limpar cache HTTP das sessões e ver a medição antes/depois; logins são preservados">
         <span class="icon-svg icon-clean-ram"></span>
-        <span class="nav-label">Limpar RAM</span>
+        <span class="nav-label">Limpar cache</span>
       </button>
       <button id="btn-toggle-bars" class="sidebar-footer-btn" title="Ocultar / Mostrar barras de ferramentas para ganhar espaço na tela">
         <span class="icon-svg icon-focus"></span>
@@ -76,16 +76,8 @@
         <input id="channel-input" type="text" aria-label="Canal ou link"
                placeholder="Canal ou link (vários separados por vírgula)">
         <button id="add-btn" class="primary"><span class="icon-svg icon-add"></span> Adicionar</button>
-        <div class="menu">
-          <button class="menu-btn"><span class="icon-svg icon-trash"></span> Limpar ▾</button>
-          <div class="menu-list right">
-            <button data-clear="kick">Kick</button>
-            <button data-clear="twitch">Twitch</button>
-            <button data-clear="all">Tudo</button>
-          </div>
-        </div>
         <span class="spacer"></span>
-        <button id="btn-toggle-live-actions" class="btn-actions-toggle" title="Ocultar ferramentas e opções de lives">▲ Opções</button>
+        <button id="btn-toggle-live-actions" class="btn-actions-toggle" title="Ocultar barra de ações das lives">▲ Ações</button>
       </div>
 
       <div class="bar-part" id="bar-game" hidden>
@@ -119,34 +111,7 @@
     </header>
 
     <div id="lives-actions-bar" class="lives-actions-subbar" hidden>
-      <div class="subbar-group">
-        <label class="inline">Colunas
-          <select id="columns" aria-label="Colunas"></select>
-        </label>
-        <button id="reset-layout" class="icon" title="Reorganizar: volta todos os blocos para a grade (arraste o título para mover, bordas/canto para redimensionar)" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
-        <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
-        <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
-      </div>
-
-      <div class="subbar-divider"></div>
-
-      <div class="subbar-group">
-        <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
-          <select id="quality" aria-label="Qualidade das lives">
-            <option value="160">Mínima (160p)</option>
-            <option value="360">Baixa (360p)</option>
-            <option value="480">Média (480p)</option>
-            <option value="0">Automática</option>
-          </select>
-        </label>
-        <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
-        <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir Todos</button>
-        <button id="reload-all" class="icon" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span></button>
-      </div>
-
-      <div class="subbar-divider"></div>
-
-      <div class="subbar-group">
+      <div class="subbar-group live-primary-controls">
         <span id="live-summary" class="muted small" role="status"></span>
         <label class="inline" title="Liga ou desliga as verificações periódicas, preservando as lives abertas">
           <input type="checkbox" id="auto-lives"> Auto
@@ -158,53 +123,81 @@
           <option value="300">5 min</option>
         </select>
         <button id="check-lives" title="Busca os canais do jogo e abre os online, mesmo com o automático desligado">Verificar agora</button>
-
+        <div class="universal-limits" aria-label="Limite máximo de lives por plataforma">
+          <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
+            <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
+              <option value="0">0 (desativado)</option><option value="1">1 live</option><option value="2">2 lives</option>
+              <option value="3">3 lives</option><option value="4">4 lives</option><option value="5">5 lives</option>
+              <option value="6">6 lives</option><option value="99">Ilimitado</option>
+            </select>
+          </label>
+          <label class="inline" title="Quantidade máxima de lives da Twitch por conta">Máx Twitch:
+            <select id="universal-limit-twitch" aria-label="Limite universal Twitch por conta">
+              <option value="0">0 (desativado)</option><option value="1">1 live</option><option value="2">2 lives</option>
+              <option value="3">3 lives</option><option value="4">4 lives</option><option value="5">5 lives</option>
+              <option value="6">6 lives</option><option value="99">Ilimitado</option>
+            </select>
+          </label>
+        </div>
+        <span class="spacer"></span>
         <div class="menu">
-          <button class="menu-btn" title="Configurações de limites universais e modos econômicos de lives">⚙ Ajustes ▾</button>
-          <div class="menu-list right subbar-menu-panel">
-            <div class="menu-panel-row">
-              <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
-                <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
-                  <option value="0">0 (desativado)</option>
-                  <option value="1">1 live</option>
-                  <option value="2">2 lives</option>
-                  <option value="3">3 lives</option>
-                  <option value="4">4 lives</option>
-                  <option value="5">5 lives</option>
-                  <option value="6">6 lives</option>
-                  <option value="99">Ilimitado</option>
-                </select>
-              </label>
-              <label class="inline" title="Quantidade máxima de lives da Twitch por conta">Máx Twitch:
-                <select id="universal-limit-twitch" aria-label="Limite universal Twitch por conta">
-                  <option value="0">0 (desativado)</option>
-                  <option value="1">1 live</option>
-                  <option value="2">2 lives</option>
-                  <option value="3">3 lives</option>
-                  <option value="4">4 lives</option>
-                  <option value="5">5 lives</option>
-                  <option value="6">6 lives</option>
-                  <option value="99">Ilimitado</option>
-                </select>
-              </label>
-            </div>
-            <div class="subbar-menu-divider"></div>
-            <div class="menu-panel-col">
-              <label class="inline" title="Um chat compartilhado, sem vídeos. Não garante Pontos do Canal da Twitch.">
-                <input type="checkbox" id="twitch-economy"> Twitch econômica
-              </label>
-              <label class="inline" title="Vídeo em qualidade mínima e mensagens ocultas na faixa de pontos.">
-                <input type="checkbox" id="kick-economy"> Kick econômica
-              </label>
-            </div>
-            <div id="twitch-economy-status" role="status" class="muted small"></div>
-            <button id="twitch-economy-reload" class="small" hidden>Reconectar Twitch</button>
-            <span id="twitch-economy-help" class="muted small" hidden></span>
-            <span id="kick-economy-help" class="muted small" hidden></span>
+          <button class="menu-btn"><span class="icon-svg icon-trash"></span> Limpar ▾</button>
+          <div class="menu-list right">
+            <button data-clear="kick">Kick</button>
+            <button data-clear="twitch">Twitch</button>
+            <button data-clear="all">Tudo</button>
           </div>
         </div>
+        <button id="live-options-open" class="btn-actions-toggle" aria-haspopup="dialog" aria-controls="live-options-dialog">Opções</button>
       </div>
     </div>
+
+    <dialog id="live-options-dialog" aria-labelledby="live-options-title">
+      <header class="live-options-header">
+        <h2 id="live-options-title">Opções das lives</h2>
+        <button id="live-options-close" class="icon" aria-label="Fechar opções das lives" autofocus>×</button>
+      </header>
+      <div class="live-options-content">
+        <section class="live-options-section" aria-labelledby="live-options-view-title">
+          <h3 id="live-options-view-title">Visualização</h3>
+          <div class="live-options-row">
+            <label class="inline">Colunas <select id="columns" aria-label="Colunas"></select></label>
+            <button id="reset-layout" class="icon" title="Voltar todos os blocos para a grade" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
+            <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
+            <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
+          </div>
+          <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
+            <select id="quality" aria-label="Qualidade das lives">
+              <option value="160">Mínima (160p)</option><option value="360">Baixa (360p)</option>
+              <option value="480">Média (480p)</option><option value="0">Automática</option>
+            </select>
+          </label>
+        </section>
+        <section class="live-options-section" aria-labelledby="live-options-actions-title">
+          <h3 id="live-options-actions-title">Ações em lote</h3>
+          <div class="live-options-row">
+            <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
+            <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir todos</button>
+            <button id="reload-all" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span> Recarregar</button>
+          </div>
+        </section>
+        <section class="live-options-section" aria-labelledby="live-options-economy-title">
+          <h3 id="live-options-economy-title">Modos econômicos e contas</h3>
+          <div class="live-options-row">
+            <label class="inline" title="Um chat compartilhado, sem vídeos. Não garante Pontos do Canal da Twitch.">
+              <input type="checkbox" id="twitch-economy"> Twitch econômica
+            </label>
+            <label class="inline" title="Vídeo em qualidade mínima e mensagens ocultas na faixa de pontos.">
+              <input type="checkbox" id="kick-economy"> Kick econômica
+            </label>
+          </div>
+          <div id="twitch-economy-status" role="status" class="muted small"></div>
+          <button id="twitch-economy-reload" class="small" hidden>Reconectar Twitch</button>
+          <span id="twitch-economy-help" class="muted small" hidden></span>
+          <span id="kick-economy-help" class="muted small" hidden></span>
+        </section>
+      </div>
+    </dialog>
 
     <div id="game-actions-bar" class="game-actions-subbar" hidden>
       <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
@@ -326,6 +319,19 @@
           <p class="muted">Calibre o consumo de CPU, taxa de quadros (FPS) e gerenciamento de recursos do PokeIdle Hub.</p>
         </div>
 
+        <div class="settings-card account-management-card">
+          <div class="settings-card-header">
+            <span class="icon-svg icon-game"></span>
+            <div>
+              <h3>Contas do Pokeidle</h3>
+              <p class="muted small">Defina a conta padrão da interface e organize as abas. A sessão compartilhada com as lives é indicada separadamente e não muda ao reordenar.</p>
+            </div>
+          </div>
+          <div class="settings-card-body">
+            <ul id="cfg-account-list" class="account-settings-list" aria-label="Contas do Pokeidle"></ul>
+          </div>
+        </div>
+
         <div class="settings-card">
           <div class="settings-card-header">
             <span class="icon-svg icon-game"></span>
@@ -391,23 +397,68 @@
           </div>
         </div>
 
-        <div class="settings-card">
+        <div class="settings-card performance-card">
           <div class="settings-card-header">
             <span class="icon-svg icon-clean-ram"></span>
             <div>
               <h3>Memória RAM &amp; Caches Temporários</h3>
-              <p class="muted small">Liberação de buffers de vídeo e requisições acumuladas sem deslogar as contas.</p>
+              <p class="muted small">Medição do armazenamento de sessão, cache HTTP e uso de memória dos processos do Hub.</p>
             </div>
           </div>
           <div class="settings-card-body">
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Limpeza Cirúrgica de Memória</span>
-                <span class="muted small">Esvazia caches de rede e memória do Chromium sem deslogar Twitch, Kick ou contas do Pokeidle</span>
+                <span class="settings-row-title">Armazenamento e cache</span>
+                <span class="muted small">A pasta inclui logins e dados persistentes. A limpeza remove somente o cache HTTP das sessões.</span>
               </div>
               <div class="settings-row-control">
-                <button id="cfg-clean-ram-btn" class="primary"><span class="icon-svg icon-clean-ram"></span> Otimizar RAM Agora</button>
+                <button id="cfg-refresh-cache-summary">Atualizar medições</button>
+                <button id="cfg-clean-ram-btn" class="primary"><span class="icon-svg icon-clean-ram"></span> Limpar cache HTTP</button>
               </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Tamanho total dos dados de sessão</span>
+                <span class="muted small">Inclui cookies, logins, cache e outros dados que a limpeza não apaga.</span>
+              </div>
+              <div class="settings-row-control"><strong class="maintenance-size" id="cfg-session-data-size" role="status" aria-live="polite">Ainda não medido</strong></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Cache HTTP elegível para limpeza</span>
+                <span class="muted small">Estimativa fornecida pelo Electron para as sessões de conta conhecidas.</span>
+              </div>
+              <div class="settings-row-control"><strong class="maintenance-size" id="cfg-http-cache-size" role="status" aria-live="polite">Ainda não medido</strong></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Working set dos processos do Hub</span>
+                <span class="muted small">Pede ao Windows para remover páginas residentes somente dos processos do Hub. As lives podem trazê-las de volta; outros aplicativos e logins não são alterados.</span>
+                <span id="cfg-working-set-result" class="muted small" role="status" aria-live="polite">Disponível no Windows; a redução pode ser temporária durante uso ativo.</span>
+              </div>
+              <div class="settings-row-control">
+                <button id="cfg-trim-working-set-btn" title="Reduzir o working set apenas dos processos associados ao PokeIdle Hub"><span class="icon-svg icon-clean-ram"></span> Liberar RAM do Hub</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Carga atual das lives</span>
+                <span class="muted small">Contagem agregada de tiles, players/chats e fila desde a abertura do app; não registra nomes de canais.</span>
+              </div>
+              <div class="settings-row-control"><strong class="maintenance-size" id="cfg-live-runtime-metrics" role="status" aria-live="polite">Ainda não medido</strong></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Resultado da última limpeza</span>
+                <span id="cfg-cleanup-result" class="muted small" role="status" aria-live="polite">A limpeza não apaga logins nem dados das contas.</span>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <span class="settings-row-title">Reiniciar o Hub</span>
+                <span class="muted small">Encerra lives, chats e janelas do jogo; ao abrir de novo, as sessões persistentes são reutilizadas.</span>
+              </div>
+              <div class="settings-row-control"><button id="cfg-restart-app-btn">Reiniciar aplicativo</button></div>
             </div>
           </div>
         </div>
@@ -477,7 +528,60 @@
   <div id="shield" hidden></div>
   <div id="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="../account-partition.js"></script>
+  <script src="../live-policy.js"></script>
+  <script src="../live-account-preferences.js"></script>
+  <script src="../live-follow-service.js"></script>
+  <script src="live-follow-batch.js"></script>
+  <script src="live-follow-controller.js"></script>
+  <script src="../provider-connections.js"></script>
+  <script src="provider-connection-badges.js"></script>
+  <script src="provider-connection-controller.js"></script>
+  <script src="../live-discovery.js"></script>
+  <script src="../live-runtime.js"></script>
+  <script src="../live-channel-policy.js"></script>
+  <script src="live-channel-collection.js"></script>
+  <script src="game-workspace-policy.js"></script>
+  <script src="game-workspace-lifecycle.js"></script>
+  <script src="account-zoom.js"></script>
+  <script src="game-fps-limits.js"></script>
+  <script src="game-layout.js"></script>
+  <script src="game-account-tabs.js"></script>
+  <script src="game-pane-view.js"></script>
+  <script src="game-pane-factory.js"></script>
+  <script src="game-toolbar-controls.js"></script>
+  <script src="game-account-lifecycle.js"></script>
+  <script src="game-webview-events.js"></script>
+  <script src="game-session-summary.js"></script>
   <script src="live-state.js"></script>
+  <script src="live-discovery-controller.js"></script>
+  <script src="live-grid-layout.js"></script>
+  <script src="live-tile-drag.js"></script>
+  <script src="live-account-preference-controller.js"></script>
+  <script src="market-alert-policy.js"></script>
+  <script src="market-alert-engine.js"></script>
+  <script src="market-alerts.js"></script>
+  <script src="twitch-economy-runtime.js"></script>
+  <script src="live-account-columns.js"></script>
+  <script src="live-tile-controller.js"></script>
+  <script src="live-tile-view.js"></script>
+  <script src="live-webview-factory.js"></script>
+  <script src="live-player-watchdog.js"></script>
+  <script src="live-chat-overlay.js"></script>
+  <script src="live-platforms.js"></script>
+  <script src="app-toast.js"></script>
+  <script src="app-state.js"></script>
+  <script src="account-management-settings.js"></script>
+  <script src="app-storage.js"></script>
+  <script src="app-element-factory.js"></script>
+  <script src="live-twitch-chat-fallback.js"></script>
+  <script src="live-media-controls.js"></script>
+  <script src="settings-preferences.js"></script>
+  <script src="app-navigation.js"></script>
+  <script src="live-toolbar-controls.js"></script>
+  <script src="live-global-controls.js"></script>
+  <script src="live-options-dialog.js"></script>
+  <script src="app-chrome-controls.js"></script>
   <script src="app.js"></script>
   <script src="src/modules/farm-afk.js"></script>
   <script src="updates.js"></script>
