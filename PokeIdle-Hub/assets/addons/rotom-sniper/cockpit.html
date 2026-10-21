@@ -2129,6 +2129,24 @@
       </div>
     </div>
 
+    <section class="quadro" style="margin-bottom: 10px;">
+      <div class="quadro-header" style="align-items: flex-start;">
+        <div>
+          <h2 class="quadro-titulo">Monitor da sequência shiny</h2>
+      <span class="quadro-sub">Observação passiva desta conta: campo, derrota, arremesso e captura. Agrupa eventos negativos repetidos para o limite não ser consumido e preserva sinais shiny positivos. Não envia ações ao jogo.</span>
+        </div>
+        <div style="display: flex; gap: 5px;">
+          <button type="button" id="btn-export-shiny-flow" class="btn btn-mini" style="height: 24px; padding: 0 8px; font-size: 9px;">Exportar diagnóstico</button>
+          <button type="button" id="btn-clear-shiny-flow" class="btn btn-cancelar btn-mini" style="height: 24px; padding: 0 8px; font-size: 9px;">Limpar histórico</button>
+        </div>
+      </div>
+      <div id="shiny-flow-first-signal" style="font-size: 10px; color: #ffd700; margin: 4px 0 8px;">Aguardando eventos de hunt desta conta.</div>
+      <div id="shiny-flow-events" style="display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto;">
+        <div style="font-size: 9px; color: var(--sobre-mad-dim);">Ainda não há eventos observados.</div>
+      </div>
+      <div style="font-size: 8.5px; color: var(--sobre-mad-dim); margin-top: 8px;">A Pokédex “Vistos” conta espécies registradas; isso, por si só, não confirma avistamento de shiny. O diagnóstico salva o contador Vistos do monitor junto de cada campo, derrota e arremesso, e registra quando ele muda. É somente observação: não lança bolas nem altera a captura.</div>
+    </section>
+
     <!-- Área Inferior Dividida: Dashboard de Rendimento por Hunt + Drops Acumulados -->
     <div class="stats-lower-split">
       <!-- Painel Esquerdo: Dashboard de Rendimento por Hunt -->
