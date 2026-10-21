@@ -4,11 +4,14 @@ const path = require('path');
 
 const dir = path.join(__dirname, '..', 'assets', 'addons', 'rotom-sniper');
 const itemsDb = fs.readFileSync(path.join(dir, 'items_db.js'), 'utf8');
+const shinyFlowMonitor = fs.readFileSync(path.join(dir, 'shiny-flow-monitor.js'), 'utf8');
 const injected = fs.readFileSync(path.join(dir, 'injected.js'), 'utf8');
 
 const combined = [
   '// Base de Itens e Dex do Rotom',
   itemsDb,
+  '// Normalização limitada dos eventos shiny observados',
+  shinyFlowMonitor,
   '// Motor Injetado do Rotom (WebSocket e Auto-Snipe)',
   injected
 ].join('\n;\n');

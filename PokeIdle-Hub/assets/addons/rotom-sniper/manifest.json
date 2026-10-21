@@ -47,6 +47,7 @@
       "resources": [
         "items_db.js",
         "hunts_db.js",
+        "shiny-flow-monitor.js",
         "injected.js"
       ],
       "matches": [

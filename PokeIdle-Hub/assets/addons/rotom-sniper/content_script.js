@@ -53,32 +53,34 @@
     } catch (err) {}
   }
 
-  // Injeta items_db.js e imediatamente injected.js no contexto da página
+  // Injeta os helpers antes do hook do jogo para manter a ordem determinística.
   injectScript('items_db.js', () => {
-    injectScript('injected.js', () => {
-      safeStorageGet(['rotom_sniper_rules', 'rotom_sniper_config', 'rotom_sniper_enabled'], (res) => {
-        window.postMessage({
-          source: 'ROTOM_POPUP',
-          type: 'INIT_SNIPER',
-          enabled: res.rotom_sniper_enabled !== undefined ? Boolean(res.rotom_sniper_enabled) : true,
-          rules: res.rotom_sniper_rules || [],
-          globalConfig: res.rotom_sniper_config || {
-            snipeAnyShiny: false,
-            maxPriceShinyGold: 50000,
-            maxPriceShinyGems: 0,
-            maxPriceShinyDiamonds: 0,
-            snipeAnyP5: false,
-            maxPriceP5Gold: 100000,
-            maxPriceP5Gems: 0,
-            maxPriceP5Diamonds: 0,
-            snipeByNote: false,
-            minNote: 7.0,
-            maxPriceNoteGold: 50000,
-            maxPriceNoteGems: 0,
-            maxPriceNoteDiamonds: 0,
-            maxActiveSlots: 5
-          }
-        }, '*');
+    injectScript('shiny-flow-monitor.js', () => {
+      injectScript('injected.js', () => {
+        safeStorageGet(['rotom_sniper_rules', 'rotom_sniper_config', 'rotom_sniper_enabled'], (res) => {
+          window.postMessage({
+            source: 'ROTOM_POPUP',
+            type: 'INIT_SNIPER',
+            enabled: res.rotom_sniper_enabled !== undefined ? Boolean(res.rotom_sniper_enabled) : true,
+            rules: res.rotom_sniper_rules || [],
+            globalConfig: res.rotom_sniper_config || {
+              snipeAnyShiny: false,
+              maxPriceShinyGold: 50000,
+              maxPriceShinyGems: 0,
+              maxPriceShinyDiamonds: 0,
+              snipeAnyP5: false,
+              maxPriceP5Gold: 100000,
+              maxPriceP5Gems: 0,
+              maxPriceP5Diamonds: 0,
+              snipeByNote: false,
+              minNote: 7.0,
+              maxPriceNoteGold: 50000,
+              maxPriceNoteGems: 0,
+              maxPriceNoteDiamonds: 0,
+              maxActiveSlots: 5
+            }
+          }, '*');
+        });
       });
     });
   });
@@ -304,6 +306,9 @@
           } else if (request.action === 'RESET_FARM_STATS') {
             window.postMessage({ source: 'ROTOM_POPUP', type: 'RESET_FARM_STATS' }, '*');
             safeStorageSet({ rotom_farm_stats: null, rotom_hunts_telemetry: null });
+            sendResponse({ ok: true });
+          } else if (request.action === 'RESET_SHINY_FLOW') {
+            window.postMessage({ source: 'ROTOM_POPUP', type: 'RESET_SHINY_FLOW' }, '*');
             sendResponse({ ok: true });
           } else if (request.action === 'RESET_HUNTS_STATS') {
             window.postMessage({ source: 'ROTOM_POPUP', type: 'RESET_HUNTS_STATS' }, '*');

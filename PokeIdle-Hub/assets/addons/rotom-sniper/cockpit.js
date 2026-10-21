@@ -2327,6 +2327,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const statGoldRate = document.getElementById('stat-gold-rate');
   const statShiniesTotal = document.getElementById('stat-shinies-total');
   const statShiniesSub = document.getElementById('stat-shinies-sub');
+  const shinyFlowFirstSignal = document.getElementById('shiny-flow-first-signal');
+  const shinyFlowEventsList = document.getElementById('shiny-flow-events');
+  const btnExportShinyFlow = document.getElementById('btn-export-shiny-flow');
+  const btnClearShinyFlow = document.getElementById('btn-clear-shiny-flow');
+  const cockpitAccountId = new URLSearchParams(window.location.search).get('acc');
 
   const statDropsCount = document.getElementById('stat-drops-count');
   const containerFarmDrops = document.getElementById('container-farm-drops');
@@ -2660,6 +2665,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (statShiniesTotal) statShiniesTotal.textContent = shiniesSeenVal.toLocaleString();
     if (statShiniesSub) statShiniesSub.textContent = `${shiniesCaughtVal.toLocaleString()} Capturados`;
 
+    renderShinyFlowMonitor();
+
     // Renderiza o Dashboard Comparativo de Hunts
     renderHuntStatsDashboard();
 
@@ -2716,6 +2723,92 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     }
+  }
+
+  const shinyFlowStageLabels = {
+    wild_visible: 'Campo',
+    defeat: 'Derrota',
+    ball_attempt: 'Arremesso',
+    capture_event: 'Evento de captura',
+    capture_success: 'Captura confirmada',
+    seen_counter: 'Contador Vistos',
+  };
+
+  function renderShinyFlowMonitor() {
+    if (!shinyFlowEventsList) return;
+    const events = Array.isArray(farmSessionData.shinyFlowEvents) ? farmSessionData.shinyFlowEvents : [];
+    const firstSignal = events.find((entry) => entry && entry.shinySignal === 'true');
+    if (shinyFlowFirstSignal) {
+      shinyFlowFirstSignal.textContent = firstSignal
+        ? `Primeiro marcador positivo entre os eventos retidos: ${shinyFlowStageLabels[firstSignal.stage] || firstSignal.stage}${firstSignal.species ? ` · ${firstSignal.species}` : ''}.`
+        : 'Nenhum marcador shiny positivo recebido ainda; “não informado” não significa shiny falso.';
+    }
+
+    shinyFlowEventsList.replaceChildren();
+    const recent = events.slice(-30).reverse();
+    if (recent.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = 'Ainda não há eventos observados.';
+      empty.style.cssText = 'font-size: 9px; color: var(--sobre-mad-dim);';
+      shinyFlowEventsList.appendChild(empty);
+      return;
+    }
+
+    for (const entry of recent) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: grid; grid-template-columns: 82px 1fr; gap: 8px; padding: 4px 6px; background: rgba(0,0,0,.2); font-size: 9px;';
+      const time = document.createElement('span');
+      const date = new Date(Number(entry.timestamp) || Date.now());
+      time.textContent = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}.${String(date.getMilliseconds()).padStart(3, '0')}`;
+      time.style.color = 'var(--sobre-mad-dim)';
+      const detail = document.createElement('span');
+      const signal = entry.shinySignal === 'true' ? 'shiny=true'
+        : entry.shinySignal === 'false' ? 'shiny=false'
+          : entry.shinySignal === 'unrecognized' ? 'marcador sem formato reconhecido'
+            : 'shiny não informado';
+      const outcome = entry.stage === 'ball_attempt'
+        ? ` · resultado=${entry.captureResult === 'true' ? 'sucesso' : entry.captureResult === 'false' ? 'falha' : 'não informado'} · vistos=${Number(entry.seenCount) || 0}`
+        : entry.stage === 'seen_counter'
+          ? ` · total=${Number(entry.seenCount) || 0} · após ${shinyFlowStageLabels[entry.triggerStage] || entry.triggerStage || 'evento desconhecido'}`
+        : entry.stage === 'capture_success' ? ' · captura confirmada'
+          : entry.stage === 'capture_event' ? ' · resultado não informado'
+            : entry.seenCount !== null && entry.seenCount !== undefined ? ` · vistos=${Number(entry.seenCount) || 0}` : '';
+      const context = [entry.species, entry.slot !== null && entry.slot !== undefined ? `slot ${entry.slot}` : '', entry.level !== null && entry.level !== undefined ? `Nv ${entry.level}` : ''].filter(Boolean).join(' · ');
+      detail.textContent = `${shinyFlowStageLabels[entry.stage] || entry.stage}${context ? ` · ${context}` : ''} · ${signal}${outcome}${entry.shinyFields?.length ? ` [${entry.shinyFields.join(', ')}]` : ''}`;
+      detail.style.color = entry.shinySignal === 'true' ? '#ffd700' : '#fff';
+      row.append(time, detail);
+      shinyFlowEventsList.appendChild(row);
+    }
+  }
+
+  if (btnClearShinyFlow) {
+    btnClearShinyFlow.addEventListener('click', () => {
+      if (!cockpitAccountId || !window.rotomIpc || typeof window.rotomIpc.sendToGame !== 'function') return;
+      farmSessionData.shinyFlowEvents = [];
+      renderShinyFlowMonitor();
+      window.rotomIpc.sendToGame(cockpitAccountId, { action: 'RESET_SHINY_FLOW' });
+    });
+  }
+
+  if (btnExportShinyFlow) {
+    btnExportShinyFlow.addEventListener('click', () => {
+      const events = Array.isArray(farmSessionData.shinyFlowEvents) ? farmSessionData.shinyFlowEvents.slice(-100) : [];
+      if (events.length === 0) return;
+      const exportData = {
+        format: 'pokeidle-shiny-flow-diagnostic-v1',
+        exportedAt: new Date().toISOString(),
+        eventCount: events.length,
+        privacy: 'Only allowlisted event fields and source field names are included. Shiny marker values and the monitor seen counter are recorded; account identifiers are omitted.',
+        events,
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pokeidle-shiny-flow-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    });
   }
 
   // Cronômetro contínuo a cada segundo

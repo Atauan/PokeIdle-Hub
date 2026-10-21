@@ -364,6 +364,42 @@ input[type=text] { min-width: 0; }
 #update-dialog::backdrop { background: rgba(0,0,0,.62); }
 #update-dialog h2 { margin: 16px 0 10px; font-size: 22px; }
 #update-dialog p { margin: 0 0 14px; line-height: 1.6; }
+#live-options-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+#live-options-dialog::backdrop { background: rgba(0,0,0,.62); }
+.live-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.live-options-header h2 { margin: 0; font-size: 16px; }
+.live-options-content { max-height: calc(100vh - 92px); overflow: auto; padding: 4px 16px 16px; }
+.live-options-section { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.live-options-section:last-child { border-bottom: 0; }
+.live-options-section h3 { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.live-options-section .live-options-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.live-options-section select { background: var(--panel2); }
+.live-options-section #twitch-economy-status,
+.live-options-section #twitch-economy-help,
+.live-options-section #kick-economy-help { flex-basis: 100%; }
+.live-primary-controls { width: 100%; }
+.live-primary-controls .universal-limits { flex-shrink: 0; }
+.live-primary-controls #live-summary { white-space: nowrap; }
+.live-primary-controls .spacer { min-width: 8px; }
 .update-symbol { width: 48px; height: 48px; display: grid; place-items: center;
   background: #203254; color: #88b6ff; border-radius: 12px; font-size: 30px; }
 .update-progress-card {
@@ -1133,6 +1169,15 @@ button.badge-conn.btn-login:hover {
   background: #d97706;
   color: #000;
 }
+button.badge-conn.btn-unavailable {
+  background: #422006;
+  color: #fcd34d;
+  border: 1px solid #a16207;
+  cursor: pointer;
+}
+button.badge-conn.btn-unavailable:hover {
+  background: #713f12;
+}
 
 /* Linha superior e Controles de Limites por Conta na Coluna de Lives */
 .account-col-top {
@@ -1815,6 +1860,39 @@ button.badge-conn.btn-login:hover {
   flex-direction: column;
   gap: 12px;
 }
+.account-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.account-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.account-settings-row:last-child { border-bottom: 0; }
+.account-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.account-settings-info .settings-row-title { overflow-wrap: anywhere; }
+.account-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 680px) {
+  .account-settings-row { align-items: flex-start; flex-direction: column; }
+  .account-settings-actions { justify-content: flex-start; }
+}
 .settings-row {
   display: flex;
   align-items: center;
@@ -1832,6 +1910,37 @@ button.badge-conn.btn-login:hover {
   flex-direction: column;
   gap: 2px;
   flex: 1;
+}
+.performance-card .settings-row-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.performance-card .maintenance-size {
+  max-width: 360px;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.performance-card #cfg-cleanup-result {
+  display: block;
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .performance-card .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .performance-card .settings-row-control {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .performance-card .maintenance-size {
+    text-align: left;
+  }
 }
 .settings-row-title {
   font-size: 13px;

@@ -146,6 +146,7 @@
     ballAttempts: 0,
     shiniesSeen: 0,
     shiniesCaught: 0,
+    shinyFlowEvents: [],
     bossTokens: 0,
     keyFragments: 0,
     shinyFragments: 0,
@@ -160,6 +161,7 @@
 
   let playerInPokemonCenter = false;
   const seenWildShiniesMap = new Map(); // key -> timestamp
+  const observedWildMobsMap = new Map(); // key -> timestamp; bounded observations for diagnostic timeline
   const recentCapturesMap = new Map();
   let lastBattleEventTs = 0;
 
@@ -222,6 +224,8 @@
       if (parsed && typeof parsed === 'object') {
         farmSession = Object.assign(farmSession, parsed);
         if (!farmSession.hunts) farmSession.hunts = {};
+        if (!Array.isArray(farmSession.shinyFlowEvents)) farmSession.shinyFlowEvents = [];
+        else farmSession.shinyFlowEvents = farmSession.shinyFlowEvents.slice(-100);
       }
     }
   } catch (e) {}
@@ -239,6 +243,26 @@
         }, '*');
       } catch (e) {}
     }, 120);
+  }
+
+  function recordShinyFlow(stage, event) {
+    const monitor = window.RotomShinyFlowMonitor;
+    if (!monitor || typeof monitor.createEvent !== 'function' || typeof monitor.appendEvent !== 'function') return;
+    const record = monitor.createEvent(stage, event, Date.now(), Number(farmSession.shiniesSeen) || 0);
+    if (typeof monitor.shouldRecordEventSample === 'function'
+      && !monitor.shouldRecordEventSample(farmSession.shinyFlowEvents, record)) return;
+    farmSession.shinyFlowEvents = monitor.appendEvent(
+      farmSession.shinyFlowEvents,
+      record,
+      100
+    );
+  }
+
+  function recordShinySeenCounter(triggerStage, event) {
+    const monitor = window.RotomShinyFlowMonitor;
+    if (!monitor || typeof monitor.createSeenCounterEvent !== 'function') return;
+    const record = monitor.createSeenCounterEvent(event, farmSession.shiniesSeen, triggerStage);
+    farmSession.shinyFlowEvents = monitor.appendEvent(farmSession.shinyFlowEvents, record, 100);
   }
 
   let lastToastKey = '';
@@ -1394,6 +1418,7 @@
 
         // Tentativas de captura com Pokébola
         if (evKey === 'bola') {
+          recordShinyFlow('ball_attempt', e);
           farmSession.ballAttempts = (farmSession.ballAttempts || 0) + 1;
           const currentHunt = getOrCreateHuntStat(farmSession.activeHuntSlug, farmSession.activeHuntName);
           currentHunt.attempts = (currentHunt.attempts || 0) + 1;
@@ -1425,6 +1450,7 @@
           }
 
           if (!duplicate) {
+            recordShinyFlow(isCapturado || isBolaSucesso ? 'capture_success' : 'capture_event', e);
             farmSession.captures = (farmSession.captures || 0) + 1;
             farmSession.catches = farmSession.captures;
 
@@ -1446,6 +1472,7 @@
             }
             if (isShiny && (farmSession.shiniesSeen || 0) < farmSession.shiniesCaught) {
               farmSession.shiniesSeen = farmSession.shiniesCaught;
+              recordShinySeenCounter('capture_success', e);
             }
 
             const pokeNome = (e.pokemon && e.pokemon.nome) || e.nome || 'Pokémon';
@@ -1456,6 +1483,7 @@
 
         // Kills / Derrotas de monstros selvagens
         if (evKey === 'morte' || evKey === 'kill' || evKey === 'derrota' || evKey === 'monstro_morto') {
+          recordShinyFlow('defeat', e);
           farmSession.kills = (farmSession.kills || 0) + 1;
           const currentHunt = getOrCreateHuntStat(farmSession.activeHuntSlug, farmSession.activeHuntName);
           if (currentHunt) {
@@ -1469,9 +1497,8 @@
             if (!mobKey || !seenWildShiniesMap.has(mobKey)) {
               if (mobKey) seenWildShiniesMap.set(mobKey, Date.now());
               farmSession.shiniesSeen = (farmSession.shiniesSeen || 0) + 1;
-              if (currentHunt) {
-                currentHunt.shiniesSeen = (currentHunt.shiniesSeen || 0) + 1;
-              }
+              if (currentHunt) currentHunt.shiniesSeen = (currentHunt.shiniesSeen || 0) + 1;
+              recordShinySeenCounter('defeat', e);
             }
           }
 
@@ -1585,6 +1612,7 @@
       const monstrosList = packet.mobs || (packet.campo && packet.campo.mobs) || packet.monstros || (packet.campo && packet.campo.monstros);
       if (Array.isArray(monstrosList)) {
         let sawShiny = false;
+        let monitorChanged = false;
         const now = Date.now();
         for (const m of monstrosList) {
           if (!m) continue;
@@ -1596,16 +1624,31 @@
           const isWild = !isTrainerMob && !isDead && (slot >= 5 || slot === -1);
           const isShiny = Boolean(m.sh === 1 || m.Sh === 1 || m.shiny || m.isShiny || m.lookShiny === 1 || m.LookShiny === 1);
 
+          if (isWild) {
+            const mobName = String(m.n || m.nome || 'Pokémon');
+            const mobLevel = Number(m.nv || m.level || 0);
+            const observationKey = `${slot}_${mobName}_${mobLevel}`;
+            const monitor = window.RotomShinyFlowMonitor;
+            const signal = monitor && typeof monitor.createEvent === 'function'
+              ? monitor.createEvent('wild_visible', m).shinySignal
+              : 'unreported';
+            const previous = observedWildMobsMap.get(observationKey);
+            if (monitor && typeof monitor.shouldRecordObservation === 'function' && monitor.shouldRecordObservation(previous, signal, now, 86400000)) {
+              observedWildMobsMap.set(observationKey, { timestamp: now, signal });
+              recordShinyFlow('wild_visible', m);
+              monitorChanged = true;
+            }
+          }
+
           if (isWild && isShiny) {
             const mobKey = `${slot}_${m.n || m.nome || 'poke'}_${m.nv || m.level || 0}`;
             if (!seenWildShiniesMap.has(mobKey)) {
               seenWildShiniesMap.set(mobKey, now);
               farmSession.shiniesSeen = (farmSession.shiniesSeen || 0) + 1;
+              recordShinySeenCounter('wild_visible', m);
               if (farmSession.activeHuntSlug && farmSession.activeHuntSlug !== 'centro_pokemon') {
                 const currentHunt = getOrCreateHuntStat(farmSession.activeHuntSlug, farmSession.activeHuntName);
-                if (currentHunt) {
-                  currentHunt.shiniesSeen = (currentHunt.shiniesSeen || 0) + 1;
-                }
+                if (currentHunt) currentHunt.shiniesSeen = (currentHunt.shiniesSeen || 0) + 1;
               }
               sawShiny = true;
               showRotomHudToast('✨ SHINY SELVAGEM!', `${m.n || m.nome || 'Pokémon'} Shiny apareceu na hunt!`, 'confirmed');
@@ -1620,6 +1663,15 @@
             if (now - ts > 180000) seenWildShiniesMap.delete(k);
           }
         }
+        if (observedWildMobsMap.size > 200) {
+          for (const [k, observed] of observedWildMobsMap.entries()) {
+            if (now - observed.timestamp > 86400000) observedWildMobsMap.delete(k);
+          }
+          while (observedWildMobsMap.size > 200) {
+            observedWildMobsMap.delete(observedWildMobsMap.keys().next().value);
+          }
+        }
+        if (monitorChanged) emitFarmStats();
       }
     }
 
@@ -1869,6 +1921,7 @@
         ballAttempts: 0,
         shiniesSeen: 0,
         shiniesCaught: 0,
+        shinyFlowEvents: [],
         bossTokens: 0,
         keyFragments: 0,
         shinyFragments: 0,
@@ -1881,6 +1934,10 @@
       };
       emitFarmStats();
       showRotomHudToast('SESSÃO REINICIADA', 'Os contadores de farm e histórico de hunts foram zerados.', 'info');
+    } else if (event.data.type === 'RESET_SHINY_FLOW') {
+      farmSession.shinyFlowEvents = [];
+      emitFarmStats();
+      showRotomHudToast('MONITOR LIMPO', 'O histórico recente de eventos shiny desta conta foi apagado.', 'info');
     } else if (event.data.type === 'RESET_HUNTS_STATS') {
       farmSession.hunts = {};
       emitFarmStats();
