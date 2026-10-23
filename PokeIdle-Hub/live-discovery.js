@@ -40,9 +40,34 @@
       : EMPTY_PLAN();
     const statusesByProvider = { kick: {}, twitch: {} };
     const connectionStatuses = Object.fromEntries(Object.keys(statuses).map(id => [id, statuses[id]]));
+    const diagnostics = {
+      disconnectedProviders: [],
+      unavailableProviders: [],
+      failedProviders: [],
+      failureReasons: {},
+    };
+    const requestedProviders = new Set(safeChannels
+      .map(channel => channel?.provider)
+      .filter(provider => PROVIDERS.includes(provider)));
 
-    if (typeof liveStatus !== 'function') return { plan, statusesByProvider, connectionStatuses };
-    if (typeof shouldContinue === 'function' && !shouldContinue()) return { plan, statusesByProvider, connectionStatuses };
+    for (const provider of PROVIDERS) {
+      if (!requestedProviders.has(provider) || plan.eligibleAccountIdsByProvider[provider].length) continue;
+      const connectionResults = safeAccounts
+        .filter(account => typeof account?.id === 'string' && account.id.trim())
+        .map(account => statuses[account.id]);
+      const unavailable = connectionResults.length === 0 || connectionResults.some(status =>
+        !status || (Array.isArray(status.unavailableProviders) && status.unavailableProviders.includes(provider)));
+      diagnostics[unavailable ? 'unavailableProviders' : 'disconnectedProviders'].push(provider);
+    }
+
+    if (typeof liveStatus !== 'function') {
+      if (plan.channelsByProvider.twitch.length) diagnostics.failedProviders.push('twitch');
+      if (plan.channelsByProvider.kick.length) diagnostics.failedProviders.push('kick');
+      return { plan, statusesByProvider, connectionStatuses, diagnostics };
+    }
+    if (typeof shouldContinue === 'function' && !shouldContinue()) {
+      return { plan, statusesByProvider, connectionStatuses, diagnostics };
+    }
 
     await Promise.all(PROVIDERS.map(async provider => {
       const names = plan.channelsByProvider[provider];
@@ -51,7 +76,14 @@
         const batch = names.slice(offset, offset + SERVICE_BATCH_SIZE);
         try {
           const result = await liveStatus(provider, batch);
-          if (!result || typeof result !== 'object') continue;
+          if (!result || typeof result !== 'object') {
+            diagnostics.failedProviders.push(provider);
+            continue;
+          }
+          if (typeof result.$error === 'string' && result.$error) {
+            diagnostics.failedProviders.push(provider);
+            diagnostics.failureReasons[provider] = result.$error;
+          }
           for (const name of batch) {
             if (!Object.prototype.hasOwnProperty.call(result, name)) continue;
             if (!['online', 'offline', 'unknown'].includes(result[name])) continue;
@@ -60,12 +92,14 @@
             });
           }
         } catch (_) {
-          // Ausência de status mantém o estado atual da live como desconhecido no chamador.
+          diagnostics.failedProviders.push(provider);
+          diagnostics.failureReasons[provider] = 'UNKNOWN';
         }
       }
     }));
 
-    return { plan, statusesByProvider, connectionStatuses };
+    diagnostics.failedProviders = [...new Set(diagnostics.failedProviders)];
+    return { plan, statusesByProvider, connectionStatuses, diagnostics };
   }
 
   return { discoverLives };

@@ -23,11 +23,11 @@
       if (button) {
         button.classList.toggle('on', enable);
         button.innerHTML = enable
-          ? '<span class="icon-svg icon-single"></span> Conta Única'
-          : '<span class="icon-svg icon-mosaic"></span> Ver Todas';
+          ? '<span class="icon-svg icon-single"></span> Mostrar uma conta'
+          : '<span class="icon-svg icon-mosaic"></span> Mostrar todas as contas';
         button.title = enable
-          ? 'Voltar para visualização em tela cheia da conta selecionada'
-          : 'Alternar entre ver conta única ou todas as contas em grade simultânea';
+          ? 'Mostra somente a conta selecionada em tamanho maior'
+          : 'Mostra todas as contas do jogo ao mesmo tempo';
       }
       updatePaneHeaders();
     }

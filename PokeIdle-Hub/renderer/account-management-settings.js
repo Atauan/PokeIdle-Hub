@@ -29,7 +29,7 @@
         const info = el('div', { class: 'account-settings-info' },
           el('span', { class: 'settings-row-title', text: account.name || 'Sem nome' }),
           el('span', { class: 'muted small', text: isDefault ? 'Conta padrão' : 'Conta' }),
-          el('span', { class: 'muted small', text: account.main ? 'Sessão compartilhada com lives' : 'Sessão própria' }),
+          el('span', { class: 'muted small', text: account.main ? 'Usa os logins das lives' : 'Logins separados' }),
         );
         const actions = el('div', { class: 'account-settings-actions' },
           el('button', {

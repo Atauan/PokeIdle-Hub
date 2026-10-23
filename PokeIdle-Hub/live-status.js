@@ -9,6 +9,18 @@ function createLiveStatusService(fetch) {
   let clientExpires = 0;
   let clientRequest = null;
 
+  function errorCategory(error) {
+    const message = String(error?.message || '');
+    const http = message.match(/^HTTP (\d{3})$/);
+    if (http) return `HTTP_${http[1]}`;
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return 'TIMEOUT';
+    if (error instanceof TypeError) return 'NETWORK';
+    if (/Twitch GraphQL/.test(message)) return 'GRAPHQL';
+    if (/Twitch client unavailable/.test(message)) return 'CLIENT_ID';
+    if (error instanceof SyntaxError) return 'INVALID_RESPONSE';
+    return 'UNKNOWN';
+  }
+
   async function request(url, options = {}) {
     const { timeout, ...requestOptions } = options;
     const response = await fetch(url, {
@@ -71,6 +83,20 @@ function createLiveStatusService(fetch) {
     return out;
   }
 
+  async function checkTwitchBatch(channels, out) {
+    try {
+      Object.assign(out, await lookupTwitch(channels));
+    } catch (error) {
+      if (error?.message === 'HTTP 400' && channels.length > 1) {
+        const middle = Math.ceil(channels.length / 2);
+        await checkTwitchBatch(channels.slice(0, middle), out);
+        await checkTwitchBatch(channels.slice(middle), out);
+        return;
+      }
+      out.$error = errorCategory(error);
+    }
+  }
+
   return {
     async check(platform, channels) {
       if (!['kick', 'twitch'].includes(platform) || !Array.isArray(channels)) return {};
@@ -81,16 +107,15 @@ function createLiveStatusService(fetch) {
       if (!pending.has(key)) {
         const work = (async () => {
           const out = Object.fromEntries(names.map(channel => [channel, 'unknown']));
-          const size = platform === 'twitch' ? 30 : 4;
+          const size = platform === 'twitch' ? 15 : 4;
           for (let offset = 0; offset < names.length; offset += size) {
             const batch = names.slice(offset, offset + size);
             if (platform === 'twitch') {
-              try { Object.assign(out, await lookupTwitch(batch)); }
-              catch (error) { out.$error = String(error?.message || 'Falha ao consultar Twitch').slice(0, 160); }
+              await checkTwitchBatch(batch, out);
             } else {
               await Promise.all(batch.map(async channel => {
                 try { out[channel] = await lookupKick(channel); }
-                catch (error) { out.$error = String(error?.message || 'Falha ao consultar Kick').slice(0, 160); }
+                catch (error) { out.$error = errorCategory(error); }
               }));
             }
           }

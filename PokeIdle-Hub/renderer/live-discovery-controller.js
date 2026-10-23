@@ -26,6 +26,7 @@
     let liveRefreshing = false;
     let manualDiscoveryPending = false;
     let liveGeneration = 0;
+    let lastDiagnostics = null;
 
     function schedule() {
       clearTimeoutFn(liveTimer);
@@ -56,6 +57,7 @@
       if (liveChecking || liveRefreshing) return;
       liveRefreshing = true;
       manualDiscoveryPending = false;
+      lastDiagnostics = null;
       clearTimeoutFn(liveTimer);
       liveTimer = null;
       renderControls();
@@ -90,6 +92,7 @@
           liveStatus,
           shouldContinue: () => generation === liveGeneration && (state.autoLives || manual),
         });
+        lastDiagnostics = discovery.diagnostics || null;
         if (generation !== liveGeneration || (!state.autoLives && !manual)) return;
         for (const { i, p } of items) {
           if (!getItemById(i.id)) continue;
@@ -109,6 +112,7 @@
     return Object.freeze({
       check,
       isChecking: () => liveChecking,
+      getDiagnostics: () => lastDiagnostics,
       isManualDiscoveryPending: () => manualDiscoveryPending,
       isRefreshing: () => liveRefreshing,
       refreshNow,
