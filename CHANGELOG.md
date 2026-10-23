@@ -37,6 +37,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Adicionado
 
+- A tela de Configurações recebeu o botão de reset “Apagar dados e reiniciar” para limpeza integral dos dados locais do perfil ativo (sessões, cookies, Local Storage, IndexedDB, contas salvas e caches) e reinicialização automática do app em estado limpo de nova instalação, com diálogo explícito de confirmação e preservação dos arquivos de bloqueio de runtime. Suíte com 453 testes passou. Ver `docs/changes/2026-10-23-1340--botao-reset-dados-locais.md`.
+
 - O Cockpit Rotom ganhou monitor passivo da sequência shiny por conta: registra mudanças de marcador em campo, derrota, tentativa de bola e evento de captura, com os últimos 100 itens, sem enviar comandos ao jogo. Armazena somente campos permitidos; eventos sem marcador aparecem como “não informado”. Testes focados e suíte completa passaram; observar uma hunt real na UI ainda depende de validação manual.
 
 - A tela de Configurações ganhou “Liberar RAM do Hub”, separado da limpeza HTTP. No Windows, o helper reduz o working set somente dos processos associados ao Hub; em build Windows sob carga ativa, o usuário observou reduções de 4,5–6,2 GB e recomposição durante as lives. O efeito é momentâneo e não garante menor uso sustentado de RAM. Ver `docs/changes/2026-10-21-0118--liberar-working-set-hub.md`.

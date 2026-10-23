@@ -19,7 +19,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 
 test('main delegates account session maintenance with trusted sender and current session registry', () => {
   assert.match(main, /registerSessionMaintenanceHandlers\(\{[\s\S]*?isTrustedSender: fromApp,[\s\S]*?primaryPartition: PARTITION,[\s\S]*?configuredPartitions: configuredSessions/);
-  for (const channel of ['clear-account', 'open-data-dir', 'session-maintenance-summary', 'clean-ram', 'restart-app']) {
+  for (const channel of ['clear-account', 'open-data-dir', 'session-maintenance-summary', 'clean-ram', 'restart-app', 'reset-app-data']) {
     assert.match(service, new RegExp(`'${channel}'`));
   }
   assert.match(main, /getAppMetrics: \(\) => app\.getAppMetrics\(\)/);
@@ -37,14 +37,15 @@ test('main delegates account session maintenance with trusted sender and current
   assert.match(preload, /getSessionMaintenanceSummary: \(\) => ipcRenderer\.invoke\('session-maintenance-summary'\)/);
   assert.match(preload, /trimHubWorkingSet: \(\) => ipcRenderer\.invoke\('trim-hub-working-set'\)/);
   assert.match(preload, /restartApp: \(\) => ipcRenderer\.invoke\('restart-app'\)/);
-  for (const id of ['cfg-refresh-cache-summary', 'cfg-session-data-size', 'cfg-http-cache-size', 'cfg-live-runtime-metrics', 'cfg-cleanup-result', 'cfg-restart-app-btn', 'cfg-trim-working-set-btn', 'cfg-working-set-result']) {
+  assert.match(preload, /resetAppData: \(\) => ipcRenderer\.invoke\('reset-app-data'\)/);
+  for (const id of ['cfg-refresh-cache-summary', 'cfg-session-data-size', 'cfg-http-cache-size', 'cfg-live-runtime-metrics', 'cfg-cleanup-result', 'cfg-restart-app-btn', 'cfg-reset-app-data-btn', 'cfg-trim-working-set-btn', 'cfg-working-set-result']) {
     assert.match(indexHtml, new RegExp(`id="${id}"`));
   }
   assert.ok(renderer.includes('getLiveRuntimeMetrics: () => {'));
   assert.ok(renderer.includes('queue: webviewLoadQueue.getStats()'));
   assert.match(settingsPreferences, /query\('#btn-clean-ram'\)\?\.addEventListener\('click', \(\) => \{ void cleanNow\(\); \}\)/);
   assert.doesNotMatch(renderer, /\$\('#btn-clean-ram'\)\?\.addEventListener/);
-  assert.doesNotMatch(main, /ipcMain\.(?:handle|on)\('(clear-account|open-data-dir|session-maintenance-summary|clean-ram|restart-app)'/);
+  assert.doesNotMatch(main, /ipcMain\.(?:handle|on)\('(clear-account|open-data-dir|session-maintenance-summary|clean-ram|restart-app|reset-app-data)'/);
   assert.ok(packageJson.build.files.includes('session-maintenance-service.js'));
   assert.equal(packageJson.build.files.filter(file => file === 'session-maintenance-service.js').length, 1);
   assert.ok(packageJson.build.files.includes('hub-working-set-cleanup-service.js'));

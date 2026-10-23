@@ -659,6 +659,7 @@ const settingsPreferences = window.PokeIdleSettingsPreferences.createSettingsPre
     };
   },
   restartApp: () => window.pf?.restartApp ? window.pf.restartApp() : Promise.resolve({ ok: false }),
+  resetAppData: () => window.pf?.resetAppData ? window.pf.resetAppData() : Promise.resolve({ ok: false }),
   confirm: message => window.confirm(message),
 });
 

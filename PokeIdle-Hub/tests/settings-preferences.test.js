@@ -27,6 +27,7 @@ function setup({
   summary = async () => ({ ok: true, sessionDataBytes: 12 * 1024 * 1024, sessionDataPartial: false, httpCacheBytes: 2 * 1024 * 1024, httpCacheAvailable: true, failureCount: 0 }),
   liveRuntime = async () => ({ tileCount: 4, playerChatViews: 6, economyViews: 1, queue: { pending: 2, started: 10, averageWaitMs: 750, maxWaitMs: 1500 } }),
   restartApp = async () => ({ ok: true }),
+  resetAppData = async () => ({ ok: true }),
   confirm = () => true,
 } = {}) {
   const elements = new Map([
@@ -39,6 +40,8 @@ function setup({
     ['#btn-clean-ram', element()],
     ['#cfg-refresh-cache-summary', element()],
     ['#cfg-restart-app-btn', element()],
+    ['#cfg-reset-app-data-btn', element()],
+    ['#cfg-reset-result', element()],
     ['#cfg-session-data-size', element()],
     ['#cfg-http-cache-size', element()],
     ['#cfg-live-runtime-metrics', element()],
@@ -46,7 +49,7 @@ function setup({
     ['#panel-lives', { classList: { toggles: [], toggle(...args) { this.toggles.push(args); } } }],
   ]);
   if (cleanRamError) cleanRam = async () => { throw cleanRamError; };
-  const effects = { persist: 0, fps: 0, toasts: [], cleanRam: 0, trimHubWorkingSet: 0, summary: 0, liveRuntime: 0, restart: 0, confirmations: [] };
+  const effects = { persist: 0, fps: 0, toasts: [], cleanRam: 0, trimHubWorkingSet: 0, summary: 0, liveRuntime: 0, restart: 0, resetAppData: 0, confirmations: [] };
   const preferences = createSettingsPreferences({
     state,
     query: selector => elements.get(selector),
@@ -59,6 +62,7 @@ function setup({
     getMaintenanceSummary: async () => { effects.summary += 1; return summary(); },
     getLiveRuntimeMetrics: async () => { effects.liveRuntime += 1; return liveRuntime(); },
     restartApp: async () => { effects.restart += 1; return restartApp(); },
+    resetAppData: async () => { effects.resetAppData += 1; return resetAppData(); },
     confirm: message => { effects.confirmations.push(message); return confirm(message); },
   });
   return { preferences, elements, effects, state };
@@ -234,4 +238,30 @@ test('restart requires confirmation and uses a separate explicit action', async 
   accepted.preferences.setup();
   await accepted.elements.get('#cfg-restart-app-btn').dispatch('click');
   assert.equal(accepted.effects.restart, 1);
+});
+
+test('reset-app-data requires confirmation and uses a separate explicit action', async () => {
+  const rejected = setup({ confirm: () => false });
+  rejected.preferences.setup();
+  await rejected.elements.get('#cfg-reset-app-data-btn').dispatch('click');
+  assert.equal(rejected.effects.resetAppData, 0);
+  assert.equal(rejected.effects.confirmations.length, 1);
+  assert.equal(rejected.elements.get('#cfg-reset-app-data-btn').disabled, false);
+
+  const accepted = setup();
+  accepted.preferences.setup();
+  await accepted.elements.get('#cfg-reset-app-data-btn').dispatch('click');
+  assert.equal(accepted.effects.resetAppData, 1);
+  assert.equal(accepted.elements.get('#cfg-reset-app-data-btn').disabled, true);
+  assert.match(accepted.effects.toasts[0], /Reiniciando/);
+});
+
+test('reset-app-data handles failure and re-enables button', async () => {
+  const failed = setup({ resetAppData: async () => ({ ok: false }) });
+  failed.preferences.setup();
+  await failed.elements.get('#cfg-reset-app-data-btn').dispatch('click');
+  assert.equal(failed.effects.resetAppData, 1);
+  assert.equal(failed.elements.get('#cfg-reset-app-data-btn').disabled, false);
+  assert.equal(failed.elements.get('#cfg-reset-result').textContent, 'Falha ao apagar dados locais.');
+  assert.match(failed.effects.toasts[0], /Não foi possível/);
 });

@@ -2,6 +2,13 @@
 
 const accountPartitions = require('./account-partition');
 
+const RUNTIME_LOCK_FILES = new Set([
+  'SingletonCookie',
+  'SingletonLock',
+  'SingletonSocket',
+  'lockfile',
+]);
+
 function registerSessionMaintenanceHandlers({
   ipcMain,
   isTrustedSender,
@@ -215,6 +222,45 @@ function registerSessionMaintenanceHandlers({
   ipcMain.handle('restart-app', event => {
     if (!isTrustedSender(event) || typeof relaunch !== 'function') return { ok: false };
     try {
+      relaunch();
+      return { ok: true };
+    } catch (_) {
+      return { ok: false };
+    }
+  });
+
+  ipcMain.handle('reset-app-data', async event => {
+    if (!isTrustedSender(event) || typeof relaunch !== 'function') return { ok: false };
+    try {
+      const { sessions } = collectSessions();
+      await Promise.all(sessions.map(async currentSession => {
+        try {
+          if (typeof currentSession?.clearStorageData === 'function') {
+            await currentSession.clearStorageData();
+          }
+        } catch (_) {}
+      }));
+
+      const userDataPath = typeof getUserDataPath === 'function' ? getUserDataPath() : null;
+      if (typeof userDataPath === 'string' && userDataPath && fs?.existsSync?.(userDataPath)) {
+        if (typeof fs.readdirSync === 'function') {
+          let entries = [];
+          try {
+            entries = fs.readdirSync(userDataPath, { withFileTypes: true });
+          } catch (_) {}
+          for (const entry of entries) {
+            const name = typeof entry === 'string' ? entry : entry.name;
+            if (!name || RUNTIME_LOCK_FILES.has(name)) continue;
+            const targetPath = joinPath(userDataPath, name);
+            try {
+              if (typeof fs.rmSync === 'function') {
+                fs.rmSync(targetPath, { recursive: true, force: true, maxRetries: 2 });
+              }
+            } catch (_) {}
+          }
+        }
+      }
+
       relaunch();
       return { ok: true };
     } catch (_) {

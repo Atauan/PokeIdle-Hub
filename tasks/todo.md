@@ -1,123 +1,141 @@
-# Tarefas: isolamento dos dados de desenvolvimento
+# Lista de Tarefas: Botão de Reset de Dados Locais e Reinicialização## Tarefa 1: Implementar o manipulador IPC 'reset-app-data' e expor no preload
 
-## Tarefa 1: Criar módulo do perfil dev e testes sintéticos de caminho, marcador e reset
-
-**Descrição:** Encapsular a resolução da raiz fixa de dev, a criação/verificação do marcador e a operação de reset em funções testáveis. Cobrir caminhos esperados, diretórios sem marcador, redirecionamentos, perfil inexistente e falhas de remoção usando somente pastas temporárias sintéticas.
+**Descrição:** Implementar o manipulador IPC `'reset-app-data'` em [session-maintenance-service.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/session-maintenance-service.js) que valida o remetente confiável, chama `clearStorageData()` em todas as sessões conhecidas, purga arquivos em `userData` (preservando lock files de runtime) e aciona `relaunch()`. Expor `resetAppData` no [preload.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/preload.js).
 
 **Critérios de aceite:**
-- [x] Perfil inexistente cria raiz e marcador de dev; pasta não vazia sem marcador válido é recusada.
-- [x] Reset aceita somente a raiz esperada e marcada, recusando symlink/junction ou caminho fora dela antes de remover arquivos.
-- [x] Falhas e remoção parcial retornam erro explícito e não escolhem outro caminho como fallback.
+- [x] Chamada de remetente não confiável (`isTrustedSender: false`) retorna `{ ok: false }` imediatamente.
+- [x] Todas as partições conhecidas têm `clearStorageData()` executado.
+- [x] Arquivos em `userData` são apagados com segurança, respeitando validação de symlink e preservando `Singleton*` e `lockfile`.
+- [x] `relaunch()` é invocado após a limpeza.
+- [x] `window.pf.resetAppData()` está exposto em [preload.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/preload.js).
 
-**Verificação:** `node --test` — 16 testes passaram; fixtures sintéticas criadas e removidas sob diretórios temporários.
+**Verificação:** `node --check PokeIdle-Hub/session-maintenance-service.js` e `node --check PokeIdle-Hub/preload.js`.
 
 **Dependências:** Nenhuma.
 
 **Arquivos prováveis:**
-- `PokeIdle-Hub/dev-profile.js`
-- `PokeIdle-Hub/tests/dev-profile.test.js`
+- `PokeIdle-Hub/session-maintenance-service.js`
+- `PokeIdle-Hub/preload.js`
 
-**Escopo estimado:** Pequeno (2 arquivos de implementação e 2 arquivos de teste).
+**Escopo estimado:** Pequeno (2 arquivos).
 
-## Tarefa 2: Configurar caminhos e bloqueio antes de iniciar o Electron; separar dev da migração legada
+---
 
-**Descrição:** Integrar o perfil ao bootstrap do processo principal. Definir dev pela execução não empacotada, configurar `userData` e `sessionData` antes do bloqueio/sessões, manter bloqueios independentes e executar `migrateLegacySessions()` somente na produção empacotada. Auditar partições, janelas e caminhos locais atuais.
+## Tarefa 2: Adicionar testes unitários do serviço de manutenção
+
+**Descrição:** Adicionar testes em [tests/session-maintenance-service.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/session-maintenance-service.test.js) cobrindo todos os cenários do canal `'reset-app-data'`.
 
 **Critérios de aceite:**
-- [x] Dev resolve a raiz fixa antes de pedir bloqueio, criar sessão ou janela, falhando fechado diante de erro.
-- [x] Nenhum caminho dev consulta perfis PokeFarm, diretório portátil ou qualquer perfil de produção.
-- [x] Produção preserva identidade, caminhos e migração atuais; dev e produção usam nomes e userData separados.
+- [x] Teste cobre recusa para remetente não confiável.
+- [x] Teste cobre limpeza de sessões, remoção de arquivos sintéticos e chamada de relaunch.
+- [x] Teste cobre tratamento de erro caso `relaunch` falhe.
 
-**Verificação:** Testes do bootstrap simulado; `node --check main.js`; revisão da ordem no fluxo `ready`. Build e diff finais pendentes.
+**Verificação:** `node --test PokeIdle-Hub/tests/session-maintenance-service.test.js`.
 
 **Dependências:** Tarefa 1.
 
 **Arquivos prováveis:**
-- `PokeIdle-Hub/main.js`
-- `PokeIdle-Hub/tests/dev-bootstrap.test.js`
+- `PokeIdle-Hub/tests/session-maintenance-service.test.js`
 
-**Escopo estimado:** Pequeno (2 arquivos de implementação e 1 arquivo de testes).
+**Escopo estimado:** Pequeno (1 arquivo).
 
-## Tarefa 3: Adicionar `dev` e `dev:reset` e garantir reset exclusivo antes de sessões e janelas
+---
 
-**Descrição:** Expor comandos npm explícitos. O fluxo normal mantém persistência; o fluxo reset valida `app.isPackaged`, obtém o bloqueio exclusivo do perfil dev e limpa apenas o diretório marcado antes da criação de qualquer sessão ou janela. A opção de reset é recusada pela produção.
+## Ponto de Verificação 1: Processo Principal
+- [x] Testes de `session-maintenance-service.test.js` passando.
+- [x] Sintaxe `node --check` validada.
 
-**Critérios de aceite:**
-- [x] `npm run dev` inicia o modo dev preservando seus dados; `npm run dev:reset` solicita reset local completo antes da abertura.
-- [x] Reset em produção, sem marcador, após redirecionamento, com instância dev ativa ou diante de falha de limpeza é recusado sem apagar outro perfil.
-- [x] Logins e addons locais entram no reset por estarem sob a raiz de sessão; nenhuma operação é enviada às contas remotas.
+---
 
-**Verificação:** 16 testes sintéticos; `node --check`; `npm run` confirma `dev`, `dev:reset` e `test`.
+## Tarefa 3: Adicionar a linha de reset no HTML e estilos de alerta no CSS
 
-**Dependências:** Tarefas 1 e 2.
-
-**Arquivos prováveis:**
-- `PokeIdle-Hub/package.json`
-- `PokeIdle-Hub/main.js`
-- `PokeIdle-Hub/tests/dev-bootstrap.test.js`
-
-**Escopo estimado:** Pequeno (3 arquivos).
-
-## Tarefa 4: Identificar dev na interface e desativar atualizações de produção
-
-**Descrição:** Tornar o modo dev visível de forma persistente em janela e bandeja. Desativar no processo principal consulta, download e instalação de atualizações de produção e informar na interface que atualização está indisponível em dev.
+**Descrição:** Adicionar a linha de reset com o botão `#cfg-reset-app-data-btn` em [renderer/index.html](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/index.html) e o estilo `.btn-danger` em [renderer/styles.css](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/styles.css).
 
 **Critérios de aceite:**
-- [x] Título e identidade da bandeja distinguem dev de produção mesmo após trocar de aba.
-- [x] Dev não inicia busca automática ou timer de atualização nem aceita download/instalação de pacote de produção.
-- [x] Controles de atualização da interface exibem a indisponibilidade sem disparar IPC de produção.
+- [x] Elemento `#cfg-reset-app-data-btn` existe na aba Configurações dentro do cartão de manutenção.
+- [x] Texto e descrição explicam claramente o impacto da perda de logins locais.
+- [x] Estilo visual condizente com botão destrutivo/perigo no tema escuro.
 
-**Verificação:** `node --check` dos JS alterados e revisão dos handlers; interface não aberta para evitar acessar perfil real preexistente, validação manual pendente.
+**Verificação:** Inspeção visual de sintaxe e verificação de seletores.
 
-**Dependências:** Tarefa 2.
+**Dependências:** Nenhuma.
 
 **Arquivos prováveis:**
-- `PokeIdle-Hub/main.js`
 - `PokeIdle-Hub/renderer/index.html`
-- `PokeIdle-Hub/renderer/updates.js`
-- `PokeIdle-Hub/preload.js` somente se for necessário expor o modo com segurança
+- `PokeIdle-Hub/renderer/styles.css`
 
-**Escopo estimado:** Médio (3–4 arquivos).
+**Escopo estimado:** Pequeno (2 arquivos).
 
-## Tarefa 5: Documentar comandos, confirmar compatibilidade de produção e revisar os critérios de aceite
+---
 
-**Descrição:** Atualizar instruções para executar e resetar dev, registrar o impacto de apagar logins locais e documentar o que realmente foi validado. Revisar o pacote Windows para garantir que qualquer módulo novo está incluído e a produção manteve a migração.
+## Tarefa 4: Conectar o controlador de preferências e testes de interface
+
+**Descrição:** Implementar no módulo [renderer/settings-preferences.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/settings-preferences.js) a função `resetAppDataNow()`, com diálogo de confirmação `confirm()`, desabilitação do botão, feedback visual e despacho para o callback `resetAppData()`. Injetar o método em [renderer/app.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/app.js) e criar testes em [tests/settings-preferences.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/settings-preferences.test.js).
 
 **Critérios de aceite:**
-- [x] README e changelog descrevem comandos e alcance local/irreversível do reset; AGENTS registra os comandos oficiais.
-- [x] Build Windows inclui o módulo do perfil e mantém o fluxo de produção.
-- [x] Documento `docs/changes` registra arquivos, impacto, validações, rollback e pendências reais.
+- [x] Recusa na confirmação não aciona `resetAppData()` nem desabilita o botão.
+- [x] Aceitação na confirmação desabilita o botão, exibe feedback e invoca `resetAppData()`.
+- [x] Falha reportada pelo IPC exibe mensagem de erro e restaura o botão.
 
-**Verificação:** `npm --prefix PokeIdle-Hub run`; 16 testes passaram; `node --check` nos JS alterados; `npm --prefix PokeIdle-Hub run dist:win` completado; `dev-profile.js` confirmado no ASAR. Nenhum teste usa perfis reais.
+**Verificação:** `node --test PokeIdle-Hub/tests/settings-preferences.test.js` e `node --check` nos JS do renderer.
 
-**Dependências:** Tarefas 1–4.
+**Dependências:** Tarefas 1 e 3.
 
 **Arquivos prováveis:**
-- `PokeIdle-Hub/README.md`
-- `PokeIdle-Hub/CHANGELOG.md`
-- `PokeIdle-Hub/AGENTS.md`
-- `PokeIdle-Hub/package.json` ou `PokeIdle-Hub/electron-builder.config.cjs` somente se necessário
-- `docs/changes/YYYY-MM-DD-HHMM--isolamento-dados-dev.md`
+- `PokeIdle-Hub/renderer/settings-preferences.js`
+- `PokeIdle-Hub/renderer/app.js`
+- `PokeIdle-Hub/tests/settings-preferences.test.js`
 
-**Escopo estimado:** Médio (4–5 arquivos relevantes).
+**Escopo estimado:** Médio (3 arquivos).
 
-## Ponto de verificação após tarefas 1–2
+---
 
-- [x] Testes de caminhos, marcador, redirecionamento e bootstrap passaram em fixtures temporárias.
-- [x] Dev não executa migração nem consulta diretórios legados.
-- [x] Produção mantém sua localização e migração atuais.
-- [x] Reset foi validado somente com fixtures sintéticas.
+## Ponto de Verificação 2: Interface
+- [x] Testes de interface passando.
+- [x] Sintaxe sem erros em todos os arquivos de renderer.
 
-## Ponto de verificação após tarefas 3–4
+---
 
-- [x] Comandos normal/reset têm comportamento distinto e seguro.
-- [x] Reset ativo concorrente e reset empacotado são recusados antes de alterações.
-- [x] Identidade visual dev e bloqueio de atualização de produção estão definidos no processo e renderer.
-- [x] O armazenamento de cockpit e partições segue `sessionData`; persistência real de login permanece pendente de validação manual.
+## Tarefa 5: Atualizar teste de contrato e executar suíte completa
 
-## Ponto de verificação final
+**Descrição:** Atualizar [tests/session-maintenance-contract.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/session-maintenance-contract.test.js) para assegurar o novo canal IPC e elemento do DOM. Executar toda a suíte de testes do projeto.
 
-- [x] Critérios de aceite atendidos ou limitações de validação registradas.
-- [x] Testes e build Windows executados sem acessar perfis reais.
-- [x] Diff revisado e documentação atualizada.
-- [x] Nenhum commit criado automaticamente.
+**Critérios de aceite:**
+- [x] Contrato valida canal `'reset-app-data'` no serviço e preload, e `#cfg-reset-app-data-btn` no HTML.
+- [x] Todos os 449+ testes passam em `npm --prefix PokeIdle-Hub test`.
+
+**Verificação:** `npm --prefix PokeIdle-Hub test`.
+
+**Dependências:** Tarefas 1 a 4.
+
+**Arquivos prováveis:**
+- `PokeIdle-Hub/tests/session-maintenance-contract.test.js`
+
+**Escopo estimado:** Pequeno (1 arquivo).
+
+---
+
+## Tarefa 6: Documentação e registro de alteração
+
+**Descrição:** Registrar a alteração em `docs/changes/YYYY-MM-DD-HHMM--botao-reset-dados-locais.md` e atualizar o [CHANGELOG.md](file:///g:/PokeIdle-Hub/CHANGELOG.md).
+
+**Critérios de aceite:**
+- [x] Documento em `docs/changes/` com objetivo, arquivos, impacto, validação e rollback.
+- [x] Entrada em [CHANGELOG.md](file:///g:/PokeIdle-Hub/CHANGELOG.md) sob [Não publicado].
+
+**Verificação:** `git status` e verificação de formato.
+
+**Dependências:** Tarefa 5.
+
+**Arquivos prováveis:**
+- `docs/changes/2026-10-23-1340--botao-reset-dados-locais.md`
+- `CHANGELOG.md`
+
+**Escopo estimado:** Pequeno (2 arquivos).
+
+---
+
+## Ponto de Verificação Final
+- [x] Suíte completa passando (453 testes).
+- [x] Documentação completa e sem pendências.
+- [x] Sem commits automáticos.
