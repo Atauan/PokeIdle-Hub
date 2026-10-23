@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('pf', {
   openDataDir: () => ipcRenderer.send('open-data-dir'),
   getSessionMaintenanceSummary: () => ipcRenderer.invoke('session-maintenance-summary'),
   restartApp: () => ipcRenderer.invoke('restart-app'),
+  resetAppData: () => ipcRenderer.invoke('reset-app-data'),
   onOpenTab: (cb) => ipcRenderer.on('open-tab', (_e, tab) => cb(String(tab))),
   clearAccount: (id) => ipcRenderer.invoke('clear-account', String(id)),
   onAddLive: (cb) => ipcRenderer.on('add-live', (_e, link) => cb(String(link))),

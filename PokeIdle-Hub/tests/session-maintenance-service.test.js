@@ -46,10 +46,13 @@ function setup({
     ['C:/Profile/Session Data/Partitions', [dirent('pokeidlehub-acc-saved', 'directory'), dirent('other-profile', 'directory'), dirent('pokeidlehub-acc-link', 'symlink')]],
     ['C:/Profile/Session Data/Partitions/pokeidlehub-acc-saved', [dirent('Cache', 'directory')]],
     ['C:/Profile/Session Data/Partitions/pokeidlehub-acc-saved/Cache', [dirent('data'), dirent('link', 'symlink')]],
+    ['C:/Profile/User Data', [dirent('Partitions', 'directory'), dirent('market-samples.jsonl'), dirent('SingletonLock')]],
   ]);
+  const removed = [];
   const fs = {
     existsSync: () => exists,
-    readdirSync: () => directories.get('C:/Profile/Session Data/Partitions') ?? [],
+    readdirSync: targetDir => directories.get(targetDir) ?? directories.get('C:/Profile/Session Data/Partitions') ?? [],
+    rmSync: targetPath => { removed.push(targetPath); },
     promises: {
       readdir: async directory => {
         if (readDirectoryError) throw new Error('directory unavailable');
@@ -76,6 +79,9 @@ function setup({
   const session = {
     fromPartition: partition => sessionFor(partition),
     defaultSession: {
+      clearStorageData: async () => {
+        storageClears.push('default');
+      },
       getCacheSize: async () => cacheSizes.get('default'),
       clearCache: async () => {
         cacheClears.push('default');
@@ -103,7 +109,7 @@ function setup({
     getAppMetrics: () => metrics[Math.min(metricCall++, metrics.length - 1)],
     relaunch: () => { restart.calls += 1; },
   });
-  return { handlers, opened, storageClears, cacheClears, cacheSizes, gc, restart };
+  return { handlers, opened, storageClears, cacheClears, cacheSizes, gc, restart, removed };
 }
 
 test('clear-account deletes only a valid additional account partition', async () => {
@@ -195,5 +201,27 @@ test('maintenance rejects untrusted renderers and restarts only on explicit trus
   assert.deepEqual(await context.handlers.get('clean-ram')({ trusted: false }), { ok: false });
   assert.deepEqual(await context.handlers.get('restart-app')({ trusted: false }), { ok: false });
   assert.deepEqual(await context.handlers.get('restart-app')({ trusted: true }), { ok: true });
+  assert.equal(context.restart.calls, 1);
+});
+
+test('reset-app-data rejects untrusted renderers', async () => {
+  const context = setup();
+  assert.deepEqual(await context.handlers.get('reset-app-data')({ trusted: false }), { ok: false });
+  assert.equal(context.restart.calls, 0);
+  assert.deepEqual(context.storageClears, []);
+  assert.deepEqual(context.removed, []);
+});
+
+test('reset-app-data clears all sessions, removes non-lock userData files and restarts', async () => {
+  const context = setup();
+  const result = await context.handlers.get('reset-app-data')({ trusted: true });
+
+  assert.deepEqual(result, { ok: true });
+  assert.ok(context.storageClears.includes('persist:pokeidlehub'));
+  assert.ok(context.storageClears.includes('persist:pokeidlehub-acc-active'));
+  assert.ok(context.storageClears.includes('persist:pokeidlehub-acc-saved'));
+  assert.ok(context.storageClears.includes('default'));
+  assert.deepEqual(context.removed, ['C:/Profile/User Data/Partitions', 'C:/Profile/User Data/market-samples.jsonl']);
+  assert.ok(!context.removed.includes('C:/Profile/User Data/SingletonLock'));
   assert.equal(context.restart.calls, 1);
 });

@@ -14,7 +14,7 @@
     return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(amount)} ${units[unit]}`;
   }
 
-  function createSettingsPreferences({ state, query, persist, applyFpsLimits, toast, cleanRam, trimHubWorkingSet, platform, getMaintenanceSummary, getLiveRuntimeMetrics, restartApp, confirm }) {
+  function createSettingsPreferences({ state, query, persist, applyFpsLimits, toast, cleanRam, trimHubWorkingSet, platform, getMaintenanceSummary, getLiveRuntimeMetrics, restartApp, resetAppData, confirm }) {
     let summaryLoaded = false;
     let summaryRequest = null;
     let cleanupRequest = null;
@@ -210,6 +210,29 @@
       }
     }
 
+    async function resetData() {
+      const button = query('#cfg-reset-app-data-btn');
+      const resultNode = query('#cfg-reset-result');
+      const warning = 'ATENÇÃO: Isso apagará permanentemente todos os dados locais do PokeIdle Hub (contas cadastradas, logins de Twitch/Kick, configurações, regras de alerta e dados salvos) e reiniciará o aplicativo do zero. Esta ação não pode ser desfeita.\n\nDeseja realmente apagar todos os dados e reiniciar?';
+      if (typeof confirm !== 'function' || !confirm(warning)) return;
+      if (button) button.disabled = true;
+      if (resultNode) resultNode.textContent = 'Apagando dados locais e reiniciando o PokeIdle Hub...';
+      try {
+        const result = typeof resetAppData === 'function' ? await resetAppData() : { ok: false };
+        if (result?.ok) {
+          toast('Dados locais apagados. Reiniciando o PokeIdle Hub...');
+        } else {
+          if (resultNode) resultNode.textContent = 'Falha ao apagar dados locais.';
+          toast('Não foi possível apagar os dados locais do PokeIdle Hub.');
+          if (button) button.disabled = false;
+        }
+      } catch (_) {
+        if (resultNode) resultNode.textContent = 'Falha ao apagar dados locais.';
+        toast('Não foi possível apagar os dados locais do PokeIdle Hub.');
+        if (button) button.disabled = false;
+      }
+    }
+
     function setup() {
       query('#cfg-fps-foreground')?.addEventListener('change', (event) => {
         state.fpsForeground = Number(event.target.value) || 0;
@@ -240,11 +263,12 @@
         trimWorkingSetButton.addEventListener('click', () => { void trimWorkingSetNow(); });
       }
       query('#cfg-refresh-cache-summary')?.addEventListener('click', () => { void refreshMaintenanceSummary({ force: true }); });
-      query('#cfg-restart-app-btn')?.addEventListener('click', () => { void restart(); });
+      query('#cfg-restart-app-btn')?.addEventListener('click', () => restart());
+      query('#cfg-reset-app-data-btn')?.addEventListener('click', () => resetData());
       render();
     }
 
-    return Object.freeze({ render, setup, cleanNow, trimWorkingSetNow, refreshMaintenanceSummary });
+    return Object.freeze({ render, setup, cleanNow, trimWorkingSetNow, refreshMaintenanceSummary, restart, resetData });
   }
 
   const api = { createSettingsPreferences };
