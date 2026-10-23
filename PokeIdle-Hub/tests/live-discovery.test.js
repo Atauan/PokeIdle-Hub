@@ -25,6 +25,41 @@ test('does not query any provider when no account is connected', async () => {
 
   assert.deepEqual(queries, []);
   assert.deepEqual(result.plan.eligibleAccountIdsByProvider, { kick: [], twitch: [] });
+  assert.deepEqual(result.diagnostics, {
+    disconnectedProviders: ['kick', 'twitch'],
+    unavailableProviders: [],
+    failedProviders: [],
+    failureReasons: {},
+  });
+});
+
+test('reports providers whose connection check or status lookup failed', async () => {
+  const result = await discoverLives({
+    accounts: [accounts[0]],
+    channels: [channels[0]],
+    checkConnections: async () => ({ twitch: true, kick: false }),
+    liveStatus: async () => ({ $error: 'HTTP_403' }),
+  });
+
+  assert.deepEqual(result.diagnostics, {
+    disconnectedProviders: [],
+    unavailableProviders: [],
+    failedProviders: ['twitch'],
+    failureReasons: { twitch: 'HTTP_403' },
+  });
+
+  const unavailable = await discoverLives({
+    accounts: [accounts[0]],
+    channels: [channels[0]],
+    checkConnections: async () => ({ twitch: false, kick: false, unavailableProviders: ['twitch'] }),
+    liveStatus: async () => ({}),
+  });
+  assert.deepEqual(unavailable.diagnostics, {
+    disconnectedProviders: [],
+    unavailableProviders: ['twitch'],
+    failedProviders: [],
+    failureReasons: {},
+  });
 });
 
 test('deduplicates discovery once per connected provider and returns per-provider statuses', async () => {

@@ -129,6 +129,17 @@ test('manual refresh with no channels leaves a pending prompt and renders the em
   assert.equal(events.some(event => Array.isArray(event) && event[0] === 'discoverLives'), false);
 });
 
+test('exposes the latest discovery diagnostics after manual verification', async () => {
+  const diagnostics = { disconnectedProviders: ['twitch'], unavailableProviders: [], failedProviders: [] };
+  const { controller } = setup({ discoverLives: async () => ({
+    statusesByProvider: { kick: {}, twitch: {} }, diagnostics,
+  }) });
+
+  await controller.refreshNow();
+
+  assert.equal(controller.getDiagnostics(), diagnostics);
+});
+
 test('enabling automatic lives resets status while preserving open tiles and keeps effect order', () => {
   const { controller, events, liveStates, state } = setup({ autoLives: false });
   liveStates.set('open', { status: 'offline', open: true });

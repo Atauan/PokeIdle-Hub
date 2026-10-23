@@ -291,6 +291,7 @@ const liveToolbarControls = window.PokeIdleLiveToolbarControls.createLiveToolbar
     checking: liveDiscoveryController.isChecking(),
     refreshing: liveDiscoveryController.isRefreshing(),
     manualDiscoveryPending: liveDiscoveryController.isManualDiscoveryPending(),
+    diagnostics: liveDiscoveryController.getDiagnostics(),
   }),
   getEconomyViewCount: () => twitchEconomyRuntime.size(),
   getTileCount: () => tiles.size,

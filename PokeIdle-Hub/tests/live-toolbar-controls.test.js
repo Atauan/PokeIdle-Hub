@@ -134,7 +134,7 @@ test('toggles chat and hidden video UI with the existing persistence and layout 
   assert.equal(context.state.hideVideos, true);
   assert.equal(context.elements.get('grid').classList.contains('hide-videos'), true);
   assert.equal(context.elements.get('toggle-video-view').classList.contains('active'), true);
-  assert.match(context.elements.get('toggle-video-view').innerHTML, /Mostrar Vídeos/);
+  assert.match(context.elements.get('toggle-video-view').innerHTML, /Mostrar vídeos/);
 });
 
 test('updates the selected quality and retains automatic-quality Kick reload behavior', () => {
@@ -173,10 +173,44 @@ test('renders pending discovery and economic empty-state without channel names',
   context.setItems([]);
   context.controller.renderStatus();
   assert.equal(context.elements.get('live-summary').textContent, 'Abra o Pokeidle para carregar os canais');
-  assert.equal(context.elements.get('empty-detail').textContent, 'Os canais oficiais são reconhecidos pelo jogo. Use Verificar agora para abrir os online.');
+  assert.equal(context.elements.get('empty-detail').textContent, 'Os canais oficiais são reconhecidos pelo jogo. Use Verificar lives para abrir os que estiverem online.');
 
   context.setEconomy(1, 0);
   context.controller.renderStatus();
   assert.equal(context.elements.get('empty-title').textContent, 'Twitch em modo econômico');
   assert.equal(context.elements.get('empty-detail').textContent, 'Os canais usam o chat compartilhado. Acompanhe a conexão acima e os bônus na aba Pokeidle.');
+});
+
+test('explains when unknown lives have no connected streaming account', () => {
+  const context = setup();
+  context.setDiscovery({
+    checking: false,
+    refreshing: false,
+    manualDiscoveryPending: false,
+    diagnostics: { disconnectedProviders: ['twitch'], unavailableProviders: [], failedProviders: [] },
+  });
+
+  context.controller.renderStatus();
+
+  assert.equal(context.elements.get('empty-detail').textContent,
+    'Faça login na Twitch pelo menu Conectar Lives da conta para verificar e exibir esses canais.');
+  assert.match(context.elements.get('live-summary').textContent, /Faça login na Twitch$/);
+});
+
+test('shows a safe Twitch query failure category in the live summary', () => {
+  const context = setup();
+  context.setDiscovery({
+    checking: false,
+    refreshing: false,
+    manualDiscoveryPending: false,
+    diagnostics: {
+      disconnectedProviders: [], unavailableProviders: [], failedProviders: ['twitch'],
+      failureReasons: { twitch: 'HTTP_429' },
+    },
+  });
+
+  context.controller.renderStatus();
+
+  assert.match(context.elements.get('live-summary').textContent, /Consulta falhou na Twitch \(HTTP 429\)/);
+  assert.match(context.elements.get('empty-detail').textContent, /diagnóstico não inclui nomes de canais nem dados da sessão/);
 });
