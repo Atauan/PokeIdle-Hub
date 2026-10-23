@@ -37,8 +37,8 @@ test('renders the configured order and distinguishes the UI default from the sha
   assert.deepEqual(container.children.map(row => row.props['data-account']), ['main', 'alt', 'third']);
   assert.equal(container.children[0].children[0].children[0].props.text, 'Principal');
   assert.equal(container.children[0].children[0].children[1].props.text, 'Conta padrão');
-  assert.equal(container.children[0].children[0].children[2].props.text, 'Sessão compartilhada com lives');
-  assert.equal(container.children[1].children[0].children[2].props.text, 'Sessão própria');
+  assert.equal(container.children[0].children[0].children[2].props.text, 'Usa os logins das lives');
+  assert.equal(container.children[1].children[0].children[2].props.text, 'Logins separados');
 });
 
 test('reorders visible accounts without changing accounts array or its session/runtime order', () => {

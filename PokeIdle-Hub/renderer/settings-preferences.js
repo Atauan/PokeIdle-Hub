@@ -30,12 +30,12 @@
       }
       if (sessionData) {
         const prefix = summary.sessionDataPartial ? 'Pelo menos ' : '';
-        sessionData.textContent = `${prefix}${formatBytes(summary.sessionDataBytes)} (dados totais; inclui logins e dados persistentes)`;
+        sessionData.textContent = `${prefix}${formatBytes(summary.sessionDataBytes)} (inclui logins e configurações)`;
       }
       if (httpCache) {
         httpCache.textContent = summary.httpCacheAvailable
-          ? `${formatBytes(summary.httpCacheBytes)} estimados para limpeza`
-          : `Indisponível${summary.failureCount ? ` (${summary.failureCount} erro(s) de leitura)` : ''}`;
+          ? `${formatBytes(summary.httpCacheBytes)} podem ser liberados`
+          : 'Não foi possível consultar';
       }
     }
 
@@ -50,7 +50,9 @@
         return;
       }
       const count = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(value);
-      target.textContent = `${count(metrics.tileCount)} tiles · ${count(metrics.playerChatViews)} players/chats anexados · ${count(metrics.economyViews)} ${metrics.economyViews === 1 ? 'view econômica' : 'views econômicas'} · fila: ${count(queue.pending)} pendentes · espera média ${count(queue.averageWaitMs)} ms, pico ${count(queue.maxWaitMs)} ms (${count(queue.started)} inícios desde a abertura)`;
+      const seconds = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value / 1000);
+      const economical = metrics.economyViews === 1 ? 'live em modo econômico' : 'lives em modo econômico';
+      target.textContent = `${count(metrics.tileCount)} lives abertas · ${count(metrics.playerChatViews)} vídeos ou chats ativos · ${count(metrics.economyViews)} ${economical} · ${count(queue.pending)} aguardando abertura · espera: ${seconds(queue.averageWaitMs)} s em média, até ${seconds(queue.maxWaitMs)} s (${count(queue.started)} aberturas desde que o Hub iniciou)`;
     }
 
     async function refreshMaintenanceSummary({ force = false } = {}) {
@@ -65,9 +67,9 @@
       const httpCache = query('#cfg-http-cache-size');
       const runtimeMetrics = query('#cfg-live-runtime-metrics');
       if (button) button.disabled = true;
-      if (sessionData) sessionData.textContent = 'Consultando...';
-      if (httpCache) httpCache.textContent = 'Consultando...';
-      if (runtimeMetrics) runtimeMetrics.textContent = 'Consultando...';
+      if (sessionData) sessionData.textContent = 'Atualizando...';
+      if (httpCache) httpCache.textContent = 'Atualizando...';
+      if (runtimeMetrics) runtimeMetrics.textContent = 'Atualizando...';
       summaryRequest = (async () => {
         try {
           const [summary, liveMetrics] = await Promise.all([
@@ -106,36 +108,36 @@
       const buttons = [query('#cfg-clean-ram-btn'), query('#btn-clean-ram')].filter(Boolean);
       const resultNode = query('#cfg-cleanup-result');
       for (const button of buttons) button.disabled = true;
-      if (resultNode) resultNode.textContent = 'Limpando o cache HTTP das sessões...';
+      if (resultNode) resultNode.textContent = 'Apagando arquivos temporários...';
 
       cleanupRequest = (async () => {
         try {
           const result = await cleanRam();
           if (result && typeof result === 'object') {
             const cacheMessage = result.cacheBytesObservedCleared === null
-              ? 'Não foi possível medir a variação do cache HTTP.'
-              : `Cache HTTP: ${formatBytes(result.cacheBytesObservedCleared)} de redução observada (${formatBytes(result.cacheBytesBefore)} antes, ${formatBytes(result.cacheBytesAfter)} depois).`;
+              ? 'Não foi possível medir quanto espaço foi liberado.'
+              : `Espaço liberado: ${formatBytes(result.cacheBytesObservedCleared)} (antes: ${formatBytes(result.cacheBytesBefore)}; depois: ${formatBytes(result.cacheBytesAfter)}).`;
             const memoryMessage = Number.isFinite(result.memoryBeforeBytes) && Number.isFinite(result.memoryAfterBytes)
-              ? ` Memória reportada pelo Hub: ${formatBytes(result.memoryBeforeBytes)} antes, ${formatBytes(result.memoryAfterBytes)} depois${result.memoryMeasurement === 'working-set-estimate' ? ' (estimativa de working set)' : ''}.`
-              : ' Métrica de memória indisponível.';
-            const measurementMessage = result.measurementFailures ? ` Medição incompleta em ${result.measurementFailures} leitura(s).` : '';
+              ? ` Uso de memória do Hub: ${formatBytes(result.memoryBeforeBytes)} antes e ${formatBytes(result.memoryAfterBytes)} depois.`
+              : ' O uso de memória não pôde ser medido.';
+            const measurementMessage = result.measurementFailures ? ' Algumas medidas não puderam ser feitas.' : '';
             const message = `${cacheMessage}${measurementMessage}${memoryMessage}`;
             if (resultNode) resultNode.textContent = result.partial
-              ? `Limpeza parcial: falha em ${result.cacheFailures} sessão(ões). ${message}`
-              : result.ok ? message : `Falha ao limpar o cache HTTP. ${message}`;
-            const preservationMessage = 'Logins e dados persistentes foram preservados.';
-            if (result.partial) toast(`Limpeza parcial do cache HTTP: ${cacheMessage} ${preservationMessage}`);
+              ? `Alguns arquivos temporários não puderam ser apagados. ${message} Logins e configurações foram mantidos.`
+              : result.ok ? `${message} Logins e configurações foram mantidos.` : `Não foi possível apagar todos os arquivos temporários. ${message}`;
+            const preservationMessage = 'Logins e configurações foram mantidos.';
+            if (result.partial) toast(`Limpeza incompleta. ${cacheMessage} ${preservationMessage}`);
             else if (result.ok) toast(`${cacheMessage} ${preservationMessage}`);
-            else toast(`Falha ao limpar o cache HTTP. ${cacheMessage} ${preservationMessage}`);
+            else toast(`Não foi possível apagar todos os arquivos temporários. ${cacheMessage} ${preservationMessage}`);
           } else {
-            if (resultNode) resultNode.textContent = 'Falha ao limpar o cache HTTP.';
-            toast('Falha ao limpar o cache HTTP.');
+            if (resultNode) resultNode.textContent = 'Não foi possível apagar os arquivos temporários.';
+            toast('Não foi possível apagar os arquivos temporários.');
           }
           await refreshMaintenanceSummary({ force: true });
           return result;
         } catch (_) {
-          if (resultNode) resultNode.textContent = 'Falha ao limpar o cache HTTP.';
-          toast('Falha ao limpar o cache HTTP.');
+          if (resultNode) resultNode.textContent = 'Não foi possível apagar os arquivos temporários.';
+          toast('Não foi possível apagar os arquivos temporários.');
           await refreshMaintenanceSummary({ force: true });
           return { ok: false };
         } finally {
@@ -151,40 +153,36 @@
       const button = query('#cfg-trim-working-set-btn');
       const resultNode = query('#cfg-working-set-result');
       if (platform !== 'win32') {
-        if (resultNode) resultNode.textContent = 'A liberação do working set está disponível somente no Windows.';
+        if (resultNode) resultNode.textContent = 'A liberação de memória está disponível somente no Windows.';
         return { ok: false, unavailable: true };
       }
       if (button) button.disabled = true;
-      if (resultNode) resultNode.textContent = 'Solicitando ao Windows a redução do working set dos processos do Hub...';
+      if (resultNode) resultNode.textContent = 'Pedindo ao Windows para liberar memória usada pelo Hub...';
 
       workingSetRequest = (async () => {
         try {
           const result = await trimHubWorkingSet();
           if (result?.unavailable) {
-            if (resultNode) resultNode.textContent = 'Não foi possível identificar processos ativos do Hub para reduzir.';
-            toast('Não foi possível identificar processos do Hub para liberar RAM.');
+            if (resultNode) resultNode.textContent = 'Não há partes ativas do Hub para liberar memória agora.';
+            toast('Não foi possível liberar memória do Hub agora.');
           } else if (result?.ok || result?.partial) {
             const reduced = Number.isFinite(result.observedBytesReduced)
-              ? `${formatBytes(result.observedBytesReduced)} de redução observada`
-              : 'a variação imediata não pôde ser medida';
-            const counts = ` ${result.trimmed} de ${result.attempted} processos atendidos`;
-            const access = result.accessDenied ? `; acesso negado em ${result.accessDenied}` : '';
-            const rebound = ' A memória pode voltar a ser residente durante as lives.';
+              ? `Memória liberada agora: ${formatBytes(result.observedBytesReduced)}.`
+              : 'Não foi possível medir a mudança neste momento.';
+            const rebound = ' O Hub pode voltar a usar parte dessa memória enquanto estiver aberto.';
             const message = result.partial
-              ? `Redução parcial: ${reduced}.${counts}${access}.${rebound}`
-              : `Redução concluída: ${reduced}.${counts}.${rebound}`;
+              ? `${reduced} Algumas partes do Hub não puderam ser ajustadas.${rebound}`
+              : `${reduced}${rebound}`;
             if (resultNode) resultNode.textContent = message;
             toast(message);
           } else {
-            const count = Number.isFinite(result?.attempted) ? result.attempted : 0;
-            const access = result?.accessDenied ? ` Acesso negado em ${result.accessDenied} processo(s).` : '';
-            const message = `O Windows não conseguiu reduzir o working set do Hub (${count} processo(s) tentados).${access}`;
+            const message = 'O Windows não conseguiu liberar memória do Hub agora. Tente novamente mais tarde.';
             if (resultNode) resultNode.textContent = message;
             toast(message);
           }
           return result;
         } catch (_) {
-          if (resultNode) resultNode.textContent = 'Falha ao solicitar a redução do working set do Hub.';
+          if (resultNode) resultNode.textContent = 'Não foi possível pedir ao Windows para liberar memória do Hub.';
           toast('Falha ao liberar RAM do Hub.');
           return { ok: false };
         } finally {
@@ -213,21 +211,21 @@
     async function resetData() {
       const button = query('#cfg-reset-app-data-btn');
       const resultNode = query('#cfg-reset-result');
-      const warning = 'ATENÇÃO: Isso apagará permanentemente todos os dados locais do PokeIdle Hub (contas cadastradas, logins de Twitch/Kick, configurações, regras de alerta e dados salvos) e reiniciará o aplicativo do zero. Esta ação não pode ser desfeita.\n\nDeseja realmente apagar todos os dados e reiniciar?';
+      const warning = 'Isso apagará as contas, os logins de Twitch e Kick, as preferências, os alertas e o histórico salvos neste computador. O Hub será reiniciado como novo e você precisará entrar nas contas novamente. Esta ação não pode ser desfeita.\n\nDeseja apagar tudo e reiniciar?';
       if (typeof confirm !== 'function' || !confirm(warning)) return;
       if (button) button.disabled = true;
-      if (resultNode) resultNode.textContent = 'Apagando dados locais e reiniciando o PokeIdle Hub...';
+      if (resultNode) resultNode.textContent = 'Apagando os dados e reiniciando o Hub...';
       try {
         const result = typeof resetAppData === 'function' ? await resetAppData() : { ok: false };
         if (result?.ok) {
           toast('Dados locais apagados. Reiniciando o PokeIdle Hub...');
         } else {
-          if (resultNode) resultNode.textContent = 'Falha ao apagar dados locais.';
+          if (resultNode) resultNode.textContent = 'Não foi possível apagar tudo.';
           toast('Não foi possível apagar os dados locais do PokeIdle Hub.');
           if (button) button.disabled = false;
         }
       } catch (_) {
-        if (resultNode) resultNode.textContent = 'Falha ao apagar dados locais.';
+        if (resultNode) resultNode.textContent = 'Não foi possível apagar tudo.';
         toast('Não foi possível apagar os dados locais do PokeIdle Hub.');
         if (button) button.disabled = false;
       }
@@ -238,21 +236,21 @@
         state.fpsForeground = Number(event.target.value) || 0;
         persist();
         applyFpsLimits();
-        toast(`FPS da conta em foco: ${state.fpsForeground ? `${state.fpsForeground} FPS` : 'Sem limite'}`);
+        toast(`FPS do jogo na tela: ${state.fpsForeground || 'padrão do monitor'}`);
       });
 
       query('#cfg-fps-background')?.addEventListener('change', (event) => {
         state.fpsBackground = Number(event.target.value) || 0;
         persist();
         applyFpsLimits();
-        toast(`FPS de contas em segundo plano: ${state.fpsBackground ? `${state.fpsBackground} FPS` : 'Sem limite'}`);
+        toast(`FPS dos jogos em outras abas: ${state.fpsBackground || 'padrão do monitor'}`);
       });
 
       query('#cfg-suspend-video')?.addEventListener('change', (event) => {
         state.suspendBgVideos = event.target.checked;
         persist();
         query('#panel-lives')?.classList.toggle('suspend-bg', state.suspendBgVideos !== false);
-        toast(state.suspendBgVideos ? 'Suspensão de vídeo ativada.' : 'Suspensão de vídeo desativada.');
+        toast(state.suspendBgVideos ? 'A imagem das lives será pausada fora da aba Lives.' : 'A imagem das lives continuará sendo exibida fora da aba Lives.');
       });
 
       query('#cfg-clean-ram-btn')?.addEventListener('click', () => { void cleanNow(); });

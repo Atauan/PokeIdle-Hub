@@ -67,8 +67,8 @@ test('toggles mosaic classes, button text, persistence, and FPS updates', () => 
   assert.equal(state.gameMosaic, true);
   assert.equal(classes.has('mosaic-mode'), true);
   assert.equal(buttonClasses.has('on'), true);
-  assert.match(button.innerHTML, /Conta Única/);
-  assert.match(button.title, /tela cheia/);
+  assert.match(button.innerHTML, /Mostrar uma conta/);
+  assert.match(button.title, /conta selecionada em tamanho maior/);
   assert.equal(effects.persists, 1);
   assert.equal(effects.fpsUpdates, 1);
 });

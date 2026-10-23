@@ -84,7 +84,7 @@ test('renders stored performance preferences and preserves defaults', () => {
   assert.equal(defaults.elements.get('#cfg-suspend-video').checked, true);
 });
 
-test('changing FPS values persists, reapplies limits, and keeps current toast text', () => {
+test('changing FPS values persists, reapplies limits, and explains the selected setting', () => {
   const { preferences, elements, effects, state } = setup();
   preferences.setup();
 
@@ -97,7 +97,7 @@ test('changing FPS values persists, reapplies limits, and keeps current toast te
   assert.equal(state.fpsBackground, 20);
   assert.equal(effects.persist, 2);
   assert.equal(effects.fps, 2);
-  assert.deepEqual(effects.toasts, ['FPS da conta em foco: Sem limite', 'FPS de contas em segundo plano: 20 FPS']);
+  assert.deepEqual(effects.toasts, ['FPS do jogo na tela: padrão do monitor', 'FPS dos jogos em outras abas: 20']);
 });
 
 test('changing background video suspension updates state, storage, class, and feedback', () => {
@@ -110,15 +110,15 @@ test('changing background video suspension updates state, storage, class, and fe
   assert.equal(state.suspendBgVideos, false);
   assert.equal(effects.persist, 1);
   assert.deepEqual(elements.get('#panel-lives').classList.toggles, [['suspend-bg', false]]);
-  assert.deepEqual(effects.toasts, ['Suspensão de vídeo desativada.']);
+  assert.deepEqual(effects.toasts, ['A imagem das lives continuará sendo exibida fora da aba Lives.']);
 });
 
-test('maintenance summary distinguishes session-data folder size from clearable HTTP cache', async () => {
+test('maintenance summary explains saved data and temporary files in plain language', async () => {
   const { preferences, elements } = setup();
   await preferences.refreshMaintenanceSummary();
 
-  assert.match(elements.get('#cfg-session-data-size').textContent, /^12 MB \(dados totais/);
-  assert.equal(elements.get('#cfg-http-cache-size').textContent, '2 MB estimados para limpeza');
+  assert.match(elements.get('#cfg-session-data-size').textContent, /^12 MB \(inclui logins e configurações\)/);
+  assert.equal(elements.get('#cfg-http-cache-size').textContent, '2 MB podem ser liberados');
 });
 
 test('maintenance summary shows aggregate live view and queue metrics', async () => {
@@ -126,7 +126,7 @@ test('maintenance summary shows aggregate live view and queue metrics', async ()
   await preferences.refreshMaintenanceSummary();
 
   assert.equal(elements.get('#cfg-live-runtime-metrics').textContent,
-    '4 tiles · 6 players/chats anexados · 1 view econômica · fila: 2 pendentes · espera média 750 ms, pico 1.500 ms (10 inícios desde a abertura)');
+    '4 lives abertas · 6 vídeos ou chats ativos · 1 live em modo econômico · 2 aguardando abertura · espera: 0,8 s em média, até 1,5 s (10 aberturas desde que o Hub iniciou)');
 });
 
 test('cleanup disables both buttons, reports measured results, and refreshes sizes', async () => {
@@ -142,11 +142,11 @@ test('cleanup disables both buttons, reports measured results, and refreshes siz
 
   assert.equal(context.elements.get('#cfg-clean-ram-btn').disabled, false);
   assert.equal(context.elements.get('#btn-clean-ram').disabled, false);
-  assert.match(context.elements.get('#cfg-cleanup-result').textContent, /Cache HTTP.*768 KB/);
+  assert.match(context.elements.get('#cfg-cleanup-result').textContent, /Espaço liberado: 768 KB/);
   assert.match(context.elements.get('#cfg-cleanup-result').textContent, /10 MB.*9 MB/);
   assert.equal(context.effects.summary, 2);
-  assert.match(context.effects.toasts[0], /Cache HTTP: 768 KB de redução observada/);
-  assert.match(context.effects.toasts[0], /logins e dados persistentes foram preservados/i);
+  assert.match(context.effects.toasts[0], /Espaço liberado: 768 KB/);
+  assert.match(context.effects.toasts[0], /logins e configurações foram mantidos/i);
 });
 
 test('settings module binds the quick cleanup button without an app-level listener', async () => {
@@ -175,16 +175,14 @@ test('working-set cleanup is separate, reports only observed reduction, and warn
   assert.equal(context.elements.get('#cfg-trim-working-set-btn').disabled, false);
   assert.equal(context.effects.cleanRam, 0);
   assert.equal(context.effects.trimHubWorkingSet, 1);
-  assert.match(context.elements.get('#cfg-working-set-result').textContent, /2 MB de redução observada/);
-  assert.match(context.elements.get('#cfg-working-set-result').textContent, /4 de 4 processos atendidos/);
-  assert.match(context.elements.get('#cfg-working-set-result').textContent, /pode voltar a ser residente/i);
+  assert.match(context.elements.get('#cfg-working-set-result').textContent, /Memória liberada agora: 2 MB/);
+  assert.match(context.elements.get('#cfg-working-set-result').textContent, /pode voltar a usar parte dessa memória/i);
 });
 
 test('working-set cleanup reports partial access failures and stays disabled outside Windows', async () => {
   const partial = setup({ trimHubWorkingSet: async () => ({ ok: false, partial: true, attempted: 3, trimmed: 2, failed: 1, accessDenied: 1, observedBytesReduced: 1024 }) });
   await partial.preferences.trimWorkingSetNow();
-  assert.match(partial.elements.get('#cfg-working-set-result').textContent, /Redução parcial/);
-  assert.match(partial.elements.get('#cfg-working-set-result').textContent, /acesso negado em 1/);
+  assert.match(partial.elements.get('#cfg-working-set-result').textContent, /Algumas partes do Hub não puderam ser ajustadas/);
 
   const unsupported = setup({ platform: 'linux' });
   unsupported.preferences.setup();
@@ -218,12 +216,12 @@ test('cleanup waits for a pre-existing size scan and refreshes its post-clean me
 test('partial cleanup and measurement failure are reported without false success', async () => {
   const partial = setup({ cleanRam: async () => ({ ok: false, partial: true, cacheFailures: 1, cacheBytesObservedCleared: 10 }) });
   await partial.preferences.cleanNow();
-  assert.match(partial.elements.get('#cfg-cleanup-result').textContent, /parcial/);
-  assert.match(partial.effects.toasts[0], /parcial/);
+  assert.match(partial.elements.get('#cfg-cleanup-result').textContent, /Alguns arquivos temporários não puderam ser apagados/);
+  assert.match(partial.effects.toasts[0], /Limpeza incompleta/);
 
   const failed = setup({ cleanRamError: new Error('failure') });
   await failed.preferences.cleanNow();
-  assert.match(failed.effects.toasts[0], /Falha/);
+  assert.match(failed.effects.toasts[0], /Não foi possível apagar os arquivos temporários/);
   assert.equal(failed.elements.get('#cfg-clean-ram-btn').disabled, false);
 });
 
@@ -262,6 +260,6 @@ test('reset-app-data handles failure and re-enables button', async () => {
   await failed.elements.get('#cfg-reset-app-data-btn').dispatch('click');
   assert.equal(failed.effects.resetAppData, 1);
   assert.equal(failed.elements.get('#cfg-reset-app-data-btn').disabled, false);
-  assert.equal(failed.elements.get('#cfg-reset-result').textContent, 'Falha ao apagar dados locais.');
+  assert.equal(failed.elements.get('#cfg-reset-result').textContent, 'Não foi possível apagar tudo.');
   assert.match(failed.effects.toasts[0], /Não foi possível/);
 });

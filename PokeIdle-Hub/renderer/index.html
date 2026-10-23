@@ -51,9 +51,9 @@
     <div class="sidebar-spacer"></div>
 
     <div class="sidebar-footer">
-      <button id="btn-clean-ram" class="sidebar-footer-btn" title="Limpar cache HTTP das sessões e ver a medição antes/depois; logins são preservados">
+      <button id="btn-clean-ram" class="sidebar-footer-btn" title="Apaga arquivos temporários do Hub. Seus logins e configurações são mantidos.">
         <span class="icon-svg icon-clean-ram"></span>
-        <span class="nav-label">Limpar cache</span>
+        <span class="nav-label">Apagar temporários</span>
       </button>
       <button id="btn-toggle-bars" class="sidebar-footer-btn" title="Ocultar / Mostrar barras de ferramentas para ganhar espaço na tela">
         <span class="icon-svg icon-focus"></span>
@@ -75,7 +75,7 @@
         </div>
         <input id="channel-input" type="text" aria-label="Canal ou link"
                placeholder="Canal ou link (vários separados por vírgula)">
-        <button id="add-btn" class="primary"><span class="icon-svg icon-add"></span> Adicionar</button>
+        <button id="add-btn" class="primary" title="Adiciona à lista os canais ou links informados"><span class="icon-svg icon-add"></span> Adicionar canais</button>
         <span class="spacer"></span>
         <button id="btn-toggle-live-actions" class="btn-actions-toggle" title="Ocultar barra de ações das lives">▲ Ações</button>
       </div>
@@ -83,7 +83,7 @@
       <div class="bar-part" id="bar-game" hidden>
         <div class="account-pills-wrapper">
           <div class="seg" id="account-tabs" role="tablist" aria-label="Contas do Pokeidle"></div>
-          <button id="add-account" class="add-tab" title="Nova conta do Pokeidle (aba com login separado)" aria-label="Adicionar conta do Pokeidle"><span class="icon-svg icon-add"></span> Conta</button>
+          <button id="add-account" class="add-tab" title="Cria outra conta do Pokeidle com login separado" aria-label="Adicionar conta do Pokeidle"><span class="icon-svg icon-add"></span> Adicionar conta</button>
         </div>
         <span class="spacer"></span>
         <button id="btn-toggle-game-actions" class="btn-actions-toggle" title="Ocultar ferramentas e opções de ações do jogo">▲ Opções</button>
@@ -122,7 +122,7 @@
           <option value="120">2 min</option>
           <option value="300">5 min</option>
         </select>
-        <button id="check-lives" title="Busca os canais do jogo e abre os online, mesmo com o automático desligado">Verificar agora</button>
+        <button id="check-lives" title="Confere quais canais do jogo estão online e abre as lives; funciona mesmo com a verificação automática desligada">Verificar lives</button>
         <div class="universal-limits" aria-label="Limite máximo de lives por plataforma">
           <label class="inline" title="Quantidade máxima de lives da Kick por conta">Máx Kick:
             <select id="universal-limit-kick" aria-label="Limite universal Kick por conta">
@@ -141,11 +141,11 @@
         </div>
         <span class="spacer"></span>
         <div class="menu">
-          <button class="menu-btn"><span class="icon-svg icon-trash"></span> Limpar ▾</button>
+          <button class="menu-btn" title="Remove canais da lista e fecha as lives abertas. Eles não voltam automaticamente; logins são mantidos"><span class="icon-svg icon-trash"></span> Remover canais ▾</button>
           <div class="menu-list right">
             <button data-clear="kick">Kick</button>
             <button data-clear="twitch">Twitch</button>
-            <button data-clear="all">Tudo</button>
+            <button data-clear="all">Todas as plataformas</button>
           </div>
         </div>
         <button id="live-options-open" class="btn-actions-toggle" aria-haspopup="dialog" aria-controls="live-options-dialog">Opções</button>
@@ -164,7 +164,7 @@
             <label class="inline">Colunas <select id="columns" aria-label="Colunas"></select></label>
             <button id="reset-layout" class="icon" title="Voltar todos os blocos para a grade" aria-label="Reorganizar blocos"><span class="icon-svg icon-columns"></span></button>
             <button id="chat-toggle" class="icon toggle" title="Mostrar/esconder a faixa de pontos dos chats" aria-label="Mostrar/esconder chats"><span class="icon-svg icon-chat"></span></button>
-            <button id="toggle-video-view" title="Ocultar os vídeos para poupar GPU/CPU, mantendo áudio e conexão das lives"><span class="icon-svg icon-video-hide"></span> Ocultar Vídeos</button>
+            <button id="toggle-video-view" title="Oculta a imagem das lives para reduzir o uso de recursos; mantém o áudio e a conexão"><span class="icon-svg icon-video-hide"></span> Ocultar vídeos</button>
           </div>
           <label class="inline" title="Qualidade de todas as lives (menor = menos peso)">Qualidade
             <select id="quality" aria-label="Qualidade das lives">
@@ -178,7 +178,7 @@
           <div class="live-options-row">
             <button id="mute-all" title="Silenciar todas as lives"><span class="icon-svg icon-mute"></span> Silenciar todos</button>
             <button id="follow-all" title="Seguir todos os canais abertos com as contas conectadas"><span class="icon-svg icon-follow"></span> Seguir todos</button>
-            <button id="reload-all" title="Recarregar tudo (use depois de fazer login)" aria-label="Recarregar tudo"><span class="icon-svg icon-reload"></span> Recarregar</button>
+            <button id="reload-all" title="Tenta carregar novamente todas as lives abertas, por exemplo depois de entrar na conta" aria-label="Recarregar lives abertas"><span class="icon-svg icon-reload"></span> Recarregar lives</button>
           </div>
         </section>
         <section class="live-options-section" aria-labelledby="live-options-economy-title">
@@ -200,7 +200,7 @@
     </dialog>
 
     <div id="game-actions-bar" class="game-actions-subbar" hidden>
-      <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Alternar entre ver conta única ou todas as contas em grade simultânea"><span class="icon-svg icon-mosaic"></span> Ver Todas</button>
+      <button id="game-toggle-mosaic" class="btn-mosaic-toggle" title="Mostra todas as contas do jogo ao mesmo tempo"><span class="icon-svg icon-mosaic"></span> Mostrar todas as contas</button>
       <button id="game-reload"><span class="icon-svg icon-reload"></span> Recarregar jogo</button>
       <button id="game-open-sniper" class="game-sniper-btn" title="Abrir Cockpit Auto-Sniper desta conta"><span class="icon-svg icon-target"></span> Sniper</button>
       <div class="menu">
@@ -223,8 +223,8 @@
         <button id="btn-game-zoom-in" class="btn-zoom" title="Aumentar zoom (Ctrl + +)">+</button>
       </div>
       <span class="spacer"></span>
-      <button id="game-login" title="Entrar nesta conta (abre janela de login; funciona com Google)"><span class="icon-svg icon-key"></span> Entrar</button>
-      <button id="game-edge"><span class="icon-svg icon-edge"></span> Abrir no Edge</button>
+      <button id="game-login" title="Abre a janela para entrar nesta conta do jogo; o login do Google também funciona"><span class="icon-svg icon-key"></span> Entrar no jogo</button>
+      <button id="game-edge" title="Abre o jogo desta conta no Microsoft Edge, fora do Hub"><span class="icon-svg icon-edge"></span> Abrir conta no Edge</button>
       <button id="account-remove" title="Fecha esta aba e apaga o login dela"><span class="icon-svg icon-trash"></span> Remover conta</button>
     </div>
 
@@ -304,7 +304,7 @@
           <div class="row">
             <h3>Alertas disparados</h3>
             <span class="spacer"></span>
-            <button id="hits-clear">Limpar</button>
+            <button id="hits-clear" title="Apaga os alertas já disparados desta lista; não altera as regras">Apagar alertas</button>
           </div>
           <ul id="hits" class="list grow"></ul>
         </div>
@@ -315,8 +315,8 @@
     <section id="panel-settings" class="panel">
       <div class="settings-container">
         <div class="settings-header">
-          <h2>Configurações &amp; Otimização</h2>
-          <p class="muted">Calibre o consumo de CPU, taxa de quadros (FPS) e gerenciamento de recursos do PokeIdle Hub.</p>
+          <h2>Configurações e desempenho</h2>
+          <p class="muted">Escolha como o Hub usa os recursos do seu computador.</p>
         </div>
 
         <div class="settings-card account-management-card">
@@ -324,7 +324,7 @@
             <span class="icon-svg icon-game"></span>
             <div>
               <h3>Contas do Pokeidle</h3>
-              <p class="muted small">Defina a conta padrão da interface e organize as abas. A sessão compartilhada com as lives é indicada separadamente e não muda ao reordenar.</p>
+              <p class="muted small">Escolha qual conta abre primeiro e organize as abas. A ordem não altera os logins usados pelas lives.</p>
             </div>
           </div>
           <div class="settings-card-body">
@@ -336,37 +336,37 @@
           <div class="settings-card-header">
             <span class="icon-svg icon-game"></span>
             <div>
-              <h3>Taxa de Quadros do Jogo (FPS)</h3>
-              <p class="muted small">O Pokeidle é um jogo 2D retrô. Reduzir o FPS corta drasticamente o uso de CPU/GPU sem diminuir a velocidade de farm, pois o combate é sincronizado pelo servidor.</p>
+              <h3>Fluidez do jogo (FPS)</h3>
+              <p class="muted small">FPS indica quantas imagens do jogo aparecem por segundo. Menos FPS pode economizar recursos do computador, mas deixa os movimentos menos suaves; as batalhas continuam no mesmo ritmo.</p>
             </div>
           </div>
           <div class="settings-card-body">
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Conta em Foco (Na Tela)</span>
-                <span class="muted small">Taxa de quadros da conta do Pokeidle sendo exibida no momento</span>
+                <span class="settings-row-title">Jogo aberto na tela</span>
+                <span class="muted small">Escolha o FPS da conta do Pokeidle que está aparecendo agora.</span>
               </div>
               <div class="settings-row-control">
-                <select id="cfg-fps-foreground" aria-label="FPS da conta ativa">
-                  <option value="0">Sem limite (Padrão do monitor — Recomendado)</option>
+                <select id="cfg-fps-foreground" aria-label="FPS do jogo aberto na tela" title="Menos FPS podem economizar recursos do computador, mas deixam o movimento menos suave.">
+                  <option value="0">Padrão do monitor (recomendado)</option>
                   <option value="60">60 FPS</option>
-                  <option value="30">30 FPS (Econômico)</option>
-                  <option value="20">20 FPS (Ultra Econômico)</option>
+                  <option value="30">30 FPS (economiza recursos)</option>
+                  <option value="20">20 FPS (maior economia)</option>
                 </select>
               </div>
             </div>
 
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Contas em Segundo Plano (Outras Abas)</span>
-                <span class="muted small">Taxa de quadros das contas extras ou quando você estiver na aba Lives</span>
+                <span class="settings-row-title">Outras contas e aba Lives</span>
+                <span class="muted small">Escolha o FPS dos jogos que estão abertos em outras abas.</span>
               </div>
               <div class="settings-row-control">
-                <select id="cfg-fps-background" aria-label="FPS das contas em segundo plano">
+                <select id="cfg-fps-background" aria-label="FPS dos jogos em outras abas" title="Reduzir o FPS dos jogos em outras abas pode economizar recursos enquanto você usa as Lives.">
                   <option value="30">30 FPS</option>
-                  <option value="15">15 FPS (Recomendado - 75% menos CPU)</option>
-                  <option value="10">10 FPS (Ultra Econômico)</option>
-                  <option value="60">60 FPS (Sem economia)</option>
+                  <option value="15">15 FPS (recomendado)</option>
+                  <option value="10">10 FPS (maior economia)</option>
+                  <option value="60">60 FPS (mais suave)</option>
                 </select>
               </div>
             </div>
@@ -377,19 +377,19 @@
           <div class="settings-card-header">
             <span class="icon-svg icon-focus"></span>
             <div>
-              <h3>Desempenho de Vídeo &amp; CPU</h3>
-              <p class="muted small">Otimizações nativas para máquinas de entrada, notebooks ou para rodar 24h em segundo plano.</p>
+              <h3>Reprodução das lives</h3>
+              <p class="muted small">Reduza o uso de recursos quando estiver usando outra parte do Hub.</p>
             </div>
           </div>
           <div class="settings-card-body">
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Suspensão de Vídeo Fora de Lives</span>
-                <span class="muted small">Pausa a decodificação de vídeo das lives quando você estiver jogando ou em outras abas, mantendo o farm de pontos e chat 100% ativos</span>
+                <span class="settings-row-title">Pausar imagem das lives fora desta aba</span>
+                <span class="muted small">Ao jogar ou mudar de aba, pausa a imagem das lives. O chat e a coleta de pontos continuam ativos; ao voltar, a imagem é retomada.</span>
               </div>
               <div class="settings-row-control">
                 <label class="toggle-switch">
-                  <input type="checkbox" id="cfg-suspend-video" checked>
+                  <input type="checkbox" id="cfg-suspend-video" checked title="Ajuda a economizar recursos enquanto você usa outra aba. O chat e a coleta de pontos continuam ativos.">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -401,49 +401,49 @@
           <div class="settings-card-header">
             <span class="icon-svg icon-clean-ram"></span>
             <div>
-              <h3>Memória RAM &amp; Caches Temporários</h3>
-              <p class="muted small">Medição do armazenamento de sessão, cache HTTP e uso de memória dos processos do Hub.</p>
+              <h3>Espaço e memória do Hub</h3>
+              <p class="muted small">Veja quanto espaço os dados do Hub ocupam e libere arquivos temporários ou memória usada pelo Hub.</p>
             </div>
           </div>
           <div class="settings-card-body">
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Armazenamento e cache</span>
-                <span class="muted small">A pasta inclui logins e dados persistentes. A limpeza remove somente o cache HTTP das sessões.</span>
+                <span class="settings-row-title">Arquivos temporários</span>
+                <span class="muted small">Apagar esses arquivos pode liberar espaço. Seus logins e configurações são mantidos; algumas páginas podem demorar mais para carregar na próxima vez.</span>
               </div>
               <div class="settings-row-control">
-                <button id="cfg-refresh-cache-summary">Atualizar medições</button>
-                <button id="cfg-clean-ram-btn" class="primary"><span class="icon-svg icon-clean-ram"></span> Limpar cache HTTP</button>
+                <button id="cfg-refresh-cache-summary" title="Atualiza a estimativa do espaço usado pelos dados e arquivos temporários do Hub.">Atualizar informações</button>
+                <button id="cfg-clean-ram-btn" class="primary" title="Apaga arquivos temporários do Hub. Seus logins e configurações não são apagados."><span class="icon-svg icon-clean-ram"></span> Apagar arquivos temporários</button>
               </div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Tamanho total dos dados de sessão</span>
-                <span class="muted small">Inclui cookies, logins, cache e outros dados que a limpeza não apaga.</span>
+                <span class="settings-row-title">Espaço usado pelos dados do Hub</span>
+                <span class="muted small">Inclui logins e configurações. Esses dados são mantidos ao apagar arquivos temporários.</span>
               </div>
               <div class="settings-row-control"><strong class="maintenance-size" id="cfg-session-data-size" role="status" aria-live="polite">Ainda não medido</strong></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Cache HTTP elegível para limpeza</span>
-                <span class="muted small">Estimativa fornecida pelo Electron para as sessões de conta conhecidas.</span>
+                <span class="settings-row-title">Espaço que pode ser liberado</span>
+                <span class="muted small">Estimativa dos arquivos temporários que podem ser apagados com segurança.</span>
               </div>
               <div class="settings-row-control"><strong class="maintenance-size" id="cfg-http-cache-size" role="status" aria-live="polite">Ainda não medido</strong></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Working set dos processos do Hub</span>
-                <span class="muted small">Pede ao Windows para remover páginas residentes somente dos processos do Hub. As lives podem trazê-las de volta; outros aplicativos e logins não são alterados.</span>
-                <span id="cfg-working-set-result" class="muted small" role="status" aria-live="polite">Disponível no Windows; a redução pode ser temporária durante uso ativo.</span>
+                <span class="settings-row-title">Liberar memória usada pelo Hub</span>
+                <span class="muted small">Pede ao Windows para liberar parte da memória que o Hub está usando. Não fecha lives nem afeta outros aplicativos ou seus logins. O Hub pode voltar a usar essa memória enquanto continua aberto.</span>
+                <span id="cfg-working-set-result" class="muted small" role="status" aria-live="polite">Disponível no Windows. O efeito pode durar pouco enquanto o Hub estiver em uso.</span>
               </div>
               <div class="settings-row-control">
-                <button id="cfg-trim-working-set-btn" title="Reduzir o working set apenas dos processos associados ao PokeIdle Hub"><span class="icon-svg icon-clean-ram"></span> Liberar RAM do Hub</button>
+                <button id="cfg-trim-working-set-btn" title="Tenta liberar memória usada pelo Hub sem fechar lives ou apagar logins. O Hub pode voltar a usar essa memória enquanto estiver aberto."><span class="icon-svg icon-clean-ram"></span> Liberar memória do Hub</button>
               </div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Carga atual das lives</span>
-                <span class="muted small">Contagem agregada de tiles, players/chats e fila desde a abertura do app; não registra nomes de canais.</span>
+                <span class="settings-row-title">Atividade das lives</span>
+                <span class="muted small">Resumo de vídeos, chats e aberturas desde que o Hub foi iniciado. Não mostra nomes de canais.</span>
               </div>
               <div class="settings-row-control"><strong class="maintenance-size" id="cfg-live-runtime-metrics" role="status" aria-live="polite">Ainda não medido</strong></div>
             </div>
@@ -456,17 +456,17 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <span class="settings-row-title">Reiniciar o Hub</span>
-                <span class="muted small">Encerra lives, chats e janelas do jogo; ao abrir de novo, as sessões persistentes são reutilizadas.</span>
+                <span class="muted small">Fecha as lives, chats e abas do jogo e abre o Hub novamente. Seus logins e configurações continuam salvos.</span>
               </div>
-              <div class="settings-row-control"><button id="cfg-restart-app-btn">Reiniciar aplicativo</button></div>
+              <div class="settings-row-control"><button id="cfg-restart-app-btn" title="Fecha e abre o Hub novamente. Seus logins e configurações continuam salvos.">Reiniciar o Hub</button></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
-                <span class="settings-row-title">Apagar dados e reiniciar (Reset)</span>
-                <span class="muted small">Apaga permanentemente todos os dados locais (contas cadastradas, logins de Twitch/Kick, configurações e histórico) e reinicia o aplicativo como uma nova instalação.</span>
+                <span class="settings-row-title">Apagar tudo e começar de novo</span>
+                <span class="muted small">Apaga contas, logins, preferências e histórico salvos neste computador e reinicia o Hub. Essa ação não pode ser desfeita.</span>
                 <span id="cfg-reset-result" class="muted small" role="status" aria-live="polite"></span>
               </div>
-              <div class="settings-row-control"><button id="cfg-reset-app-data-btn" class="btn-danger">Apagar dados e reiniciar</button></div>
+              <div class="settings-row-control"><button id="cfg-reset-app-data-btn" class="btn-danger" title="Apaga definitivamente as contas, logins, preferências e histórico deste computador. Não é possível recuperar esses dados.">Apagar tudo e reiniciar</button></div>
             </div>
           </div>
         </div>
