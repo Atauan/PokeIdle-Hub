@@ -15,15 +15,15 @@
   "scripts": {
     "donation-qr": "node tools/make-donation-qr.js",
     "icon": "node tools/make-icon.js",
-    "start": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron .",
-    "dev": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron .",
-    "dev:reset": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron . --dev-reset",
+    "start": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron .",
+    "dev": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron .",
+    "dev:reset": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron . --dev-reset",
     "test": "node --test",
-    "dist:mac": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --mac",
-    "dist:win": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.config.cjs --win",
-    "dist:win:qa": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.qa.config.cjs --win",
-    "dist:linux": "node tools/make-icon.js && electron-builder --config electron-builder.config.cjs --linux",
-    "dist": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && electron-builder --config electron-builder.config.cjs --mac --win --linux"
+    "dist:mac": "node tools/make-icon.js && node tools/build-rotom.js && electron-builder --config electron-builder.config.cjs --mac",
+    "dist:win": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron-builder --config electron-builder.config.cjs --win",
+    "dist:win:qa": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron-builder --config electron-builder.qa.config.cjs --win",
+    "dist:linux": "node tools/make-icon.js && node tools/build-rotom.js && electron-builder --config electron-builder.config.cjs --linux",
+    "dist": "node tools/make-icon.js && node tools/build-win-memory-trimmer.js && node tools/build-rotom.js && electron-builder --config electron-builder.config.cjs --mac --win --linux"
   },
   "devDependencies": {
     "electron": "44.7.0",

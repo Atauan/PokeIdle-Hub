@@ -129,6 +129,41 @@
         safeStorageSet({ rotom_player_vip: isVip });
       } else if (event.data.type === 'MY_LISTINGS_UPDATE') {
         safeStorageSet({ rotom_my_listings: event.data.listings || [] });
+      } else if (event.data.type === 'POKEMON_PRICE_GUIDE_INVENTORY_UPDATE') {
+        safeStorageSet({ rotom_price_guide_pokemons: event.data.pokemons || [], rotom_price_guide_inventory_timestamp: event.data.timestamp || Date.now() });
+      } else if (event.data.type === 'POKEMON_PRICE_GUIDE_OFFERS_UPDATE') {
+        safeStorageSet({
+          rotom_price_guide_offers: {
+            requestId: event.data.requestId,
+            speciesId: event.data.speciesId,
+            offers: event.data.offers || [],
+            spriteDataUrl: typeof event.data.spriteDataUrl === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(event.data.spriteDataUrl) ? event.data.spriteDataUrl : null,
+            spriteDataUrls: {
+              normal: typeof event.data.spriteDataUrls?.normal === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(event.data.spriteDataUrls.normal) ? event.data.spriteDataUrls.normal : null,
+              shiny: typeof event.data.spriteDataUrls?.shiny === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(event.data.spriteDataUrls.shiny) ? event.data.spriteDataUrls.shiny : null
+            },
+            spriteVariant: event.data.spriteVariant === 'shiny' ? 'shiny' : event.data.spriteVariant === 'normal' ? 'normal' : null,
+            currencyIconDataUrls: {
+              gold: typeof event.data.currencyIconDataUrls?.gold === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(event.data.currencyIconDataUrls.gold) ? event.data.currencyIconDataUrls.gold : null,
+              orb: typeof event.data.currencyIconDataUrls?.orb === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(event.data.currencyIconDataUrls.orb) ? event.data.currencyIconDataUrls.orb : null
+            },
+            types: Array.isArray(event.data.types) ? event.data.types.filter(type => typeof type === 'string' && /^[a-z0-9 -]{1,20}$/i.test(type)).slice(0, 2) : [],
+            marketResponses: Number(event.data.marketResponses) || 0,
+            marketRowsReceived: Number(event.data.marketRowsReceived) || 0,
+            marketRowsMatchedById: Number(event.data.marketRowsMatchedById) || 0,
+            marketRowsMatchedByName: Number(event.data.marketRowsMatchedByName) || 0,
+            marketRowsAdded: Number(event.data.marketRowsAdded) || 0,
+            marketRowsDuplicate: Number(event.data.marketRowsDuplicate) || 0,
+            marketRowsInvalidPrice: Number(event.data.marketRowsInvalidPrice) || 0,
+            marketRowsInvalidCurrency: Number(event.data.marketRowsInvalidCurrency) || 0,
+            marketRowsMissingSpeciesInfo: Number(event.data.marketRowsMissingSpeciesInfo) || 0,
+            marketRowsDifferentSpecies: Number(event.data.marketRowsDifferentSpecies) || 0,
+            marketRowsParseErrors: Number(event.data.marketRowsParseErrors) || 0,
+            marketRowsLastErrorType: String(event.data.marketRowsLastErrorType || '').slice(0, 32),
+            marketRowsLastErrorIdentifier: String(event.data.marketRowsLastErrorIdentifier || '').slice(0, 64),
+            timestamp: event.data.timestamp || Date.now()
+          }
+        });
       } else if (event.data.type === 'MARKET_CATALOG_UPDATE') {
         safeStorageSet({ rotom_market_catalog: event.data.resumo || {} });
       } else if (event.data.type === 'ITEM_OFFERS_UPDATE') {
@@ -258,6 +293,17 @@
             sendResponse({ ok: true });
           } else if (request.action === 'FETCH_MY_LISTINGS') {
             window.postMessage({ source: 'ROTOM_POPUP', type: 'FETCH_MY_LISTINGS' }, '*');
+            sendResponse({ ok: true });
+          } else if (request.action === 'FETCH_POKEMON_PRICE_GUIDE_INVENTORY') {
+            window.postMessage({ source: 'ROTOM_POPUP', type: 'FETCH_POKEMON_PRICE_GUIDE_INVENTORY' }, '*');
+            sendResponse({ ok: true });
+          } else if (request.action === 'FETCH_POKEMON_PRICE_GUIDE_OFFERS') {
+            window.postMessage({
+              source: 'ROTOM_POPUP',
+              type: 'FETCH_POKEMON_PRICE_GUIDE_OFFERS',
+              requestId: request.requestId,
+              pokemon: request.pokemon
+            }, '*');
             sendResponse({ ok: true });
           } else if (request.action === 'CANCEL_MARKET_OFFER') {
             window.postMessage({ source: 'ROTOM_POPUP', type: 'CANCEL_MARKET_OFFER', offerId: request.offerId }, '*');
