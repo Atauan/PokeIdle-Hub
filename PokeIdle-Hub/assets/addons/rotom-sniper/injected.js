@@ -12,8 +12,194 @@
   const originalProtoAddEventListener = OriginalWebSocket.prototype.addEventListener;
 
   let playerPokemonsCache = [];
+  let playerPokemonCollectionIds = new Set();
+  let playerGameStateReceived = false;
+  let playerGameStateActiveId = null;
+  let lastPlayerGameStateAt = 0;
+  let createPlayerGameStateMerger = null;
+  let mergePlayerGameState = null;
+  const pendingPlayerGameStates = [];
+  let pokemonPriceGuidePending = null;
   let oferendaStonesAccumulator = {};
   let isOferendaBatchRunning = false;
+
+  function priceGuideStatMap(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const aliases = {
+      hp: ['hp'],
+      atk: ['atk', 'attack'],
+      def: ['def', 'defense'],
+      spAtk: ['spAtk', 'spatk', 'sp_atk', 'specialAttack'],
+      spDef: ['spDef', 'spdef', 'sp_def', 'specialDefense'],
+      speed: ['speed', 'spd']
+    };
+    const result = {};
+    for (const [stat, keys] of Object.entries(aliases)) {
+      const entry = keys.map(key => value[key]).find(item => item !== undefined && item !== null && item !== '');
+      if (entry === undefined) continue;
+      const number = Number(entry);
+      if (Number.isFinite(number)) result[stat] = number;
+    }
+    return Object.keys(result).length ? result : null;
+  }
+
+  function priceGuideVisualFromRenderedOffer(offers, target = null) {
+    const spriteDataUrls = { normal: null, shiny: null };
+    const currencyIconDataUrls = { gold: null, orb: null };
+    if (!Array.isArray(offers) || typeof document === 'undefined') return { spriteDataUrl: null, spriteDataUrls, spriteVariant: null, currencyIconDataUrls, types: [] };
+    let capturedTypes = [];
+    const captureIcon = image => {
+      if (!image?.complete || !image.naturalWidth || !image.naturalHeight) return null;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+        context.imageSmoothingEnabled = false;
+        context.drawImage(image, 0, 0, 32, 32);
+        const dataUrl = canvas.toDataURL('image/png');
+        return /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(dataUrl) ? dataUrl : null;
+      } catch (_) {
+        return null;
+      }
+    };
+    const captureSprite = (canvas, variant) => {
+      if (!canvas || !canvas.width || !canvas.height || spriteDataUrls[variant]) return;
+      try {
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+        if (!pixels) return;
+        for (let index = 3; index < pixels.length; index += 4) {
+          if (pixels[index] !== 0) {
+            const dataUrl = canvas.toDataURL('image/png');
+            if (/^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(dataUrl)) spriteDataUrls[variant] = dataUrl;
+            return;
+          }
+        }
+      } catch (_) {
+        // Canvas tainted or not yet painted: omit the image instead of showing a wrong sprite.
+      }
+    };
+    for (const offer of offers) {
+      const id = String(offer && offer.id || '');
+      if (!id || !/^[\w-]{1,80}$/.test(id)) continue;
+      const card = Array.from(document.querySelectorAll('.cm-card.poke'))
+        .find(element => element.querySelector('[data-fav]')?.getAttribute('data-fav') === id);
+      if (!card) continue;
+      const canvas = card?.querySelector('.cm-arte canvas');
+      const isShiny = Boolean(offer.shiny || offer.isShiny || offer.lookShiny);
+      const variant = isShiny ? 'shiny' : 'normal';
+      const types = Array.from(card.querySelectorAll('.cm-chips .tipo'))
+        .map(element => element.textContent.trim())
+        .filter(type => /^[a-z0-9 -]{1,20}$/i.test(type))
+        .slice(0, 2);
+      if (!capturedTypes.length && types.length) capturedTypes = types;
+      if (!currencyIconDataUrls.gold) {
+        const coinIcon = card.querySelector('.cm-rodape .cm-preco:not(.orb) img');
+        if (coinIcon) currencyIconDataUrls.gold = captureIcon(coinIcon);
+      }
+      if (!currencyIconDataUrls.orb) {
+        const gemIcon = card.querySelector('.cm-rodape .cm-preco.orb img');
+        if (gemIcon) currencyIconDataUrls.orb = captureIcon(gemIcon);
+      }
+      if (!canvas || !canvas.width || !canvas.height) {
+        continue;
+      }
+      if (spriteDataUrls.normal && spriteDataUrls.shiny && currencyIconDataUrls.gold && currencyIconDataUrls.orb) break;
+      captureSprite(canvas, variant);
+    }
+
+    // A vitrine só tem cards enquanto a aba Mercado está aberta. A própria grade do Depot e da
+    // Coleção mantém o canvas oficial do Pokémon do jogador; use-o como fonte para a espécie
+    // consultada quando os cards de anúncio não estiverem montados no DOM.
+    const targetSpeciesId = Number(target?.speciesId);
+    if (Number.isSafeInteger(targetSpeciesId) && targetSpeciesId > 0) {
+      const targetVariant = target?.shiny ? 'shiny' : 'normal';
+      const targetId = String(target?.id ?? '');
+      if (/^\d{1,20}$/.test(targetId)) {
+        for (const [selector, keyPrefix, spriteSelector] of [
+          ['.colb-card[data-chave]', 'colb', '.mk-ico canvas'],
+          ['.cm-pk-escolha[data-chave]', 'cm-sel', '.mk-ico canvas']
+        ]) {
+          const card = Array.from(document.querySelectorAll(selector))
+            .find(element => element.getAttribute('data-chave') === `${keyPrefix}${targetId}`);
+          if (card) captureSprite(card.querySelector(spriteSelector), targetVariant);
+        }
+      }
+      const inventoryCards = Array.from(document.querySelectorAll('.eco-pk[data-especie]'))
+        .filter(card => Number(card.getAttribute('data-especie')) === targetSpeciesId)
+        .sort((a, b) => {
+          const shinyPreference = Number(b.classList.contains('shiny') === (targetVariant === 'shiny')) - Number(a.classList.contains('shiny') === (targetVariant === 'shiny'));
+          if (shinyPreference) return shinyPreference;
+          const looktype = Number(target.looktype) || 0;
+          return Number(looktype > 0 && Number(b.getAttribute('data-look')) === looktype)
+            - Number(looktype > 0 && Number(a.getAttribute('data-look')) === looktype);
+        });
+      for (const card of inventoryCards) {
+        const variant = card.classList.contains('shiny') ? 'shiny' : 'normal';
+        if (!spriteDataUrls[variant]) captureSprite(card.querySelector('.eco-pk-arte canvas'), variant);
+      }
+    }
+    const spriteVariant = spriteDataUrls.normal ? 'normal' : spriteDataUrls.shiny ? 'shiny' : null;
+    return {
+      spriteDataUrl: spriteVariant ? spriteDataUrls[spriteVariant] : null,
+      spriteDataUrls,
+      spriteVariant,
+      currencyIconDataUrls,
+      types: capturedTypes
+    };
+  }
+
+  function priceGuideMarketRows(packet, currentRows) {
+    const rows = currentRows.slice();
+    const seen = new Set(rows);
+    const containers = [packet, packet && packet.resultado, packet && packet.result, packet && packet.data]
+      .filter(value => value && typeof value === 'object');
+    for (const container of containers) {
+      for (const key of ['linhas', 'anuncios', 'itens', 'pokemons', 'ofertas', 'lista', 'results']) {
+        if (!Array.isArray(container[key])) continue;
+        for (const row of container[key]) {
+          if (!seen.has(row)) {
+            seen.add(row);
+            rows.push(row);
+          }
+        }
+      }
+    }
+    return rows;
+  }
+
+  function applyPlayerGameStatePacket(packet) {
+    if (!packet || (packet.t !== 'welcome' && packet.t !== 'estado') || !packet.estado) return;
+    if (!createPlayerGameStateMerger || !mergePlayerGameState) {
+      if (pendingPlayerGameStates.length < 100) pendingPlayerGameStates.push(packet);
+      return;
+    }
+    if (packet.t === 'welcome') mergePlayerGameState = createPlayerGameStateMerger();
+    const statePacket = packet.t === 'welcome' ? { ...packet.estado, cheio: true } : packet.estado;
+    const playerState = mergePlayerGameState(statePacket);
+    if (!playerState || !Array.isArray(playerState.pokemons)) return;
+    playerGameStateReceived = true;
+    lastPlayerGameStateAt = Date.now();
+    playerPokemonsCache = playerState.pokemons;
+    playerGameStateActiveId = playerState.activeId ?? null;
+    window.__rotomPlayerPokemons = playerPokemonsCache;
+    playerPokemonCollectionIds = new Set(
+      Array.isArray(playerState.automation?.pokemonTravado)
+        ? playerState.automation.pokemonTravado.map(Number).filter(Number.isFinite)
+        : []
+    );
+  }
+
+  // O jogo mantém `estado` dentro do módulo e envia deltas; use o mesmo remontador que o cliente.
+  import(`${location.origin}/shared/estado-delta.mjs`)
+    .then(module => {
+      createPlayerGameStateMerger = module.criarMescladorDeEstado;
+      mergePlayerGameState = module.criarMescladorDeEstado();
+      for (const packet of pendingPlayerGameStates.splice(0)) applyPlayerGameStatePacket(packet);
+    })
+    .catch(error => console.warn('[Rotom Sniper]: Não foi possível carregar o remontador de estado do jogo.', error));
 
   function hookWebSocketInstance(ws) {
     if (!ws) return;
@@ -102,6 +288,41 @@
         return false;
       }
     }
+  }
+
+  function asPokemonArray(value) {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== 'object') return null;
+    for (const key of ['pokemons', 'pokemon', 'items', 'itens', 'lista']) {
+      if (Array.isArray(value[key])) return value[key];
+    }
+    return null;
+  }
+
+  function findPokemonList(state) {
+    if (!state || typeof state !== 'object') return null;
+    const roots = [
+      state,
+      state.estado,
+      state.payload,
+      state.payload && state.payload.estado,
+      state.eu,
+      state.estado && state.estado.eu,
+      state.payload && state.payload.eu,
+      state.jogador,
+      state.player
+    ].filter(root => root && typeof root === 'object');
+    const listKeys = [
+      'pokemons', 'pokemon', 'depot', 'colecao', 'coleção', 'collection',
+      'pokemonCollection', 'pokemon_collection', 'pokemonsColecao', 'colecaoPokemon'
+    ];
+    for (const root of roots) {
+      for (const key of listKeys) {
+        const list = asPokemonArray(root[key]);
+        if (list && list.length) return list;
+      }
+    }
+    return null;
   }
 
   // =========================================================================
@@ -1132,6 +1353,7 @@
 
   function handleMarketPacket(packet) {
     if (!packet || typeof packet !== 'object') return;
+    applyPlayerGameStatePacket(packet);
     const t = packet.t || '';
 
     // Detecção de Centro Pokémon e Hunt a partir de pacotes de mapa
@@ -1181,10 +1403,8 @@
     }
 
     // Captura GLOBAL e IMEDIATA de Pokémons do Jogador (welcome, estado ou envelopes)
-    const rawPks = (est && Array.isArray(est.pokemons)) ? est.pokemons :
-                   (packet.pokemons && Array.isArray(packet.pokemons)) ? packet.pokemons :
-                   (packet.depot && Array.isArray(packet.depot)) ? packet.depot : null;
-    if (rawPks && rawPks.length > 0) {
+    const rawPks = playerGameStateReceived ? playerPokemonsCache : (findPokemonList(packet) || findPokemonList(est));
+    if (!playerGameStateReceived && rawPks && rawPks.length > 0) {
       playerPokemonsCache = rawPks;
       window.__rotomPlayerPokemons = rawPks;
     }
@@ -1338,6 +1558,92 @@
       if (Array.isArray(packet.itens)) list = list.concat(packet.itens);
       if (Array.isArray(packet.linhas)) list = list.concat(packet.linhas);
       if (packet.anuncio && typeof packet.anuncio === 'object') list.push(packet.anuncio);
+
+      const priceGuideRows = priceGuideMarketRows(packet, list);
+      if (pokemonPriceGuidePending && Date.now() < pokemonPriceGuidePending.expiresAt &&
+          (packet.tipo === 'pokemon' || aba === 'pokemon' || list.some(row => {
+            const ficha = row && (row.ficha || row.poke || row.pokemon || {});
+            return row && (row.tipo === 'pokemon' || row.tipoItem === 'pokemon' || row.pokemonNome || ficha.speciesId || ficha.pokemonId || ficha.pId);
+          }) || priceGuideRows.length > list.length)) {
+        pokemonPriceGuidePending.marketResponses++;
+        pokemonPriceGuidePending.marketRowsReceived += priceGuideRows.length;
+        for (const row of priceGuideRows) {
+          try {
+            const state = String(row && row.estado || '').toLocaleLowerCase();
+            if (!row || (state && !['aberto', 'open', 'ativo', 'active'].includes(state)) || row.comprador) continue;
+            const ficha = row.ficha || row.poke || row.pokemon || row.dados || row.detalhes || {};
+            const name = ficha.nome || ficha.name || row.pokemonNome || row.nome || row.name || '';
+            const rawSpeciesId = ficha.speciesId || ficha.pokemonId || ficha.pId || ficha.idEspecie || ficha.species_id ||
+              row.speciesId || row.pokemonId || row.pId || row.idEspecie || row.species_id || 0;
+            const offerSpeciesId = Number(rawSpeciesId) || 0;
+            const price = Number(row.preco || row.unitPrice || row.price || 0);
+            const currency = String(row.moeda || packet.moeda || '').toLowerCase();
+            const isGold = ['gold', 'coin', 'coins', 'gp'].includes(currency);
+            const isOrb = ['orb', 'orbs', 'gem', 'gems', 'gema', 'gemas', 'diamante', 'diamantes', 'ponto', 'pontos'].includes(currency);
+            if (price <= 0) {
+              pokemonPriceGuidePending.marketRowsInvalidPrice++;
+              continue;
+            }
+            if (!isGold && !isOrb) {
+              pokemonPriceGuidePending.marketRowsInvalidCurrency++;
+              continue;
+            }
+            const speciesMatch = window.RotomPokemonPriceGuideSpeciesMatch?.matchSpecies(
+              pokemonPriceGuidePending.target.speciesId,
+              pokemonPriceGuidePending.target.name,
+              offerSpeciesId,
+              name
+            );
+            if (!speciesMatch) {
+              if (!offerSpeciesId && !name) pokemonPriceGuidePending.marketRowsMissingSpeciesInfo++;
+              else pokemonPriceGuidePending.marketRowsDifferentSpecies++;
+              continue;
+            }
+            if (speciesMatch === 'name') pokemonPriceGuidePending.marketRowsMatchedByName++;
+            else pokemonPriceGuidePending.marketRowsMatchedById++;
+            const speciesId = pokemonPriceGuidePending.target.speciesId;
+            const note = ficha.nota !== null && ficha.nota !== undefined && ficha.nota !== '' && Number.isFinite(Number(ficha.nota))
+              ? Number(ficha.nota)
+              : null;
+            const offerId = String(row.id || `${speciesId}-${currency}-${price}-${row.vendedor || ''}`);
+            if (pokemonPriceGuidePending.offerIds.has(offerId)) {
+              pokemonPriceGuidePending.marketRowsDuplicate++;
+              continue;
+            }
+            pokemonPriceGuidePending.offerIds.add(offerId);
+            pokemonPriceGuidePending.offers.push({
+              id: offerId,
+              tipo: 'pokemon',
+              speciesId,
+              nome: name || pokemonPriceGuidePending.target.name,
+              level: Number(ficha.level || ficha.lvl || 0) || null,
+              potencia: Number(ficha.potencia || ficha.power || 0) || null,
+              qualidade: Number.isFinite(Number(ficha.qualidade ?? ficha.quality)) ? Number(ficha.qualidade ?? ficha.quality) : null,
+              nota: note,
+              ivTotal: Number(ficha.ivTotal || 0) || null,
+              ivs: priceGuideStatMap(ficha.ivs),
+              stats: priceGuideStatMap(ficha.stats),
+              tipos: Array.isArray(ficha.tipos || ficha.types) ? (ficha.tipos || ficha.types).filter(type => typeof type === 'string').slice(0, 2) : [],
+              shiny: Boolean(ficha.shiny || ficha.isShiny || ficha.lookShiny),
+              preco: price,
+              moeda: currency,
+              vendedor: String(row.vendedor || row.vendedorNome || row.seller || row.dono || '')
+            });
+            pokemonPriceGuidePending.marketRowsAdded++;
+          } catch (error) {
+            pokemonPriceGuidePending.marketRowsParseErrors++;
+            pokemonPriceGuidePending.marketRowsLastErrorType = String(error?.name || 'Error').slice(0, 32);
+            if (error?.name === 'ReferenceError') {
+              pokemonPriceGuidePending.marketRowsLastErrorIdentifier = String(error?.message || '')
+                .match(/^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/)?.[1] || '';
+            }
+            if (pokemonPriceGuidePending.marketRowsParseErrors === 1) {
+              console.warn('[Rotom Sniper]: Falha ao interpretar uma ficha de anúncio do Mercado.', error);
+            }
+          }
+        }
+        return;
+      }
 
       // Detecção precisa de resposta de ofertas de diamantes
       const isDiamondPacket = (Date.now() - lastDiamondRequestTime < 4500) ||
@@ -1676,11 +1982,14 @@
     }
 
     // Captura de Pokémon Herói Ativo (pacote estado, welcome ou envelope)
-    const pks = packet.pokemons || (packet.estado && packet.estado.pokemons) || (packet.payload && packet.payload.estado && packet.payload.estado.pokemons) || (packet.depot && Array.isArray(packet.depot) ? packet.depot : null);
-    if (Array.isArray(pks) && pks.length > 0) {
+    const pks = playerGameStateReceived ? null : findPokemonList(packet);
+    if (!playerGameStateReceived && Array.isArray(pks) && pks.length > 0) {
       playerPokemonsCache = pks;
-      const actId = packet.activeId || (packet.estado && packet.estado.activeId) || (packet.payload && packet.payload.estado && packet.payload.estado.activeId);
-      const activePk = pks.find(p => p && p.id === actId) || pks[0];
+    }
+    const currentPks = playerGameStateReceived ? playerPokemonsCache : pks;
+    if (Array.isArray(currentPks) && currentPks.length > 0) {
+      const actId = packet.activeId || (packet.estado && packet.estado.activeId) || (packet.payload && packet.payload.estado && packet.payload.estado.activeId) || playerGameStateActiveId;
+      const activePk = currentPks.find(p => p && p.id === actId) || (playerGameStateReceived ? null : currentPks[0]);
       if (activePk) {
         farmSession.activePokemon = {
           id: activePk.id,
@@ -1835,6 +2144,191 @@
       }
     } else if (event.data.type === 'FETCH_MY_LISTINGS') {
       sendRaw({ t: 'market.meus' });
+    } else if (event.data.type === 'FETCH_POKEMON_PRICE_GUIDE_INVENTORY') {
+      const requestId = String(event.data.requestId || '').slice(0, 80);
+      const inventoryErrorDetails = error => {
+        const errorType = String(error?.name || 'Error').slice(0, 32);
+        const missingIdentifier = errorType === 'ReferenceError'
+          ? String(error?.message || '').match(/^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/)?.[1]
+          : null;
+        return { errorType, ...(missingIdentifier ? { missingIdentifier } : {}) };
+      };
+      const emitInventoryDiagnostic = (stage, extra = {}) => {
+        window.postMessage({
+          source: 'ROTOM_SNIPER',
+          type: 'POKEMON_PRICE_GUIDE_INVENTORY_DIAGNOSTIC',
+          requestId,
+          stage,
+          webSocketOpen: Boolean(activeWebSocket && activeWebSocket.readyState === OriginalWebSocket.OPEN),
+          gameStateReceived: playerGameStateReceived,
+          pokemonCount: Array.isArray(playerPokemonsCache) ? playerPokemonsCache.length : 0,
+          collectionIdsCount: playerPokemonCollectionIds.size,
+          gameStateAgeMs: lastPlayerGameStateAt ? Math.max(0, Date.now() - lastPlayerGameStateAt) : null,
+          ...extra
+        }, '*');
+      };
+
+      emitInventoryDiagnostic('engine_received');
+      function emitPriceGuideInventory(attempt = 0) {
+        const pokemons = getPlayerAllPokemons();
+        if (!playerGameStateReceived && (!Array.isArray(pokemons) || pokemons.length === 0) && attempt < 3) {
+          sendRaw({ t: 'auto.set' });
+          setTimeout(() => {
+            try {
+              emitPriceGuideInventory(attempt + 1);
+            } catch (error) {
+              emitInventoryDiagnostic('engine_error', inventoryErrorDetails(error));
+            }
+          }, 350);
+          return;
+        }
+        const inventory = (Array.isArray(pokemons) ? pokemons : []).slice(0, 5000).map(pk => {
+          if (!pk || typeof pk !== 'object') return null;
+          const speciesId = Number(pk.speciesId || pk.pokemonId || pk.pId || pk.idEspecie || pk.species_id || 0);
+          if (!Number.isSafeInteger(speciesId) || speciesId <= 0) return null;
+          const potency = Number(pk.potencia || pk.power || 0) || null;
+          const rawQuality = pk.qualidade ?? pk.quality;
+          const quality = rawQuality !== null && rawQuality !== undefined && rawQuality !== '' && Number.isFinite(Number(rawQuality))
+            ? Number(rawQuality)
+            : null;
+          const rawIvTotal = pk.ivTotal ?? (pk.ivs && typeof pk.ivs === 'object'
+            ? Object.values(pk.ivs).reduce((sum, value) => sum + (Number(value) || 0), 0)
+            : null);
+          const ivTotal = rawIvTotal !== null && rawIvTotal !== undefined && Number.isFinite(Number(rawIvTotal))
+            ? Number(rawIvTotal)
+            : null;
+          const rawNote = pk.nota;
+          const note = rawNote !== null && rawNote !== undefined && rawNote !== '' && Number.isFinite(Number(rawNote))
+            ? Number(rawNote)
+            : null;
+          return {
+            id: pk.id ?? null,
+            speciesId,
+            looktype: Number(pk.looktype) || null,
+            nome: String(pk.nome || pk.name || `Pokémon #${speciesId}`),
+            level: Number(pk.level || pk.lvl || 0) || null,
+            potencia: potency,
+            qualidade: quality,
+            nota: note,
+            ivTotal,
+            ivs: priceGuideStatMap(pk.ivs),
+            stats: priceGuideStatMap(pk.stats),
+            tipos: Array.isArray(pk.tipos || pk.types) ? (pk.tipos || pk.types).filter(type => typeof type === 'string').slice(0, 2) : [],
+            shiny: Boolean(pk.shiny || pk.isShiny || pk.lookShiny),
+            isP5: potency !== null && potency >= 5,
+            inTeam: pk.slot !== undefined && pk.slot !== null && pk.slot !== '',
+            inCollection: pk.slot == null && playerPokemonCollectionIds.has(Number(pk.id))
+          };
+        }).filter(Boolean);
+        const diagnostic = {
+          stage: 'inventory_prepared',
+          gameStateReceived: playerGameStateReceived,
+          pokemonCount: Array.isArray(pokemons) ? pokemons.length : 0,
+          mappedPokemonCount: inventory.length,
+          teamCount: inventory.filter(pokemon => pokemon.inTeam).length,
+          depotCount: inventory.filter(pokemon => !pokemon.inTeam && !pokemon.inCollection).length,
+          collectionIdsCount: playerPokemonCollectionIds.size,
+          collectionCount: inventory.filter(pokemon => pokemon.inCollection).length,
+          gameStateAgeMs: lastPlayerGameStateAt ? Math.max(0, Date.now() - lastPlayerGameStateAt) : null
+        };
+        emitInventoryDiagnostic('inventory_prepared', diagnostic);
+        window.postMessage({
+          source: 'ROTOM_SNIPER',
+          type: 'POKEMON_PRICE_GUIDE_INVENTORY_UPDATE',
+          requestId,
+          pokemons: inventory,
+          diagnostic,
+          timestamp: Date.now()
+        }, '*');
+      }
+      try {
+        emitPriceGuideInventory();
+      } catch (error) {
+        emitInventoryDiagnostic('engine_error', inventoryErrorDetails(error));
+      }
+    } else if (event.data.type === 'FETCH_POKEMON_PRICE_GUIDE_OFFERS') {
+      const source = event.data.pokemon && typeof event.data.pokemon === 'object' ? event.data.pokemon : {};
+      const targetSpeciesId = Number(source.speciesId || 0);
+      if (!Number.isSafeInteger(targetSpeciesId) || targetSpeciesId <= 0) return;
+      if (pokemonPriceGuidePending && pokemonPriceGuidePending.timeout) clearTimeout(pokemonPriceGuidePending.timeout);
+      const requestId = String(event.data.requestId || Date.now()).slice(0, 80);
+      pokemonPriceGuidePending = {
+        requestId,
+        target: {
+          id: source.id ?? null,
+          speciesId: targetSpeciesId,
+          looktype: Number(source.looktype) || null,
+          name: String(source.nome || source.name || `Pokémon #${targetSpeciesId}`).slice(0, 64),
+          shiny: Boolean(source.shiny),
+          isP5: Boolean(source.isP5 || Number(source.potencia || 0) >= 5)
+        },
+        offers: [],
+        offerIds: new Set(),
+        expiresAt: Date.now() + 12000,
+        marketResponses: 0,
+        marketRowsReceived: 0,
+        marketRowsMatchedById: 0,
+        marketRowsMatchedByName: 0,
+        marketRowsAdded: 0,
+        marketRowsDuplicate: 0,
+        marketRowsInvalidPrice: 0,
+        marketRowsInvalidCurrency: 0,
+        marketRowsMissingSpeciesInfo: 0,
+        marketRowsDifferentSpecies: 0,
+        marketRowsParseErrors: 0,
+        marketRowsLastErrorType: '',
+        marketRowsLastErrorIdentifier: '',
+        timeout: null
+      };
+      const pending = pokemonPriceGuidePending;
+      for (const moeda of ['gold', 'orb']) {
+        setTimeout(() => {
+          if (pokemonPriceGuidePending !== pending) return;
+          sendRaw({
+            t: 'market.listar',
+            tipo: 'pokemon',
+            moeda,
+            ordem: 'menor_preco',
+            busca: pending.target.name,
+            criterios: [],
+            elemento: ''
+          });
+        }, moeda === 'gold' ? 0 : 180);
+      }
+      pending.timeout = setTimeout(() => {
+        if (pokemonPriceGuidePending !== pending) return;
+        let visual = { spriteDataUrl: null, types: [] };
+        try {
+          visual = priceGuideVisualFromRenderedOffer(pending.offers, pending.target);
+        } catch (_) {}
+        window.postMessage({
+          source: 'ROTOM_SNIPER',
+          type: 'POKEMON_PRICE_GUIDE_OFFERS_UPDATE',
+          requestId: pending.requestId,
+          speciesId: pending.target.speciesId,
+          offers: pending.offers,
+          spriteDataUrl: visual.spriteDataUrl,
+          spriteDataUrls: visual.spriteDataUrls,
+          spriteVariant: visual.spriteVariant,
+          currencyIconDataUrls: visual.currencyIconDataUrls,
+          types: visual.types,
+          marketResponses: pending.marketResponses,
+          marketRowsReceived: pending.marketRowsReceived,
+          marketRowsMatchedById: pending.marketRowsMatchedById,
+          marketRowsMatchedByName: pending.marketRowsMatchedByName,
+          marketRowsAdded: pending.marketRowsAdded,
+          marketRowsDuplicate: pending.marketRowsDuplicate,
+          marketRowsInvalidPrice: pending.marketRowsInvalidPrice,
+          marketRowsInvalidCurrency: pending.marketRowsInvalidCurrency,
+          marketRowsMissingSpeciesInfo: pending.marketRowsMissingSpeciesInfo,
+          marketRowsDifferentSpecies: pending.marketRowsDifferentSpecies,
+          marketRowsParseErrors: pending.marketRowsParseErrors,
+          marketRowsLastErrorType: pending.marketRowsLastErrorType,
+          marketRowsLastErrorIdentifier: pending.marketRowsLastErrorIdentifier,
+          timestamp: Date.now()
+        }, '*');
+        pokemonPriceGuidePending = null;
+      }, 12000);
     } else if (event.data.type === 'CANCEL_MARKET_OFFER') {
       sendRaw({ t: 'market.cancelar', id: Number(event.data.offerId || event.data.id) });
     } else if (event.data.type === 'FETCH_COMMUNITY_CATALOG') {
@@ -2009,15 +2503,8 @@
     if (Array.isArray(window.__rotomPlayerPokemons) && window.__rotomPlayerPokemons.length > 0) {
       return window.__rotomPlayerPokemons;
     }
-    if (window.estado && window.estado.eu && Array.isArray(window.estado.eu.pokemons) && window.estado.eu.pokemons.length > 0) {
-      return window.estado.eu.pokemons;
-    }
-    if (window.estado && Array.isArray(window.estado.pokemons) && window.estado.pokemons.length > 0) {
-      return window.estado.pokemons;
-    }
-    if (window.estado && window.estado.depot && Array.isArray(window.estado.depot)) {
-      return window.estado.depot;
-    }
+    const statePokemons = findPokemonList(window.estado) || findPokemonList(window.__estado);
+    if (statePokemons && statePokemons.length > 0) return statePokemons;
     return [];
   }
 

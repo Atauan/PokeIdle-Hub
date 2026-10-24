@@ -2,28 +2,31 @@
 
 (() => {
   function createLiveAccountPreferenceController({ state, preferences, getTiles, persist, syncTiles, toast }) {
-    function isAccountFavorite(channel, accountId) {
-      return preferences.isAccountFavorite(state.accountFavorites, channel, accountId);
+    function isAccountFavorite(channel, accountId, provider) {
+      return preferences.isAccountFavorite(state.accountFavorites, accountId, provider, channel);
     }
 
-    function toggleAccountFavorite(channel, accountId) {
-      const result = preferences.toggleAccountFavorite(state.accountFavorites, accountId, channel);
+    function toggleAccountFavorite(channel, accountId, provider) {
+      const result = preferences.toggleAccountFavorite(state.accountFavorites, accountId, provider, channel);
       if (!result.changed) return;
 
       const normalizedChannel = channel.toLowerCase();
       state.accountFavorites = result.favorites;
+      const providerName = provider === 'twitch' ? 'Twitch' : 'Kick';
       toast(result.favorite
-        ? `★ Canal ${normalizedChannel} adicionado aos favoritos desta conta!`
-        : `Canal ${normalizedChannel} removido dos favoritos.`);
+        ? `★ Canal ${normalizedChannel} adicionado aos favoritos da conta no ${providerName}!`
+        : `Canal ${normalizedChannel} removido dos favoritos da conta no ${providerName}.`);
       persist();
 
       for (const [, tile] of getTiles()) {
-        if (tile.acc.id !== accountId || tile.item.channel.toLowerCase() !== normalizedChannel) continue;
-        const favorite = isAccountFavorite(normalizedChannel, accountId);
+        if (tile.acc.id !== accountId || tile.p !== provider || tile.item.channel.toLowerCase() !== normalizedChannel) continue;
+        const favorite = isAccountFavorite(normalizedChannel, accountId, provider);
         if (!tile.favBtn) continue;
         tile.favBtn.innerHTML = `<span class="icon-svg ${favorite ? 'icon-star' : 'icon-star-outline'}"></span>`;
         tile.favBtn.classList.toggle('active', favorite);
-        tile.favBtn.title = favorite ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)';
+        tile.favBtn.title = favorite
+          ? 'Remover dos favoritos desta conta e plataforma'
+          : 'Favoritar nesta conta e plataforma (fixa no topo)';
       }
 
       syncTiles();

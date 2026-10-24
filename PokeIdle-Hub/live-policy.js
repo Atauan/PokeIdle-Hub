@@ -15,12 +15,34 @@ function filterEligibleChannels(accountId, channels, eligibleAccountIdsByProvide
     canReceiveResources(accountId, channel?.provider, eligibleAccountIdsByProvider));
 }
 
+function sortKickSlotsByPoints(channels, pointBalances) {
+  if (!Array.isArray(channels)) return [];
+  const kick = channels
+    .map((channel, index) => ({ channel, index }))
+    .filter(({ channel }) => channel?.provider === 'kick')
+    .map(({ channel, index }) => {
+      const name = String(channel?.item?.channel || '').toLowerCase();
+      const value = pointBalances instanceof Map ? pointBalances.get(name) : pointBalances?.[name];
+      return { channel, index, points: Number.isSafeInteger(value) && value >= 0 ? value : null };
+    })
+    .sort((left, right) => {
+      if (left.points === null && right.points !== null) return 1;
+      if (left.points !== null && right.points === null) return -1;
+      if (left.points !== null && right.points !== null && left.points !== right.points) return right.points - left.points;
+      return left.index - right.index;
+    });
+  let kickIndex = 0;
+  return channels.map(channel => channel?.provider === 'kick' ? kick[kickIndex++].channel : channel);
+}
+
 function createResourcePlan({
   accounts,
   channels,
   eligibleAccountIdsByProvider,
   accountLimitsById,
   favoriteChannelsByAccount,
+  kickPointsByAccount,
+  accountIgnoredGameChannels,
   existingTileKeys = new Set(),
   economyProviders = [],
 } = {}) {
@@ -41,14 +63,20 @@ function createResourcePlan({
 
   for (const account of accounts) {
     const accountId = account?.id;
-    const accountChannels = filterEligibleChannels(accountId, visibleChannels, eligibleAccountIdsByProvider);
+    const accountChannels = filterEligibleChannels(accountId, visibleChannels, eligibleAccountIdsByProvider)
+      .filter(channel => {
+        const ignored = accountIgnoredGameChannels?.[accountId]?.[channel.provider];
+        return !Array.isArray(ignored)
+          || !ignored.includes(String(channel.item?.channel || '').toLowerCase());
+      });
     const limits = accountLimitsById?.[accountId] || {};
-    const favorites = Array.isArray(favoriteChannelsByAccount?.[accountId])
-      ? favoriteChannelsByAccount[accountId]
-      : [];
-    const isFavorite = item => favorites.includes(String(item?.channel || '').toLowerCase());
+    const isFavorite = channel => {
+      const favorites = favoriteChannelsByAccount?.[accountId]?.[channel?.provider];
+      return Array.isArray(favorites)
+        && favorites.includes(String(channel?.item?.channel || '').toLowerCase());
+    };
     const comparePriority = (left, right) => {
-      const favoriteOrder = Number(isFavorite(right.item)) - Number(isFavorite(left.item));
+      const favoriteOrder = Number(isFavorite(right)) - Number(isFavorite(left));
       if (favoriteOrder) return favoriteOrder;
       const leftOpen = existingTileKeys.has(`${accountId}:${left.item?.id}`);
       const rightOpen = existingTileKeys.has(`${accountId}:${right.item?.id}`);
@@ -58,8 +86,12 @@ function createResourcePlan({
     for (const channel of accountChannels) byProvider[channel.provider].push(channel);
     const allowedKick = byProvider.kick.sort(comparePriority).slice(0, Math.max(0, limits.kick));
     const allowedTwitch = byProvider.twitch.sort(comparePriority).slice(0, Math.max(0, limits.twitch));
-    const allowed = [...allowedKick, ...allowedTwitch].sort((left, right) =>
-      Number(isFavorite(right.item)) - Number(isFavorite(left.item)));
+    const prioritized = [...allowedKick, ...allowedTwitch].sort((left, right) =>
+      Number(isFavorite(right)) - Number(isFavorite(left)));
+    const accountKickPoints = kickPointsByAccount instanceof Map
+      ? kickPointsByAccount.get(accountId)
+      : kickPointsByAccount?.[accountId];
+    const allowed = sortKickSlotsByPoints(prioritized, accountKickPoints);
 
     allowedByAccount.set(accountId, allowed);
     countsByAccount.set(accountId, { kick: allowedKick.length, twitch: allowedTwitch.length });
@@ -118,6 +150,7 @@ function createLivePlan({ accounts, channels, connectionStatuses } = {}) {
 })(typeof globalThis === 'object' ? globalThis : this, {
   createLivePlan,
   createResourcePlan,
+  sortKickSlotsByPoints,
   canReceiveResources,
   filterEligibleChannels,
 });

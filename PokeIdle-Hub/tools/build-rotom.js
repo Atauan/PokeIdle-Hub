@@ -5,6 +5,7 @@ const path = require('path');
 const dir = path.join(__dirname, '..', 'assets', 'addons', 'rotom-sniper');
 const itemsDb = fs.readFileSync(path.join(dir, 'items_db.js'), 'utf8');
 const shinyFlowMonitor = fs.readFileSync(path.join(dir, 'shiny-flow-monitor.js'), 'utf8');
+const priceGuideSpeciesMatch = fs.readFileSync(path.join(dir, 'pokemon-price-guide-species-match.js'), 'utf8');
 const injected = fs.readFileSync(path.join(dir, 'injected.js'), 'utf8');
 
 const combined = [
@@ -12,6 +13,8 @@ const combined = [
   itemsDb,
   '// Normalização limitada dos eventos shiny observados',
   shinyFlowMonitor,
+  '// Correspondência exata de espécie para as ofertas do comparador',
+  priceGuideSpeciesMatch,
   '// Motor Injetado do Rotom (WebSocket e Auto-Snipe)',
   injected
 ].join('\n;\n');
@@ -105,6 +108,15 @@ function installSniperEngine() {
       const { ipcRenderer } = require('electron');
       ipcRenderer.on('rotom-cmd', (_event, cmd) => {
         if (!cmd || typeof cmd !== 'object') return;
+
+        if (cmd.action === 'FETCH_POKEMON_PRICE_GUIDE_INVENTORY') {
+          ipcRenderer.sendToHost('rotom-msg', {
+            source: 'ROTOM_SNIPER',
+            type: 'POKEMON_PRICE_GUIDE_INVENTORY_DIAGNOSTIC',
+            requestId: String(cmd.requestId || ''),
+            stage: 'webview_received'
+          });
+        }
 
         // Se for STORAGE_SET, também persiste no localStorage local do jogo
         if (cmd.type === 'STORAGE_SET' && cmd.data) {

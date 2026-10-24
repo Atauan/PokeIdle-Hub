@@ -102,7 +102,7 @@ test('resource plan applies account limits, favorites, existing tiles, and econo
     channels,
     eligibleAccountIdsByProvider: { kick: ['secondary'], twitch: ['main'] },
     accountLimitsById: { main: { kick: 2, twitch: 2 }, secondary: { kick: 1, twitch: 2 } },
-    favoriteChannelsByAccount: { main: ['twitchtwo'], secondary: ['kicktwo'] },
+    favoriteChannelsByAccount: { main: { twitch: ['twitchtwo'] }, secondary: { kick: ['kicktwo'] } },
     existingTileKeys: new Set(['main:t1']),
   });
 
@@ -130,4 +130,52 @@ test('resource plan applies account limits, favorites, existing tiles, and econo
     accountLimitsById: { main: { kick: 2, twitch: 2 } },
   });
   assert.deepEqual(stalePlan.visibleChannels, []);
+});
+
+test('resource plan applies account and provider exclusions without removing global discovery', () => {
+  const channels = [
+    { provider: 'kick', item: { id: 'kick-alpha', channel: 'alpha' } },
+    { provider: 'twitch', item: { id: 'twitch-alpha', channel: 'alpha' } },
+  ];
+  const plan = createResourcePlan({
+    accounts: [{ id: 'main' }, { id: 'alt' }],
+    channels,
+    eligibleAccountIdsByProvider: { kick: ['main', 'alt'], twitch: ['main', 'alt'] },
+    accountLimitsById: { main: { kick: 5, twitch: 5 }, alt: { kick: 5, twitch: 5 } },
+    accountIgnoredGameChannels: { main: { kick: ['alpha'] } },
+  });
+
+  assert.deepEqual(plan.visibleChannels, channels);
+  assert.deepEqual(plan.allowedByAccount.get('main').map(({ provider, item }) => [provider, item.id]), [['twitch', 'twitch-alpha']]);
+  assert.deepEqual(plan.allowedByAccount.get('alt').map(({ provider, item }) => [provider, item.id]), [
+    ['kick', 'kick-alpha'], ['twitch', 'twitch-alpha'],
+  ]);
+});
+
+test('resource plan sorts only Kick cards by account point balance, with unknown balances last', () => {
+  const channels = [
+    { provider: 'kick', item: { id: 'kick-low', channel: 'low' } },
+    { provider: 'twitch', item: { id: 'twitch', channel: 'twitch' } },
+    { provider: 'kick', item: { id: 'kick-high', channel: 'high' } },
+    { provider: 'kick', item: { id: 'kick-tie', channel: 'tie' } },
+    { provider: 'kick', item: { id: 'kick-unknown', channel: 'unknown' } },
+  ];
+  const plan = createResourcePlan({
+    accounts: [{ id: 'main' }, { id: 'alt' }],
+    channels,
+    eligibleAccountIdsByProvider: { kick: ['main', 'alt'], twitch: ['main'] },
+    accountLimitsById: { main: { kick: 10, twitch: 10 }, alt: { kick: 10, twitch: 10 } },
+    favoriteChannelsByAccount: { main: { twitch: ['twitch'] } },
+    kickPointsByAccount: {
+      main: { low: 12, high: 900, tie: 900, unknown: null },
+      alt: { low: 700, high: 50, tie: 300, unknown: 0 },
+    },
+  });
+
+  assert.deepEqual(plan.allowedByAccount.get('main').map(({ provider, item }) => [provider, item.id]), [
+    ['twitch', 'twitch'], ['kick', 'kick-high'], ['kick', 'kick-tie'], ['kick', 'kick-low'], ['kick', 'kick-unknown'],
+  ]);
+  assert.deepEqual(plan.allowedByAccount.get('alt').map(({ provider, item }) => [provider, item.id]), [
+    ['kick', 'kick-low'], ['kick', 'kick-tie'], ['kick', 'kick-high'], ['kick', 'kick-unknown'],
+  ]);
 });

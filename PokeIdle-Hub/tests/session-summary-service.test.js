@@ -80,7 +80,7 @@ test('creates secure summary window at the tray and repositions/reuses it', () =
   const panel = FakeBrowserWindow.created[0];
   assert.deepEqual(panel.bounds, { x: 1220, y: 48, width: 420, height: 680 });
   assert.equal(panel.options.frame, false);
-  assert.equal(panel.options.webPreferences.preload, path.join('C:/PokeIdle', 'renderer', 'session-preload.js'));
+  assert.equal(panel.options.webPreferences.preload, path.join('C:/PokeIdle', 'session-preload.js'));
   assert.equal(panel.options.webPreferences.sandbox, true);
   assert.equal(panel.file, path.join('C:/PokeIdle', 'renderer', 'session.html'));
   assert.deepEqual(panel.openHandler({ url: 'https://example.test' }), { action: 'deny' });

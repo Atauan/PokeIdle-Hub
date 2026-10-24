@@ -6,10 +6,11 @@ const { createLiveTileController } = require('../renderer/live-tile-controller')
 const policy = require('../live-policy');
 const runtime = require('../live-runtime');
 
-function setup({ accounts, items, connections, limits, favorites = {}, economy = false, existingTiles } = {}) {
+function setup({ accounts, items, connections, limits, favorites = {}, kickPoints = new Map(), economy = false, existingTiles } = {}) {
   const state = {
     accounts: accounts || [{ id: 'main', name: 'Principal' }],
     accountFavorites: favorites,
+    accountIgnoredGameChannels: {},
     twitchEconomy: economy,
     frames: { removed: { x: 1 } },
   };
@@ -29,6 +30,7 @@ function setup({ accounts, items, connections, limits, favorites = {}, economy =
     getEligibleAccountIdsByProvider: () => currentConnections,
     getAccountLimits: accountId => limits?.[accountId] || limits || { kick: 0, twitch: 0 },
     getFavoriteChannelsByAccount: () => state.accountFavorites,
+    getKickPointsByAccount: () => kickPoints,
     isTwitchEconomyEnabled: () => state.twitchEconomy,
     policy,
     runtime,
@@ -183,4 +185,24 @@ test('reuses existing tiles, positions allowed resources and cleans removed item
   assert.equal(Object.hasOwn(context.state.frames, 'deleted'), false);
   assert.equal(context.events.some(([type]) => type === 'create'), false);
   assert.deepEqual(context.events.slice(-4).map(([type]) => type), ['economy', 'persist', 'layout', 'controls']);
+});
+
+test('positions Kick cards by the balance reported for each account', () => {
+  const items = [
+    { p: 'kick', i: { id: 'low', channel: 'low' } },
+    { p: 'kick', i: { id: 'high', channel: 'high' } },
+    { p: 'kick', i: { id: 'unknown', channel: 'unknown' } },
+  ];
+  const context = setup({
+    items,
+    connections: { kick: ['main'], twitch: [] },
+    limits: { main: { kick: 3, twitch: 0 } },
+    kickPoints: new Map([['main', new Map([['low', 10], ['high', 200]])]]),
+  });
+
+  context.controller.sync();
+
+  assert.equal(context.tiles.get('main:high').root.style.order, '0');
+  assert.equal(context.tiles.get('main:low').root.style.order, '1');
+  assert.equal(context.tiles.get('main:unknown').root.style.order, '2');
 });

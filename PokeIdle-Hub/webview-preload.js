@@ -3,6 +3,129 @@
 // Roda isolado da página; os scripts abaixo são injetados no "mundo" da página antes dela carregar.
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
+function getKickChannelFromLocation(locationObject) {
+  const parts = String(locationObject?.pathname || '').split('/').filter(Boolean);
+  const rawChannel = parts[0]?.toLowerCase() === 'popout'
+    ? parts[2]?.toLowerCase() === 'chat' ? parts[1] : null
+    : parts[0];
+  if (!rawChannel) return null;
+  let channel;
+  try { channel = decodeURIComponent(rawChannel).toLowerCase(); }
+  catch (_) { return null; }
+  if (!/^[a-z0-9_-]{2,40}$/.test(channel) ||
+      new Set(['', 'categories', 'directory', 'following', 'search', 'settings', 'subscriptions']).has(channel)) return null;
+  return channel;
+}
+
+function installKickPointsMonitor(windowObject, documentObject, locationObject, Observer) {
+  const win = windowObject || globalThis.window;
+  const doc = documentObject || globalThis.document;
+  const loc = locationObject || globalThis.location;
+  const MutationObserverCtor = Observer || win?.MutationObserver;
+  const channel = getKickChannelFromLocation(loc);
+  if (!win || !doc || !channel || typeof MutationObserverCtor !== 'function') return () => {};
+  if (typeof win.__pfKickPointsMonitorStop === 'function') return win.__pfKickPointsMonitorStop;
+
+  const buttonSelector = 'button[data-testid="channel-points-button"]';
+  const valueSelector = '[data-testid="channel-points-value"]';
+  let pageObserver = null;
+  let buttonObserver = null;
+  let buttonParentObserver = null;
+  let observedButton = null;
+  let lastSignature = null;
+  let stopped = false;
+  let onReady = null;
+  let discoveryTimer = null;
+
+  const readPoints = () => {
+    const button = doc.querySelector(buttonSelector);
+    const valueNode = button?.querySelector(valueSelector);
+    const titleNode = valueNode?.querySelector('[title]');
+    const raw = titleNode?.getAttribute('title') ?? titleNode?.title ?? valueNode?.textContent;
+    const text = String(raw ?? '').trim();
+    if (!/^\d+$/.test(text)) return null;
+    const points = Number(text);
+    return Number.isSafeInteger(points) && points >= 0 ? points : null;
+  };
+
+  const emitIfChanged = () => {
+    if (stopped) return;
+    const points = readPoints();
+    const signature = points === null ? 'not-detected' : `detected:${points}`;
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+    win.postMessage({ __pfKickPoints: { channel, points } }, '*');
+  };
+
+  const containsPointsButton = node => node?.nodeType === 1
+    && (node.matches?.(buttonSelector) || node.querySelector?.(buttonSelector));
+
+  const watchForButton = () => {
+    if (stopped || !doc.body || pageObserver) return;
+    pageObserver = new MutationObserverCtor(mutations => {
+      if (mutations.some(mutation => [...mutation.addedNodes, ...mutation.removedNodes].some(containsPointsButton))) attachToButton();
+    });
+    pageObserver.observe(doc.body, { childList: true, subtree: true });
+    discoveryTimer = win.setTimeout(() => {
+      pageObserver?.disconnect();
+      pageObserver = null;
+      discoveryTimer = null;
+    }, 15000);
+  };
+
+  const attachToButton = () => {
+    if (stopped || !doc.body) return;
+    const button = doc.querySelector(buttonSelector);
+    if (button === observedButton) {
+      emitIfChanged();
+      if (!button) watchForButton();
+      return;
+    }
+    buttonObserver?.disconnect();
+    buttonParentObserver?.disconnect();
+    buttonParentObserver = null;
+    observedButton = button;
+    buttonObserver = null;
+    if (button) {
+      buttonObserver = new MutationObserverCtor(emitIfChanged);
+      buttonObserver.observe(button, { attributes: true, attributeFilter: ['title'], childList: true, characterData: true, subtree: true });
+      const parent = button.parentElement;
+      if (parent) {
+        buttonParentObserver = new MutationObserverCtor(mutations => {
+          if (mutations.some(mutation => [...mutation.addedNodes, ...mutation.removedNodes].some(containsPointsButton))) attachToButton();
+        });
+        buttonParentObserver.observe(parent, { childList: true });
+      }
+      pageObserver?.disconnect();
+      pageObserver = null;
+      if (discoveryTimer !== null) win.clearTimeout(discoveryTimer);
+      discoveryTimer = null;
+    } else {
+      watchForButton();
+    }
+    emitIfChanged();
+  };
+
+  const start = () => { if (!stopped && doc.body) attachToButton(); };
+  const stop = () => {
+    stopped = true;
+    pageObserver?.disconnect();
+    buttonObserver?.disconnect();
+    buttonParentObserver?.disconnect();
+    if (discoveryTimer !== null) win.clearTimeout(discoveryTimer);
+    if (onReady) doc.removeEventListener?.('DOMContentLoaded', onReady);
+    if (win.__pfKickPointsMonitorStop === stop) delete win.__pfKickPointsMonitorStop;
+  };
+
+  win.__pfKickPointsMonitorStop = stop;
+  if (doc.body) start();
+  else {
+    onReady = start;
+    doc.addEventListener('DOMContentLoaded', onReady, { once: true });
+  }
+  return stop;
+}
+
 function inject(fn, ...args) {
   try {
     if (contextBridge.executeInMainWorld) {
@@ -11,6 +134,19 @@ function inject(fn, ...args) {
     }
   } catch (_) { /* cai no plano B */ }
   webFrame.executeJavaScript(`(${fn.toString()}).apply(null, ${JSON.stringify(args)})`).catch(() => {});
+}
+
+function bridgeKickPoints() {
+  const expectedChannel = getKickChannelFromLocation(location);
+  if (!expectedChannel) return;
+  window.addEventListener('message', event => {
+    if (event.source !== window) return;
+    const report = event.data?.__pfKickPoints;
+    if (report?.channel !== expectedChannel ||
+        !(report.points === null || Number.isSafeInteger(report.points) && report.points >= 0)) return;
+    ipcRenderer.sendToHost('kick-points', report);
+  });
+  inject(installKickPointsMonitor);
 }
 
 // ---------- Scripts injetados na página ----------
@@ -563,11 +699,13 @@ if (/pokeidle\.io$/.test(host)) {
   }, true);
 } else if (isChat) {
   inject(compactChat);
+  if (/kick\.com$/.test(host)) bridgeKickPoints();
   if (/twitch\.tv$/.test(host)) inject(twitchChat);
   // Clique na faixa (ex.: botão de pontos): avisa o app para abrir o chat inteiro e o modal aparecer
   document.addEventListener('pointerdown', () => ipcRenderer.sendToHost('chat-click'), true);
 } else if (host === 'player.kick.com' || host === 'www.twitch.tv' || /kick\.com$/.test(host)) {
   inject(player);
+  if (/kick\.com$/.test(host)) bridgeKickPoints();
   if (host === 'www.twitch.tv') {
     inject(compactChat);
     inject(twitchLayout);

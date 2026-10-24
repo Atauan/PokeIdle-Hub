@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (img.classList.contains('hunt-poke-sprite')) {
         img.src = 'https://pokeidle.io/assets/site/assets/ui/ball-poke.png';
       } else if (img.classList.contains('stat-drop-icon')) {
-        img.src = 'icons/ouro.png';
+        img.src = 'icons/ouro.svg';
       } else {
         img.src = 'https://pokeidle.io/assets/site/assets/ui/ball-poke.png';
       }
@@ -144,6 +144,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMarketFilterCat = 'all';
   let currentOffersMoeda = 'gold';
   let selectedMarketItem = null;
+  let priceGuidePokemons = [];
+  let priceGuideOffers = [];
+  let priceGuideSpriteDataUrl = null;
+  let priceGuideSpriteDataUrls = { normal: null, shiny: null };
+  let priceGuideSpriteVariant = null;
+  let priceGuideCurrencyIconDataUrls = { gold: null, orb: null };
+  let priceGuideVisualTypes = [];
+  let priceGuideCurrencies = ['gold', 'orb'];
+  let priceGuideAccountFilters = { noteMin: 3.5, shinyOnly: true, p5Only: true };
+  let priceGuideRequestId = null;
+  let priceGuideQueryTimeout = null;
+  let priceGuideInventoryTimeout = null;
+  let priceGuideInventoryRequestId = null;
+  let priceGuideInventoryDiagnostic = null;
 
   let globalConfig = {
     snipeAnyShiny: false,
@@ -1405,9 +1419,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const subtabMyListings = document.getElementById('subtab-my-listings');
   const subtabCommunityItems = document.getElementById('subtab-community-items');
+  const subtabPokemonPrice = document.getElementById('subtab-pokemon-price');
   const panelMyListings = document.getElementById('panel-my-listings');
   const panelCommunityItems = document.getElementById('panel-community-items');
+  const panelPokemonPrice = document.getElementById('panel-pokemon-price');
   const btnRefreshMarket = document.getElementById('btn-refresh-market');
+  const selectPricePokemon = document.getElementById('select-price-pokemon');
+  const btnRefreshPricePokemon = document.getElementById('btn-refresh-price-pokemon');
+  const btnComparePricePokemon = document.getElementById('btn-compare-price-pokemon');
+  const priceGuideStatus = document.getElementById('price-guide-status');
+  const priceGuideSummary = document.getElementById('price-guide-summary');
+  const priceGuideSuggestions = document.getElementById('price-guide-suggestions');
+  const priceGuideOffersContainer = document.getElementById('price-guide-offers');
+  const priceGuideFilterCoins = document.getElementById('price-guide-filter-coins');
+  const priceGuideFilterGems = document.getElementById('price-guide-filter-gems');
+  const priceGuideFilterNote = document.getElementById('price-guide-filter-note');
+  const priceGuideFilterShiny = document.getElementById('price-guide-filter-shiny');
+  const priceGuideFilterP5 = document.getElementById('price-guide-filter-p5');
+  const priceGuideFichaBackdrop = document.getElementById('price-guide-ficha-backdrop');
+  const priceGuideFichaContent = document.getElementById('price-guide-ficha-content');
+  const priceGuideFichaClose = document.getElementById('price-guide-ficha-close');
 
   const lblMyListingsSummary = document.getElementById('lbl-my-listings-summary');
   const containerMyListingsList = document.getElementById('container-my-listings-list');
@@ -1472,24 +1503,610 @@ document.addEventListener('DOMContentLoaded', () => {
   if (tabNavOferendas) tabNavOferendas.addEventListener('click', () => switchMainView('oferendas'));
 
   // --- SUB-NAVEGAÇÃO DO MERCADO ---
-  function switchMarketSubtab(sub) {
-    if (sub === 'catalog') {
-      if (subtabMyListings) { subtabMyListings.classList.remove('on'); subtabMyListings.classList.add('apagado'); }
-      if (subtabCommunityItems) { subtabCommunityItems.classList.add('on'); subtabCommunityItems.classList.remove('apagado'); }
-      if (panelMyListings) panelMyListings.style.display = 'none';
-      if (panelCommunityItems) panelCommunityItems.style.display = 'flex';
-      renderCommunityCatalog();
+  function selectedPricePokemon() {
+    if (!selectPricePokemon || !selectPricePokemon.value) return null;
+    return eligiblePriceGuidePokemons().find(pokemon => String(pokemon.id) === selectPricePokemon.value) || null;
+  }
+
+  function eligiblePriceGuidePokemons() {
+    const guide = window.RotomPokemonPriceGuide;
+    const identified = priceGuidePokemons.filter(pokemon => pokemon && pokemon.id !== null && pokemon.id !== undefined);
+    return guide ? guide.filterAccountPokemons(identified, priceGuideAccountFilters) : identified;
+  }
+
+  function describePriceGuideAccountFilters() {
+    const total = priceGuidePokemons.filter(pokemon => pokemon && pokemon.id !== null && pokemon.id !== undefined).length;
+    const eligible = eligiblePriceGuidePokemons().length;
+    if (!total) return 'Nenhum Pokémon identificado foi recebido desta conta.';
+    if (!eligible) return `Nenhum dos ${total} Pokémon recebidos atende aos filtros ativos. Desative um ou mais para ampliar a lista.`;
+    return `${eligible} de ${total} Pokémon recebidos atendem aos filtros (${total - eligible} fora dos critérios).`;
+  }
+
+  function updatePriceGuideAccountFilterButtons() {
+    [
+      [priceGuideFilterNote, priceGuideAccountFilters.noteMin !== null],
+      [priceGuideFilterShiny, priceGuideAccountFilters.shinyOnly],
+      [priceGuideFilterP5, priceGuideAccountFilters.p5Only]
+    ].forEach(([button, active]) => {
+      if (!button) return;
+      button.classList.toggle('on', active);
+      button.classList.toggle('apagado', !active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function formatPricePokemon(pokemon) {
+    const parts = [pokemon.nome || pokemon.name || 'Pokémon'];
+    if (pokemon.level) parts.push(`Nv. ${pokemon.level}`);
+    if (pokemon.potencia) parts.push(`P${pokemon.potencia}`);
+    if (pokemon.qualidade !== null && pokemon.qualidade !== undefined) parts.push(`Q${pokemon.qualidade}`);
+    const note = window.RotomPokemonPriceGuide?.getPokemonNote(pokemon);
+    if (note !== null && note !== undefined) parts.push(`Nota ${Number(note).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`);
+    if (pokemon.shiny) parts.push('Shiny');
+    parts.push(pokemon.inTeam ? 'Equipe' : (pokemon.inCollection ? 'Coleção' : 'Depósito'));
+    return parts.join(' · ');
+  }
+
+  function renderPriceGuidePokemonSelect() {
+    if (!selectPricePokemon) return;
+    const previousId = selectPricePokemon.value;
+    const available = eligiblePriceGuidePokemons().filter(pokemon => pokemon.id !== null && pokemon.id !== undefined);
+    const guide = window.RotomPokemonPriceGuide;
+    available.sort((left, right) => {
+      const byName = String(left.nome || '').localeCompare(String(right.nome || ''), 'pt-BR');
+      if (byName) return byName;
+      return guide ? guide.compareStrength(guide.normalizePokemon(left), guide.normalizePokemon(right)) : 0;
+    });
+
+    selectPricePokemon.replaceChildren();
+    if (available.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      const hasIdentifiedPokemon = priceGuidePokemons.some(pokemon => pokemon && pokemon.id !== null && pokemon.id !== undefined);
+      option.textContent = hasIdentifiedPokemon ? 'Nenhum Pokémon atende aos filtros' : 'Nenhum Pokémon recebido desta conta';
+      selectPricePokemon.appendChild(option);
+      updatePriceGuideAccountFilterButtons();
+      return;
+    }
+
+    for (const pokemon of available) {
+      const option = document.createElement('option');
+      option.value = String(pokemon.id);
+      option.textContent = formatPricePokemon(pokemon);
+      selectPricePokemon.appendChild(option);
+    }
+    selectPricePokemon.value = available.some(pokemon => String(pokemon.id) === previousId)
+      ? previousId
+      : String(available[0].id);
+    updatePriceGuideAccountFilterButtons();
+  }
+
+  function requestPriceGuideInventory() {
+    clearTimeout(priceGuideInventoryTimeout);
+    priceGuideInventoryRequestId = `inventory-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    priceGuideInventoryDiagnostic = null;
+    if (priceGuideStatus) priceGuideStatus.textContent = 'Lendo os Pokémon da conta...';
+    const accountId = new URLSearchParams(window.location.search).get('acc');
+    const request = { action: 'FETCH_POKEMON_PRICE_GUIDE_INVENTORY', requestId: priceGuideInventoryRequestId };
+    if (accountId && window.rotomIpc && typeof window.rotomIpc.sendToGame === 'function') {
+      window.rotomIpc.sendToGame(accountId, request);
     } else {
-      if (subtabCommunityItems) { subtabCommunityItems.classList.remove('on'); subtabCommunityItems.classList.add('apagado'); }
-      if (subtabMyListings) { subtabMyListings.classList.add('on'); subtabMyListings.classList.remove('apagado'); }
-      if (panelCommunityItems) panelCommunityItems.style.display = 'none';
-      if (panelMyListings) panelMyListings.style.display = 'flex';
-      renderMyListings();
+      sendToActiveTab(request);
+    }
+    priceGuideInventoryTimeout = setTimeout(() => {
+      if (priceGuideStatus) priceGuideStatus.textContent = describePriceGuideInventoryFailure(priceGuideInventoryDiagnostic);
+    }, 8000);
+  }
+
+  function describePriceGuideInventoryFailure(diagnostic) {
+    if (!diagnostic) return 'O pedido saiu do Cockpit, mas não recebi confirmação do addon na aba do jogo. Confirme se essa conta está aberta no Hub e tente atualizar.';
+    if (diagnostic.stage === 'webview_received') return 'O addon recebeu o pedido, mas o motor do Rotom não confirmou a leitura. Recarregue o jogo dessa conta e tente novamente.';
+    if (diagnostic.stage === 'engine_received') {
+      if (!diagnostic.webSocketOpen) return 'O motor recebeu o pedido, mas a conexão com o jogo está fechada. Recarregue o jogo dessa conta e tente novamente.';
+      if (!diagnostic.gameStateReceived) return 'O motor recebeu o pedido, mas ainda não recebeu o estado do jogador pelo jogo. Aguarde o jogo carregar e atualize novamente.';
+      return `O motor leu ${Number(diagnostic.pokemonCount) || 0} Pokémon, mas não confirmou que conseguiu montar a lista. Última etapa: ${diagnostic.stage}.`;
+    }
+    if (diagnostic.stage === 'inventory_prepared') return `O motor montou a lista com ${Number(diagnostic.mappedPokemonCount) || 0} Pokémon, mas a resposta não chegou ao Cockpit.`;
+    if (diagnostic.stage === 'engine_error') {
+      const detail = diagnostic.missingIdentifier
+        ? `${diagnostic.errorType || 'ReferenceError'}: ${diagnostic.missingIdentifier} não está definido`
+        : diagnostic.errorType || 'erro';
+      return `O motor encontrou um erro ao montar a lista (${detail}).`;
+    }
+    return 'A leitura da Coleção não terminou. Tente atualizar novamente.';
+  }
+
+  function openPriceGuideFicha(rawPokemon, isOwn = false) {
+    if (!priceGuideFichaBackdrop || !priceGuideFichaContent) return;
+    const guide = window.RotomPokemonPriceGuide;
+    const pokemon = guide?.normalizePokemon(rawPokemon);
+    if (!pokemon) return;
+    priceGuideFichaContent.replaceChildren();
+    const hero = document.createElement('div');
+    hero.className = 'price-guide-ficha-hero';
+    const variant = pokemon.shiny ? 'shiny' : 'normal';
+    const spriteUrl = priceGuideSpriteDataUrls[variant]
+      || (priceGuideSpriteVariant === variant ? priceGuideSpriteDataUrl : null);
+    if (typeof spriteUrl === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(spriteUrl)) {
+      const image = document.createElement('img');
+      image.className = 'price-guide-sprite';
+      image.src = spriteUrl;
+      image.alt = `Sprite de ${pokemon.name}`;
+      hero.appendChild(image);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'price-guide-sprite';
+      placeholder.setAttribute('aria-hidden', 'true');
+      hero.appendChild(placeholder);
+    }
+    const overview = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = pokemon.name;
+    const subtitle = document.createElement('div');
+    subtitle.className = 'price-guide-ficha-note';
+    const offer = rawPokemon && typeof rawPokemon === 'object' ? rawPokemon : {};
+    subtitle.textContent = [
+      pokemon.level ? `Nível ${pokemon.level}` : null,
+      pokemon.shiny ? 'Shiny' : pokemon.isP5 ? 'P5' : 'Comum',
+      offer.seller ? `Vendedor: ${offer.seller}` : null,
+      !isOwn && Number(offer.price) ? `${Number(offer.price).toLocaleString('pt-BR')} ${offer.currency === 'orb' ? 'Gemas' : 'Coins'}` : null,
+      isOwn ? 'Pokémon da sua conta' : null
+    ].filter(Boolean).join(' · ');
+    overview.append(name, subtitle);
+    const fichaTypes = pokemon.types.length ? pokemon.types : priceGuideVisualTypes;
+    if (fichaTypes.length) {
+      const types = document.createElement('div');
+      types.className = 'price-guide-ficha-types';
+      for (const type of fichaTypes) {
+        const chip = document.createElement('span');
+        chip.textContent = type;
+        types.appendChild(chip);
+      }
+      overview.appendChild(types);
+    }
+    const badges = document.createElement('div');
+    badges.className = 'price-guide-ficha-badges';
+    for (const label of [
+      pokemon.potency !== null ? `Potência P${pokemon.potency}` : null,
+      pokemon.quality !== null ? `Qualidade ${Number(pokemon.quality).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}` : null,
+      pokemon.ivTotal !== null ? `IV ${pokemon.ivTotal}/192` : null,
+      pokemon.note !== null ? `Nota ${Number(pokemon.note).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}` : null
+    ].filter(Boolean)) {
+      const badge = document.createElement('span');
+      badge.textContent = label;
+      badges.appendChild(badge);
+    }
+    overview.appendChild(badges);
+    hero.appendChild(overview);
+    priceGuideFichaContent.appendChild(hero);
+
+    const statLabels = [
+      ['hp', 'HP'], ['atk', 'ATK'], ['def', 'DEF'],
+      ['spAtk', 'SP.ATK'], ['spDef', 'SP.DEF'], ['speed', 'SPD']
+    ];
+    const presentStats = statLabels.some(([key]) => pokemon.stats?.[key] !== undefined || pokemon.ivs?.[key] !== undefined);
+    if (presentStats) {
+      const stats = document.createElement('div');
+      stats.className = 'price-guide-ficha-stats';
+      const statMax = Math.max(1, ...statLabels.map(([key]) => pokemon.stats?.[key] || 0));
+      for (const [key, label] of statLabels) {
+        const row = document.createElement('div');
+        row.className = 'price-guide-ficha-stat';
+        const statName = document.createElement('strong');
+        statName.textContent = label;
+        const bar = document.createElement('span');
+        bar.className = 'price-guide-ficha-stat-bar';
+        const fill = document.createElement('i');
+        const current = pokemon.stats?.[key];
+        fill.style.width = current !== undefined ? `${Math.min(100, Math.max(0, current / statMax * 100))}%` : '0%';
+        bar.appendChild(fill);
+        const value = document.createElement('b');
+        value.textContent = current !== undefined ? Number(current).toLocaleString('pt-BR') : '—';
+        const iv = document.createElement('span');
+        iv.textContent = pokemon.ivs?.[key] !== undefined ? `IV ${pokemon.ivs[key]}` : 'IV —';
+        row.append(statName, bar, value, iv);
+        stats.appendChild(row);
+      }
+      priceGuideFichaContent.appendChild(stats);
+      const note = document.createElement('p');
+      note.className = 'price-guide-ficha-note';
+      note.textContent = 'Os stats e IVs são os dados recebidos do jogo para este Pokémon. Barras relativas ao maior stat deste Pokémon; a ficha não calcula valores ausentes.';
+      priceGuideFichaContent.appendChild(note);
+    } else {
+      const note = document.createElement('p');
+      note.className = 'price-guide-ficha-note';
+      note.textContent = 'Este registro do jogo não trouxe os stats e IVs individuais. A ficha mostra apenas os atributos recebidos; nenhum valor foi estimado.';
+      priceGuideFichaContent.appendChild(note);
+    }
+    priceGuideFichaBackdrop.hidden = false;
+    priceGuideFichaClose?.focus();
+  }
+
+  function closePriceGuideFicha() {
+    if (priceGuideFichaBackdrop) priceGuideFichaBackdrop.hidden = true;
+  }
+
+  function renderPriceGuideResults() {
+    if (!priceGuideOffersContainer || !priceGuideSuggestions || !priceGuideSummary) return;
+    const guide = window.RotomPokemonPriceGuide;
+    const updateCurrencyButtons = () => {
+      [[priceGuideFilterCoins, 'gold'], [priceGuideFilterGems, 'orb']].forEach(([button, currency]) => {
+        if (!button) return;
+        const active = priceGuideCurrencies.includes(currency);
+        button.classList.toggle('on', active);
+        button.classList.toggle('apagado', !active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+    };
+    updateCurrencyButtons();
+    const selected = selectedPricePokemon();
+    if (!guide || !selected) {
+      priceGuideSummary.style.display = 'none';
+      priceGuideSuggestions.replaceChildren();
+      priceGuideOffersContainer.textContent = 'Selecione um Pokémon da conta para ver comparações.';
+      return;
+    }
+
+    const comparable = guide.getComparableOffers(selected, priceGuideOffers);
+    const visibleByCurrency = Object.fromEntries(priceGuideCurrencies.map(currency => [
+      currency,
+      guide.getComparableOffersByCurrency(selected, priceGuideOffers, currency)
+    ]));
+    const suggestions = guide.getPriceSuggestions(selected, priceGuideOffers);
+    priceGuideSummary.style.display = 'block';
+    const currencyCounts = priceGuideCurrencies.map(currency => `${visibleByCurrency[currency].length} em ${currency === 'gold' ? 'Coins' : 'Gemas'}`).join(' · ');
+    priceGuideSummary.textContent = `Seu Pokémon: ${formatPricePokemon(selected)}. ${currencyCounts} · ${comparable.length} no total entre as moedas.`;
+    priceGuideSuggestions.replaceChildren();
+
+    for (const currency of priceGuideCurrencies) {
+      const result = suggestions[currency];
+      const card = document.createElement('div');
+      card.className = 'vao';
+      card.style.cssText = 'padding: 8px; font-size: 9.5px;';
+      const title = document.createElement('strong');
+      title.textContent = currency === 'gold' ? 'Referência em Coins' : 'Referência em Gemas';
+      const detail = document.createElement('div');
+      detail.style.cssText = 'margin-top: 4px; color: var(--sobre-mad-dim);';
+      if (!result.sampleSize) {
+        detail.textContent = 'Nenhum anúncio comparável encontrado nesta moeda.';
+      } else if (result.conclusive) {
+        detail.textContent = `Sugestão: ${result.suggestedPrice.toLocaleString('pt-BR')} · faixa dos ${result.sampleSize} mais próximos: ${result.minPrice.toLocaleString('pt-BR')}–${result.maxPrice.toLocaleString('pt-BR')}`;
+      } else {
+        detail.textContent = `Amostra pequena (${result.sampleSize}/3). Faixa observada: ${result.minPrice.toLocaleString('pt-BR')}–${result.maxPrice.toLocaleString('pt-BR')}; sem sugestão conclusiva.`;
+      }
+      card.append(title, detail);
+      priceGuideSuggestions.appendChild(card);
+    }
+
+    priceGuideOffersContainer.replaceChildren();
+    const createAttributeChips = pokemon => {
+      const attributes = document.createElement('div');
+      attributes.className = 'price-guide-attributes';
+      const values = [
+        ['Potência', pokemon.potency !== null ? `P${pokemon.potency}` : 'P —', 'price-guide-seal-potency'],
+        ['IV somado', pokemon.ivTotal !== null ? `IV ${pokemon.ivTotal}` : 'IV —', 'price-guide-seal-iv'],
+        ['Qualidade', pokemon.quality !== null ? `Q ${Number(pokemon.quality).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}` : 'Q —', 'price-guide-seal-quality'],
+        ['Nota', pokemon.note !== null ? `N ${Number(pokemon.note).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}` : 'N —', 'price-guide-seal-note']
+      ];
+      for (let index = 0; index < values.length; index += 2) {
+        const row = document.createElement('div');
+        row.className = 'price-guide-attribute-row';
+        for (const [label, value, className] of values.slice(index, index + 2)) {
+          const chip = document.createElement('span');
+          chip.className = `price-guide-attribute ${className}`;
+          chip.title = label;
+          chip.setAttribute('aria-label', `${label}: ${value}`);
+          chip.textContent = value;
+          row.appendChild(chip);
+        }
+        attributes.appendChild(row);
+      }
+      return attributes;
+    };
+    const createTypeChips = pokemon => {
+      const types = document.createElement('div');
+      types.className = 'cm-chips price-guide-types';
+      for (const type of (pokemon.types?.length ? pokemon.types : priceGuideVisualTypes)) {
+        const chip = document.createElement('span');
+        const normalizedType = String(type).toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+        chip.className = `cm-chip tipo ${normalizedType}`;
+        chip.textContent = normalizedType;
+        types.appendChild(chip);
+      }
+      return types;
+    };
+    const addSprite = (art, pokemon) => {
+      const variant = pokemon.shiny ? 'shiny' : 'normal';
+      const spriteUrl = priceGuideSpriteDataUrls[variant]
+        || (priceGuideSpriteVariant === variant ? priceGuideSpriteDataUrl : null);
+      if (typeof spriteUrl !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(spriteUrl)) return false;
+      const image = document.createElement('img');
+      image.className = 'price-guide-sprite';
+      image.src = spriteUrl;
+      image.alt = `Sprite ${pokemon.shiny ? 'Shiny ' : ''}de ${pokemon.name} do Mercado do PokéIdle`;
+      art.appendChild(image);
+      return true;
+    };
+    const createPokemonArt = pokemon => {
+      const art = document.createElement('div');
+      art.className = 'cm-arte price-guide-art';
+      if (!addSprite(art, pokemon)) {
+        const unavailable = document.createElement('span');
+        unavailable.className = 'price-guide-art-unavailable';
+        unavailable.textContent = 'Arte do Mercado indisponível';
+        art.appendChild(unavailable);
+      }
+      return art;
+    };
+    const createVariantSeals = pokemon => {
+      const seals = document.createElement('div');
+      seals.className = 'cm-selos price-guide-card-seals';
+      for (const label of [pokemon.shiny ? 'Shiny' : null].filter(Boolean)) {
+        const seal = document.createElement('span');
+        seal.className = 'price-guide-variant';
+        seal.textContent = label;
+        seals.appendChild(seal);
+      }
+      return seals;
+    };
+    const createLevel = pokemon => {
+      const level = document.createElement('div');
+      level.className = 'cm-sub';
+      level.textContent = pokemon.level ? `Nv ${pokemon.level}` : 'Nível não informado';
+      return level;
+    };
+    const priceGuideCurrencyIcon = currency => currency === 'gold' ? 'icons/ouro.svg' : 'icons/orbe.svg';
+    const createPriceFooter = (currency, offer = null, { isOwn = false, nearest = false } = {}) => {
+      const footer = document.createElement('div');
+      footer.className = 'cm-rodape price-guide-card-footer';
+      if (isOwn) {
+        const reference = document.createElement('span');
+        reference.className = 'price-guide-own-reference';
+        reference.textContent = 'Referência da conta · sem anúncio';
+        footer.appendChild(reference);
+        return footer;
+      }
+
+      const price = document.createElement('span');
+      price.className = `cm-preco price-guide-money${currency === 'orb' ? ' orb' : ''}`;
+      const icon = document.createElement('img');
+      icon.className = 'price-guide-currency-icon';
+      icon.src = priceGuideCurrencyIconDataUrls[currency] || priceGuideCurrencyIcon(currency);
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      const amount = document.createElement('span');
+      amount.textContent = Number(offer.price).toLocaleString('pt-BR');
+      const unit = document.createElement('span');
+      unit.className = 'price-guide-money-unit';
+      unit.textContent = currency === 'gold' ? 'Coins' : 'Gemas';
+      price.append(icon, amount, unit);
+      footer.appendChild(price);
+
+      const vendor = document.createElement('div');
+      vendor.className = 'cm-vend price-guide-vendor';
+      const seller = document.createElement('b');
+      seller.textContent = offer.seller || 'Vendedor não informado';
+      vendor.append('de ', seller);
+      footer.appendChild(vendor);
+      if (nearest) {
+        const marker = document.createElement('span');
+        marker.className = 'price-guide-nearest';
+        marker.textContent = 'Mais próximo do seu Pokémon';
+        footer.appendChild(marker);
+      }
+      return footer;
+    };
+    const createFichaButton = (pokemon, isOwn) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-mini price-guide-ficha';
+      button.textContent = 'Ver ficha';
+      button.addEventListener('click', () => openPriceGuideFicha(pokemon, isOwn));
+      return button;
+    };
+    const appendOwnPokemon = container => {
+      const pokemon = guide.normalizePokemon(selected);
+      const card = document.createElement('article');
+      card.className = 'community-item-card cm-card poke price-guide-row price-guide-row-own';
+      card.appendChild(createPokemonArt(pokemon));
+      card.appendChild(createVariantSeals(pokemon));
+      const head = document.createElement('div');
+      head.className = 'cm-info price-guide-row-head';
+      const title = document.createElement('div');
+      title.className = 'cm-nome price-guide-row-title';
+      const ownLabel = document.createElement('span');
+      ownLabel.className = 'price-guide-own-label';
+      ownLabel.textContent = 'Seu Pokémon';
+      const name = document.createElement('strong');
+      name.textContent = pokemon.name;
+      title.append(ownLabel, name);
+      head.append(title, createTypeChips(pokemon), createLevel(pokemon), createAttributeChips(pokemon), createFichaButton(selected, true));
+      card.append(head, createPriceFooter(null, null, { isOwn: true }));
+      container.appendChild(card);
+    };
+
+    for (const currency of priceGuideCurrencies) {
+      const section = document.createElement('section');
+      section.className = 'price-guide-currency-section';
+      const heading = document.createElement('h3');
+      heading.className = 'price-guide-currency-heading';
+      heading.textContent = currency === 'gold' ? 'Anúncios em Coins' : 'Anúncios em Gemas';
+      const cards = document.createElement('div');
+      cards.className = 'price-guide-cards';
+      section.append(heading, cards);
+
+      const visibleOffers = visibleByCurrency[currency];
+      const nearestIds = new Set(guide.getNearestOfferIds(selected, priceGuideOffers, currency));
+      if (!visibleOffers.length) {
+        appendOwnPokemon(cards);
+        const empty = document.createElement('div');
+        empty.className = 'price-guide-currency-empty';
+        empty.textContent = `Nenhum anúncio comparável em ${currency === 'gold' ? 'Coins' : 'Gemas'}.`;
+        cards.appendChild(empty);
+        priceGuideOffersContainer.appendChild(section);
+        continue;
+      }
+
+      const ownPosition = guide.getPositionIndexByCurrency(selected, priceGuideOffers, currency);
+      let ownAdded = false;
+      for (const [index, offer] of visibleOffers.entries()) {
+        if (!ownAdded && index >= ownPosition) {
+          appendOwnPokemon(cards);
+          ownAdded = true;
+        }
+        const card = document.createElement('article');
+        card.className = 'community-item-card cm-card poke price-guide-row';
+        card.appendChild(createPokemonArt(offer));
+        card.appendChild(createVariantSeals(offer));
+        const head = document.createElement('div');
+        head.className = 'cm-info price-guide-row-head';
+        const title = document.createElement('div');
+        title.className = 'cm-nome price-guide-row-title';
+        const name = document.createElement('strong');
+        name.textContent = offer.name;
+        title.appendChild(name);
+        head.append(title, createTypeChips(offer), createLevel(offer), createAttributeChips(offer), createFichaButton(offer, false));
+        card.append(head, createPriceFooter(currency, offer, { nearest: nearestIds.has(String(offer.id)) }));
+        cards.appendChild(card);
+      }
+      if (!ownAdded) appendOwnPokemon(cards);
+      priceGuideOffersContainer.appendChild(section);
     }
   }
 
+  function analyzeSelectedPokemonPrice() {
+    const pokemon = selectedPricePokemon();
+    if (!pokemon) {
+      if (priceGuideStatus) priceGuideStatus.textContent = 'Não há Pokémon recebido desta conta para comparar.';
+      return;
+    }
+    priceGuideOffers = [];
+    priceGuideSpriteDataUrl = null;
+    priceGuideSpriteDataUrls = { normal: null, shiny: null };
+    priceGuideSpriteVariant = null;
+    priceGuideCurrencyIconDataUrls = { gold: null, orb: null };
+    priceGuideVisualTypes = [];
+    priceGuideRequestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const requestId = priceGuideRequestId;
+    if (btnComparePricePokemon) {
+      btnComparePricePokemon.disabled = true;
+      btnComparePricePokemon.textContent = 'Consultando...';
+    }
+    clearTimeout(priceGuideQueryTimeout);
+    priceGuideQueryTimeout = setTimeout(() => {
+      if (priceGuideRequestId !== requestId) return;
+      if (btnComparePricePokemon) {
+        btnComparePricePokemon.disabled = false;
+        btnComparePricePokemon.textContent = 'Consultar anúncios';
+      }
+      if (priceGuideStatus) priceGuideStatus.textContent = 'A consulta demorou mais que o esperado. Tente novamente.';
+    }, 15000);
+    if (priceGuideStatus) priceGuideStatus.textContent = 'Consultando anúncios da espécie no Mercado...';
+    renderPriceGuideResults();
+    sendToActiveTab({
+      action: 'FETCH_POKEMON_PRICE_GUIDE_OFFERS',
+      requestId,
+      pokemon,
+    });
+  }
+
+  function togglePriceGuideAccountFilter(key) {
+    const previousId = selectPricePokemon?.value || '';
+    if (key === 'noteMin') {
+      priceGuideAccountFilters = { ...priceGuideAccountFilters, noteMin: priceGuideAccountFilters.noteMin === null ? 3.5 : null };
+    } else {
+      priceGuideAccountFilters = { ...priceGuideAccountFilters, [key]: !priceGuideAccountFilters[key] };
+    }
+    renderPriceGuidePokemonSelect();
+    if ((selectPricePokemon?.value || '') !== previousId) {
+      clearTimeout(priceGuideQueryTimeout);
+      priceGuideRequestId = null;
+      priceGuideOffers = [];
+      priceGuideSpriteDataUrl = null;
+      priceGuideSpriteDataUrls = { normal: null, shiny: null };
+      priceGuideSpriteVariant = null;
+      priceGuideCurrencyIconDataUrls = { gold: null, orb: null };
+      priceGuideVisualTypes = [];
+    }
+    renderPriceGuideResults();
+    if (priceGuideStatus) priceGuideStatus.textContent = describePriceGuideAccountFilters();
+  }
+
+  function switchMarketSubtab(sub) {
+    const selected = sub === 'pokemon-price' ? 'pokemon-price' : sub === 'catalog' ? 'catalog' : 'my';
+    const states = [
+      [subtabMyListings, panelMyListings, selected === 'my'],
+      [subtabCommunityItems, panelCommunityItems, selected === 'catalog'],
+      [subtabPokemonPrice, panelPokemonPrice, selected === 'pokemon-price']
+    ];
+    states.forEach(([button, panel, active]) => {
+      if (button) {
+        button.classList.toggle('on', active);
+        button.classList.toggle('apagado', !active);
+      }
+      if (panel) panel.style.display = active ? 'flex' : 'none';
+    });
+
+    if (selected === 'catalog') renderCommunityCatalog();
+    if (selected === 'my') renderMyListings();
+    if (selected === 'pokemon-price') {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['rotom_price_guide_pokemons'], (res) => {
+          priceGuidePokemons = Array.isArray(res.rotom_price_guide_pokemons) ? res.rotom_price_guide_pokemons : priceGuidePokemons;
+          renderPriceGuidePokemonSelect();
+          renderPriceGuideResults();
+        });
+      }
+      requestPriceGuideInventory();
+    }
+  }
+
+  if (selectPricePokemon) selectPricePokemon.addEventListener('change', () => {
+    clearTimeout(priceGuideQueryTimeout);
+    priceGuideRequestId = null;
+    priceGuideOffers = [];
+    priceGuideSpriteDataUrl = null;
+    priceGuideSpriteDataUrls = { normal: null, shiny: null };
+    priceGuideSpriteVariant = null;
+    priceGuideCurrencyIconDataUrls = { gold: null, orb: null };
+    priceGuideVisualTypes = [];
+    if (btnComparePricePokemon) {
+      btnComparePricePokemon.disabled = false;
+      btnComparePricePokemon.textContent = 'Consultar anúncios';
+    }
+    if (priceGuideStatus) priceGuideStatus.textContent = 'Pokémon selecionado. Consulte o mercado para atualizar os preços.';
+    renderPriceGuideResults();
+  });
+  if (btnRefreshPricePokemon) btnRefreshPricePokemon.addEventListener('click', requestPriceGuideInventory);
+  if (btnComparePricePokemon) btnComparePricePokemon.addEventListener('click', analyzeSelectedPokemonPrice);
+  if (priceGuideFilterCoins) priceGuideFilterCoins.addEventListener('click', () => {
+    priceGuideCurrencies = window.RotomPokemonPriceGuide.toggleCurrencyFilter(priceGuideCurrencies, 'gold');
+    renderPriceGuideResults();
+  });
+  if (priceGuideFilterGems) priceGuideFilterGems.addEventListener('click', () => {
+    priceGuideCurrencies = window.RotomPokemonPriceGuide.toggleCurrencyFilter(priceGuideCurrencies, 'orb');
+    renderPriceGuideResults();
+  });
+  if (priceGuideFilterNote) priceGuideFilterNote.addEventListener('click', () => {
+    togglePriceGuideAccountFilter('noteMin');
+  });
+  if (priceGuideFilterShiny) priceGuideFilterShiny.addEventListener('click', () => {
+    togglePriceGuideAccountFilter('shinyOnly');
+  });
+  if (priceGuideFilterP5) priceGuideFilterP5.addEventListener('click', () => {
+    togglePriceGuideAccountFilter('p5Only');
+  });
+  if (priceGuideFichaClose) priceGuideFichaClose.addEventListener('click', closePriceGuideFicha);
+  if (priceGuideFichaBackdrop) priceGuideFichaBackdrop.addEventListener('click', event => {
+    if (event.target === priceGuideFichaBackdrop) closePriceGuideFicha();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && priceGuideFichaBackdrop && !priceGuideFichaBackdrop.hidden) closePriceGuideFicha();
+  });
+
   if (subtabMyListings) subtabMyListings.addEventListener('click', () => switchMarketSubtab('my'));
   if (subtabCommunityItems) subtabCommunityItems.addEventListener('click', () => switchMarketSubtab('catalog'));
+  if (subtabPokemonPrice) subtabPokemonPrice.addEventListener('click', () => switchMarketSubtab('pokemon-price'));
 
   if (btnRefreshMarket) {
     btnRefreshMarket.addEventListener('click', () => {
@@ -1533,7 +2150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Identificação inteligente: Pokémon vs Item vs Caixa Especial vs Diamante
       let itemName = 'Item Desconhecido';
-      let itemIcon = 'icons/ouro.png';
+      let itemIcon = 'icons/ouro.svg';
       let badgeExtra = '';
       let categorySub = '';
 
@@ -1578,19 +2195,19 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           if (rotomIt) {
             itemName = rotomIt.name;
-            itemIcon = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(rotomIt) : (rotomIt.icon || 'icons/ouro.png');
+            itemIcon = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(rotomIt) : (rotomIt.icon || 'icons/ouro.svg');
             categorySub = rotomIt.categoryLabel || rotomIt.category || 'Item';
             if (rotomIt.type) badgeExtra += `<span style="font-size: 7.5px; padding: 1px 4px; background: rgba(255,255,255,0.15); border-radius: 0px;">${rotomIt.type}</span>`;
           } else {
             itemName = f.nome || an.itemNome || `Item #${itemId || '?'}`;
-            itemIcon = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(itemId) : 'icons/ouro.png';
+            itemIcon = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(itemId) : 'icons/ouro.svg';
             categorySub = 'Item';
           }
         }
       }
 
       const isGemas = (an.moeda === 'orb' || an.moeda === 'gems' || an.moeda === 'diamonds');
-      const moedaIcon = isGemas ? 'icons/orbe.png' : 'icons/ouro.png';
+      const moedaIcon = isGemas ? 'icons/orbe.svg' : 'icons/ouro.svg';
       const moedaNome = isGemas ? 'Gemas' : 'GP';
       const precoUnit = Number(an.preco || an.unitPrice || 0);
       const qtd = Number(an.qtd || an.quantidade || 1);
@@ -1773,7 +2390,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const iconUrl = typeof window.getItemIconUrl === 'function'
       ? window.getItemIconUrl(it)
-      : (it.icon || 'icons/ouro.png');
+      : (it.icon || 'icons/ouro.svg');
 
     const data = communityCatalog[it.id] || {};
     const minGold = Number(data.minGold || data.gold || 0);
@@ -1805,13 +2422,13 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="vao" style="padding: 5px 8px; display: flex; flex-direction: column; gap: 3px; border-radius: 0px;">
         <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9px;">
           <span style="color: var(--vao-dim); display: flex; align-items: center; gap: 3px;">
-            <img src="icons/ouro.png" style="width: 11px; height: 11px; object-fit: contain;"> Menor em Coins:
+            <img src="icons/ouro.svg" style="width: 11px; height: 11px; object-fit: contain;"> Menor em Coins:
           </span>
           <b style="color: ${minGold > 0 ? 'var(--coins)' : 'var(--vao-dim)'}; font-variant-numeric: tabular-nums;">${goldDisplay}</b>
         </div>
         <div style="display: flex; align-items: center; justify-content: space-between; font-size: 9px;">
           <span style="color: var(--vao-dim); display: flex; align-items: center; gap: 3px;">
-            <img src="icons/orbe.png" style="width: 11px; height: 11px; object-fit: contain;"> Menor em Gemas:
+            <img src="icons/orbe.svg" style="width: 11px; height: 11px; object-fit: contain;"> Menor em Gemas:
           </span>
           <b style="color: ${minOrb > 0 ? 'var(--gemas)' : 'var(--vao-dim)'}; font-variant-numeric: tabular-nums;">${gemsDisplay}</b>
         </div>
@@ -1891,7 +2508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedMarketItem = it;
 
     if (offersModalIcon) {
-      offersModalIcon.src = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(it) : (it.icon || 'icons/ouro.png');
+      offersModalIcon.src = typeof window.getItemIconUrl === 'function' ? window.getItemIconUrl(it) : (it.icon || 'icons/ouro.svg');
     }
     if (offersModalTitle) offersModalTitle.textContent = it.name;
     if (offersModalSub) offersModalSub.textContent = `Categoria: ${it.categoryLabel || it.category || 'Item'}`;
@@ -1985,7 +2602,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const offers = currentItemOffersData.linhas || currentItemOffersData.offers || [];
     const isGemas = (currentOffersMoeda === 'gems' || currentOffersMoeda === 'orb');
-    const moedaIcon = isGemas ? 'icons/orbe.png' : 'icons/ouro.png';
+    const moedaIcon = isGemas ? 'icons/orbe.svg' : 'icons/ouro.svg';
     const moedaLabel = isGemas ? 'Gemas' : 'GP';
 
     if (!Array.isArray(offers) || offers.length === 0) {
@@ -2176,7 +2793,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const isGemas = off.moeda === 'orb' || off.moeda === 'gems';
       const moedaNome = isGemas ? 'Gemas' : 'GP';
-      const moedaIcon = isGemas ? 'icons/orbe.png' : 'icons/ouro.png';
+      const moedaIcon = isGemas ? 'icons/orbe.svg' : 'icons/ouro.svg';
       const precoUnit = Number(off.preco || off.unitPrice || 0);
       const qtd = Number(off.qtd || off.quantidade || 1);
       const precoTotal = precoUnit * qtd;
@@ -2698,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           const iconUrl = rotomIt && typeof window.getItemIconUrl === 'function'
             ? window.getItemIconUrl(rotomIt)
-            : 'icons/ouro.png';
+            : 'icons/ouro.svg';
 
           const card = document.createElement('div');
           card.className = 'stat-drop-card';
@@ -3672,6 +4289,62 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
+      if (changes.rotom_price_guide_pokemons && Array.isArray(changes.rotom_price_guide_pokemons.newValue)) {
+        const responseRequestId = changes.rotom_price_guide_inventory_request_id?.newValue;
+        if (!priceGuideInventoryRequestId || responseRequestId === priceGuideInventoryRequestId) {
+          clearTimeout(priceGuideInventoryTimeout);
+          priceGuidePokemons = changes.rotom_price_guide_pokemons.newValue;
+          renderPriceGuidePokemonSelect();
+          renderPriceGuideResults();
+          const diagnostic = changes.rotom_price_guide_inventory_diagnostic?.newValue;
+          const hasIdentifiedPokemon = priceGuidePokemons.some(pokemon => pokemon && pokemon.id !== null && pokemon.id !== undefined);
+          if (priceGuideStatus) priceGuideStatus.textContent = hasIdentifiedPokemon
+            ? describePriceGuideAccountFilters()
+              : `Recebi ${Number(diagnostic?.pokemonCount) || 0} Pokémon do estado do jogo, mas nenhum veio com identificador para comparar.`;
+        }
+      }
+      if (changes.rotom_price_guide_diagnostic && changes.rotom_price_guide_diagnostic.newValue) {
+        const diagnostic = changes.rotom_price_guide_diagnostic.newValue;
+        if (!priceGuideInventoryRequestId || diagnostic.requestId !== priceGuideInventoryRequestId) return;
+        priceGuideInventoryDiagnostic = diagnostic;
+        if (priceGuideStatus && diagnostic.stage === 'webview_received') {
+          priceGuideStatus.textContent = 'A aba do jogo recebeu o pedido; aguardando a leitura do estado do jogador...';
+        } else if (priceGuideStatus && diagnostic.stage === 'engine_received') {
+          const ws = diagnostic.webSocketOpen ? 'conexão ativa' : 'conexão fechada';
+          const state = diagnostic.gameStateReceived ? 'estado do jogador recebido' : 'estado do jogador ainda não recebido';
+          priceGuideStatus.textContent = `Motor do Rotom ativo; ${ws}; ${state}.`;
+        } else if (priceGuideStatus && diagnostic.stage === 'inventory_prepared') {
+          priceGuideStatus.textContent = `Lista montada: ${Number(diagnostic.mappedPokemonCount) || 0} Pokémon; ${Number(diagnostic.teamCount) || 0} na equipe, ${Number(diagnostic.depotCount) || 0} no depósito e ${Number(diagnostic.collectionCount) || 0} na Coleção. Enviando ao Cockpit...`;
+        } else if (priceGuideStatus && diagnostic.stage === 'engine_error') {
+          priceGuideStatus.textContent = `O motor encontrou um erro ao montar a lista (${diagnostic.errorType || 'erro'}).`;
+        }
+      }
+      if (changes.rotom_price_guide_offers && changes.rotom_price_guide_offers.newValue) {
+        const result = changes.rotom_price_guide_offers.newValue;
+        if (priceGuideRequestId && result.requestId === priceGuideRequestId) {
+          priceGuideOffers = Array.isArray(result.offers) ? result.offers : [];
+          priceGuideSpriteDataUrl = typeof result.spriteDataUrl === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(result.spriteDataUrl) ? result.spriteDataUrl : null;
+          priceGuideSpriteDataUrls = {
+            normal: typeof result.spriteDataUrls?.normal === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(result.spriteDataUrls.normal) ? result.spriteDataUrls.normal : null,
+            shiny: typeof result.spriteDataUrls?.shiny === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(result.spriteDataUrls.shiny) ? result.spriteDataUrls.shiny : null
+          };
+          priceGuideSpriteVariant = result.spriteVariant === 'shiny' ? 'shiny' : result.spriteVariant === 'normal' ? 'normal' : null;
+          priceGuideCurrencyIconDataUrls = {
+            gold: typeof result.currencyIconDataUrls?.gold === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(result.currencyIconDataUrls.gold) ? result.currencyIconDataUrls.gold : null,
+            orb: typeof result.currencyIconDataUrls?.orb === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{16,30000}$/.test(result.currencyIconDataUrls.orb) ? result.currencyIconDataUrls.orb : null
+          };
+          priceGuideVisualTypes = Array.isArray(result.types) ? result.types.filter(type => typeof type === 'string' && /^[a-z0-9 -]{1,20}$/i.test(type)).slice(0, 2) : [];
+          renderPriceGuideResults();
+          if (priceGuideStatus) priceGuideStatus.textContent = result.marketResponses > 0
+            ? `Mercado: ${Number(result.marketRowsReceived) || 0} linhas; ${Number(result.marketRowsAdded) || 0} ofertas incluídas (ID: ${Number(result.marketRowsMatchedById) || 0}, nome exato: ${Number(result.marketRowsMatchedByName) || 0}); sem dados de espécie: ${Number(result.marketRowsMissingSpeciesInfo) || 0}, ID/nome divergente: ${Number(result.marketRowsDifferentSpecies) || 0}, duplicadas: ${Number(result.marketRowsDuplicate) || 0}, falhas ao ler ficha: ${Number(result.marketRowsParseErrors) || 0}${result.marketRowsLastErrorType ? ` (${result.marketRowsLastErrorType}${result.marketRowsLastErrorIdentifier ? `: ${result.marketRowsLastErrorIdentifier}` : ''})` : ''}.`
+            : 'O Mercado não confirmou uma resposta. Confira se o jogo está conectado e tente consultar novamente.';
+          clearTimeout(priceGuideQueryTimeout);
+          if (btnComparePricePokemon) {
+            btnComparePricePokemon.disabled = false;
+            btnComparePricePokemon.textContent = 'Consultar anúncios';
+          }
+        }
+      }
       if (changes.rotom_oferenda_candidates && changes.rotom_oferenda_candidates.newValue) {
         const d = changes.rotom_oferenda_candidates.newValue;
         updateOferendaUI(d.candidates, d.protectedCount, d.totalDepot);

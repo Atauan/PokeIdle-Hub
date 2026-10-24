@@ -1071,6 +1071,239 @@
       align-content: start;
     }
 
+    .price-guide-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      align-content: stretch;
+    }
+
+    .price-guide-currency-filter {
+      display: flex;
+      gap: 6px;
+      padding: 2px 2px 0;
+    }
+
+    .price-guide-currency-filter .on {
+      outline: 1px solid var(--ouro);
+      color: var(--ouro);
+    }
+
+    .price-guide-currency-section { display: grid; gap: 5px; }
+    .price-guide-currency-heading { margin: 8px 2px 0; padding-bottom: 5px; border-bottom: 1px solid var(--mad-linha); font-size: 10px; }
+    .price-guide-currency-empty { grid-column: 1 / -1; text-align: center; padding: 8px 10px; color: var(--sobre-mad-dim); font-size: 9px; }
+
+    #price-guide-offers .price-guide-cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+      gap: 8px;
+    }
+
+    @media (max-width: 1200px) {
+      #price-guide-offers .price-guide-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+      #price-guide-offers .price-guide-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+      #price-guide-offers .price-guide-cards { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .price-guide-account-filters {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px 2px 2px;
+      font-size: 9px;
+    }
+
+    .price-guide-account-filters .on { outline: 1px solid var(--ouro); color: var(--ouro); }
+
+    .price-guide-account-filter-help { color: var(--sobre-mad-dim); }
+
+    .price-guide-row {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 0;
+      height: auto;
+      align-self: start;
+      gap: 5px;
+      padding: 6px;
+    }
+
+    .price-guide-row-own {
+      border: 2px solid var(--rx-luz);
+      background: var(--vao);
+      box-shadow: inset 0 0 0 2px var(--ouro), 0 0 0 1px var(--ouro);
+    }
+
+    .price-guide-art {
+      display: grid;
+      place-items: center;
+      min-height: 64px;
+      height: 64px;
+      background: var(--mad);
+      border-radius: 3px;
+    }
+
+    .price-guide-art .price-guide-sprite {
+      width: 56px;
+      height: 56px;
+      background: transparent;
+    }
+
+    .price-guide-art-unavailable { padding: 6px; color: var(--sobre-mad-dim); font-size: 8px; text-align: center; }
+
+    .price-guide-card-seals { display: flex; flex-wrap: wrap; gap: 5px; min-height: 0; }
+    .price-guide-variant { padding: 2px 5px; background: var(--vao); color: var(--ouro); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+
+    .price-guide-types { display: flex; flex-wrap: wrap; gap: 3px; }
+    .price-guide-types .cm-chip {
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #fff;
+      font-size: 7px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .price-guide-types .NORMAL { background: #8a8a68; }
+    .price-guide-types .FIRE { background: #b85a3d; }
+    .price-guide-types .WATER { background: #4c78bd; }
+    .price-guide-types .ELECTRIC { background: #b89827; }
+    .price-guide-types .GRASS { background: #568e43; }
+    .price-guide-types .ICE { background: #5d9f9f; }
+    .price-guide-types .FIGHTING { background: #9f443e; }
+    .price-guide-types .POISON { background: #89518f; }
+    .price-guide-types .GROUND { background: #a18442; }
+    .price-guide-types .FLYING { background: #687ab2; }
+    .price-guide-types .PSYCHIC { background: #b64c70; }
+    .price-guide-types .BUG { background: #79882f; }
+    .price-guide-types .ROCK { background: #8c7b3e; }
+    .price-guide-types .GHOST { background: #65527f; }
+    .price-guide-types .DRAGON { background: #6148a7; }
+    .price-guide-types .DARK { background: #62544a; }
+    .price-guide-types .STEEL { background: #737b89; }
+    .price-guide-types .FAIRY { background: #a65f78; }
+
+    .price-guide-attributes {
+      display: grid;
+      gap: 3px;
+      color: var(--sobre-mad-dim);
+      font-size: 8px;
+    }
+
+    .price-guide-attribute-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+
+    .price-guide-attribute {
+      min-width: 0;
+      padding: 3px 4px;
+      border-radius: 3px;
+      background: var(--mad);
+      font-weight: 800;
+      line-height: 1.1;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .price-guide-seal-potency { color: #fff; background: #9850bd; }
+    .price-guide-seal-iv { color: #15301d; background: #68c87b; }
+    .price-guide-seal-quality { color: #352600; background: #ffc43f; }
+    .price-guide-seal-note { color: #102736; background: #47bce9; }
+
+    .price-guide-card-footer {
+      margin-top: auto;
+      padding-top: 4px;
+      border-top: 1px solid var(--mad-linha);
+      display: grid;
+      gap: 2px;
+    }
+
+    .price-guide-money { display: flex; align-items: center; gap: 4px; color: var(--ouro); font-size: 10px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+    .price-guide-money img { width: 14px; height: 14px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+    .price-guide-money-unit { font-size: 8px; }
+    .price-guide-vendor { color: var(--sobre-mad-dim); font-size: 8px; }
+    .price-guide-vendor b { color: var(--sobre-mad); }
+    .price-guide-nearest { color: var(--ouro); font-size: 7px; }
+    .price-guide-own-reference { color: var(--ouro); font-size: 8px; font-weight: 800; }
+
+    .price-guide-row-head {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .price-guide-row-head .cm-sub { color: var(--sobre-mad-dim); font-size: 8px; }
+
+    .price-guide-sprite {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      background: var(--mad);
+      border-radius: 4px;
+    }
+
+    .price-guide-row-title { display: grid; gap: 3px; min-width: 0; font-size: 10px; }
+    .price-guide-row-title strong { overflow-wrap: anywhere; }
+    .price-guide-ficha { justify-self: start; padding: 2px 6px; font-size: 8px; }
+
+    .price-guide-own-label {
+      width: fit-content;
+      padding: 2px 4px;
+      color: var(--mad);
+      background: var(--ouro);
+      font-size: 7px;
+      letter-spacing: 0.4px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .price-guide-ficha-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: #000b;
+    }
+
+    .price-guide-ficha-backdrop[hidden] { display: none; }
+    .price-guide-ficha-modal {
+      width: min(760px, 100%);
+      max-height: min(90vh, 900px);
+      overflow: auto;
+      padding: 16px;
+      color: var(--sobre-mad);
+      background: var(--mad);
+      border: 2px solid var(--mad-linha);
+      border-radius: 8px;
+      box-shadow: 0 12px 48px #0009;
+    }
+
+    .price-guide-ficha-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .price-guide-ficha-hero { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: center; }
+    .price-guide-ficha-hero .price-guide-sprite { width: 104px; height: 104px; }
+    .price-guide-ficha-badges, .price-guide-ficha-types { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .price-guide-ficha-badges span, .price-guide-ficha-types span { padding: 4px 7px; border-radius: 4px; background: var(--vao); font-size: 10px; }
+    .price-guide-ficha-stats { display: grid; gap: 7px; margin-top: 14px; }
+    .price-guide-ficha-stat { display: grid; grid-template-columns: 62px minmax(30px, 1fr) 70px 64px; gap: 8px; align-items: center; font-size: 10px; }
+    .price-guide-ficha-stat-bar { height: 8px; background: #260f19; border-radius: 5px; overflow: hidden; }
+    .price-guide-ficha-stat-bar i { display: block; height: 100%; background: #69c781; }
+    .price-guide-ficha-note { color: var(--sobre-mad-dim); font-size: 10px; line-height: 1.5; margin-top: 12px; }
+
+    @media (max-width: 700px) {
+      .price-guide-ficha-modal { padding: 12px; }
+      .price-guide-ficha-hero { grid-template-columns: 72px minmax(0, 1fr); }
+      .price-guide-ficha-hero .price-guide-sprite { width: 68px; height: 68px; }
+      .price-guide-ficha-stat { grid-template-columns: 48px minmax(20px, 1fr) 52px 48px; gap: 5px; }
+    }
+
     .catalog-section-title {
       grid-column: 1 / -1;
       background: var(--vao);
@@ -1980,6 +2213,9 @@
         <button type="button" id="subtab-community-items" class="btn chip-btn apagado">
           📦 Catálogo da Comunidade
         </button>
+        <button type="button" id="subtab-pokemon-price" class="btn chip-btn apagado">
+          📊 Comparar Pokémon
+        </button>
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px;">
@@ -2042,6 +2278,59 @@
           <div style="grid-column: 1 / -1; text-align: center; padding: 40px 10px; color: var(--sobre-mad-dim);">
             Aguardando dados do mercado da comunidade...
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-pokemon-price" class="market-content-panel" style="display: none;">
+      <div class="quadro" style="flex: 1; min-height: 0;">
+        <div class="quadro-header">
+          <div>
+            <h2 class="quadro-titulo">Comparar preço de Pokémon</h2>
+          <span class="quadro-sub">Anúncios da mesma espécie, ordenados pelos atributos. A referência usa os anúncios retornados pela consulta e não compra nem anuncia Pokémon.</span>
+          </div>
+          <button type="button" id="btn-refresh-price-pokemon" class="btn btn-mini">Atualizar Pokémon</button>
+        </div>
+
+        <div class="price-guide-account-filters" role="group" aria-label="Filtros da lista de Pokémon da conta">
+          <span>Mostrar Pokémon que tenham:</span>
+          <button type="button" id="price-guide-filter-note" class="btn btn-mini on" aria-label="Incluir Pokémon com nota acima de 3,5" title="Inclui Pokémon com nota maior que 3,5 na lista da conta" aria-pressed="true">Nota acima de 3,5</button>
+          <button type="button" id="price-guide-filter-shiny" class="btn btn-mini on" aria-label="Incluir Pokémon Shiny" title="Inclui Pokémon Shiny na lista da conta" aria-pressed="true">Shiny</button>
+          <button type="button" id="price-guide-filter-p5" class="btn btn-mini on" aria-label="Incluir Pokémon P5" title="Inclui Pokémon P5 na lista da conta" aria-pressed="true">P5</button>
+          <span class="price-guide-account-filter-help">Qualquer critério ativo</span>
+        </div>
+        <div style="display: flex; align-items: end; gap: 8px; flex-wrap: wrap; padding: 8px 0;">
+          <label for="select-price-pokemon" style="display: flex; flex-direction: column; gap: 4px; min-width: min(300px, 100%); flex: 1; font-size: 9.5px; color: var(--sobre-mad-dim);">
+            Pokémon da conta — equipe, depósito e Coleção
+            <select id="select-price-pokemon" class="campo" style="height: 30px;">
+              <option value="">Carregando Pokémon da conta...</option>
+            </select>
+          </label>
+          <button type="button" id="btn-compare-price-pokemon" class="btn btn-roxo btn-mini" style="height: 30px;">Consultar anúncios</button>
+        </div>
+        <div id="price-guide-status" role="status" aria-live="polite" style="min-height: 18px; padding: 2px 0 8px; font-size: 9px; color: var(--sobre-mad-dim);">
+          Selecione um Pokémon para comparar com anúncios ativos da mesma espécie.
+        </div>
+        <div id="price-guide-summary" class="vao" style="display: none; padding: 8px; margin-bottom: 8px; font-size: 10px;"></div>
+        <div id="price-guide-suggestions" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px;"></div>
+        <div class="price-guide-currency-filter" role="group" aria-label="Filtrar anúncios por moeda">
+          <button type="button" id="price-guide-filter-coins" class="btn btn-mini on" title="Mostrar ou ocultar anúncios em Coins" aria-pressed="true">Coins</button>
+          <button type="button" id="price-guide-filter-gems" class="btn btn-mini on" title="Mostrar ou ocultar anúncios em Gemas" aria-pressed="true">Gemas</button>
+          <span class="price-guide-account-filter-help">Uma ou ambas; mantenha pelo menos uma ativa.</span>
+        </div>
+        <div id="price-guide-offers" class="market-cards-grid price-guide-list" aria-live="polite">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 24px 10px; color: var(--sobre-mad-dim); font-size: 10px;">
+            Os anúncios comparáveis aparecerão aqui.
+          </div>
+        </div>
+        <div id="price-guide-ficha-backdrop" class="price-guide-ficha-backdrop" hidden>
+          <section class="price-guide-ficha-modal" role="dialog" aria-modal="true" aria-labelledby="price-guide-ficha-title">
+            <header class="price-guide-ficha-top">
+              <h2 id="price-guide-ficha-title" style="margin: 0; font-size: 16px;">Ficha do Pokémon</h2>
+              <button type="button" id="price-guide-ficha-close" class="btn btn-mini" aria-label="Fechar ficha">×</button>
+            </header>
+            <div id="price-guide-ficha-content"></div>
+          </section>
         </div>
       </div>
     </div>
@@ -2824,6 +3113,7 @@
   <script src="qrcode.js"></script>
   <script src="items_db.js"></script>
   <script src="hunts_db.js"></script>
+  <script src="pokemon-price-guide.js"></script>
   <script src="cockpit.js"></script>
 </body>
 

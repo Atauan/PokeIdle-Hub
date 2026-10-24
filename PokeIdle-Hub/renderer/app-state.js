@@ -59,7 +59,7 @@
     return (Array.isArray(accounts) ? accounts : []).find(account => ids.has(account?.id))?.id ?? null;
   }
 
-  function createAppState({ load, normalizeGameChannels }) {
+  function createAppState({ load, normalizeGameChannels, normalizeAccountFavorites, normalizeAccountIgnoredGameChannels }) {
     const savedAccounts = load('pf.accounts', null);
     const accounts = Array.isArray(savedAccounts) && savedAccounts.length
       ? savedAccounts
@@ -94,7 +94,8 @@
       frames: load('pf.frames', {}),
       target: 'kick',
       hideVideos: load('pf.hideVideos', false) === true,
-      accountFavorites: load('pf.accountFavorites', {}),
+      accountFavorites: normalizeAccountFavorites(load('pf.accountFavorites', {})),
+      accountIgnoredGameChannels: normalizeAccountIgnoredGameChannels(load('pf.accountIgnoredGameChannels', {})),
       fpsForeground: load('pf.fpsForeground', 0),
       fpsBackground: load('pf.fpsBackground', 15),
       suspendBgVideos: load('pf.suspendBgVideos', true) !== false,
@@ -128,6 +129,7 @@
     save('pf.ignoredGameChannels', state.ignoredGameChannels);
     save('pf.hideVideos', state.hideVideos);
     save('pf.accountFavorites', state.accountFavorites);
+    save('pf.accountIgnoredGameChannels', state.accountIgnoredGameChannels);
     save('pf.fpsForeground', state.fpsForeground);
     save('pf.fpsBackground', state.fpsBackground);
     save('pf.suspendBgVideos', state.suspendBgVideos);

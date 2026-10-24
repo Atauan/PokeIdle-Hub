@@ -223,7 +223,9 @@
 
   function simularRankingHunts(pk, hunts) {
     if (!pk) return { melhoresXp: [], melhoresOuro: [], todas: [] };
-    const listaHunts = (Array.isArray(hunts) && hunts.length) ? hunts : HUNTS_PADRAO;
+    const nivelPokemon = Math.max(1, Number(pk.level) || 1);
+    const listaHunts = ((Array.isArray(hunts) && hunts.length) ? hunts : HUNTS_PADRAO)
+      .filter((h) => Number.isFinite(Number(h.nivel)) && Number(h.nivel) <= nivelPokemon);
 
     const atqEf = Math.max(pk.stats?.atk || 50, pk.stats?.spAtk || 50);
     const defEf = Math.min(pk.stats?.def || 50, pk.stats?.spDef || 50);
@@ -791,9 +793,7 @@ Ficha de um pokémon do PokeIdle, um MMO idle de pokémon. Os números são os d
 
       estadoAfk.pokemonImportado = pk;
       estadoAfk.rankingHunts = ranking;
-      if (ranking.melhoresXp.length) {
-        estadoAfk.huntSelecionada = ranking.melhoresXp[0].slug;
-      }
+      estadoAfk.huntSelecionada = ranking.melhoresXp[0]?.slug || null;
       estadoAfk.modalImportAberto = false;
       estadoAfk.textoFichaTemp = '';
       renderizarPainel();
@@ -840,15 +840,41 @@ Ficha de um pokémon do PokeIdle, um MMO idle de pokémon. Os números são os d
       return;
     }
 
+    const ehImportado = !!estadoAfk.pokemonImportado;
+    if (ehImportado && !estadoAfk.rankingHunts?.todas?.length) {
+      painel.innerHTML = `
+        <div class="pih-afk-wrap">
+          <div class="pih-afk-card">
+            <h3>Não há hunts catalogadas até o nível deste Pokémon</h3>
+            <p>${esc(estadoAfk.pokemonImportado.nome)} está no nível ${num(estadoAfk.pokemonImportado.level)}. A simulação só recomenda hunts com nível de desbloqueio igual ou menor.</p>
+            <p style="font-size: 12px; color: var(--sobre-mad-dim, #f5cdb9);">A ficha não informa o nível do treinador. A conta também precisa ter desbloqueado a hunt.</p>
+            <button type="button" class="pih-btn" id="afk-btn-trocar-ficha">Importar outra ficha</button>
+            <button type="button" class="pih-btn-sair-sim" id="afk-btn-sair-simulacao">Voltar para Pokémon em Campo</button>
+          </div>
+          ${renderizarModalImportHtml()}
+        </div>`;
+      painel.querySelector('#afk-btn-sair-simulacao')?.addEventListener('click', () => {
+        estadoAfk.pokemonImportado = null;
+        estadoAfk.rankingHunts = null;
+        estadoAfk.huntSelecionada = estadoAfk.dadosJogo?.slugAtiva || estadoAfk.dadosJogo?.hunts?.[0]?.slug || 'furious-scizor';
+        renderizarPainel();
+      });
+      painel.querySelector('#afk-btn-trocar-ficha')?.addEventListener('click', () => {
+        estadoAfk.modalImportAberto = true;
+        renderizarPainel();
+      });
+      anexarEventosModal(painel);
+      return;
+    }
+
     const p = calcularProjecao();
     if (!p) return;
 
-    const ehImportado = !!estadoAfk.pokemonImportado;
     const lucroClass = p.lucroTotal >= 0 ? 'pih-ok' : 'pih-perigo';
     const sinalLucro = p.lucroTotal >= 0 ? '+' : '';
 
-    const todasHunts = (ehImportado && estadoAfk.rankingHunts?.todas?.length)
-      ? estadoAfk.rankingHunts.todas
+    const todasHunts = ehImportado
+      ? (estadoAfk.rankingHunts?.todas || [])
       : (estadoAfk.dadosJogo?.hunts?.length ? estadoAfk.dadosJogo.hunts : HUNTS_PADRAO);
     const slugAtiva = estadoAfk.dadosJogo?.slugAtiva;
     const huntAtivaObj = todasHunts.find((h) => h.slug === slugAtiva);
@@ -918,6 +944,9 @@ Ficha de um pokémon do PokeIdle, um MMO idle de pokémon. Os números são os d
         ${(ehImportado && estadoAfk.rankingHunts && (estadoAfk.rankingHunts.melhoresXp?.length || estadoAfk.rankingHunts.melhoresOuro?.length)) ? `
         <!-- Top 3 Recomendações de Hunts para XP e Ouro -->
         <div class="pih-recom-grid">
+          <p style="grid-column: 1 / -1; margin: 0; font-size: 11px; color: var(--sobre-mad-dim, #f5cdb9);">
+            Hunts até o nível do Pokémon importado. A conta precisa ter desbloqueado a área para poder caçar nela.
+          </p>
           <div class="pih-recom-col">
             <h4><span>⚡ Top 3 Rotas para XP Pokémon</span></h4>
             ${estadoAfk.rankingHunts.melhoresXp.map((h, idx) => `

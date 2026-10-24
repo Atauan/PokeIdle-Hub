@@ -37,7 +37,7 @@ function createSessionSummaryService({
         width, height, x, y, frame: false, show: false, resizable: false,
         skipTaskbar: true, alwaysOnTop: true, backgroundColor: '#141416',
         webPreferences: {
-          preload: path.join(appDirectory, 'renderer', 'session-preload.js'),
+          preload: path.join(appDirectory, 'session-preload.js'),
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: true,

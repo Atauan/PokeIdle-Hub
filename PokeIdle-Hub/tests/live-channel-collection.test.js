@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const policy = require('../live-channel-policy');
+const preferences = require('../live-account-preferences');
 const { createLiveChannelCollection } = require('../renderer/live-channel-collection');
 
 function setup({ autoLives = true, refreshing = false, manualPending = false } = {}) {
@@ -15,6 +16,7 @@ function setup({ autoLives = true, refreshing = false, manualPending = false } =
     autoLives,
     gameChannels: [],
     ignoredGameChannels: [],
+    accountIgnoredGameChannels: {},
   };
   const liveStates = new Map();
   const events = [];
@@ -30,6 +32,7 @@ function setup({ autoLives = true, refreshing = false, manualPending = false } =
   const collection = createLiveChannelCollection({
     state,
     policy,
+    preferences,
     uid: (() => { let id = 0; return () => `id-${++id}`; })(),
     liveStates,
     nextLiveState: (...args) => ({ status: args[1], open: args[2] }),
@@ -116,12 +119,14 @@ test('receiving game channels merges normalized rows and starts a pending manual
 test('manual channel entry infers platform, removes ignored keys and opens unknown entries when auto lives are disabled', () => {
   const { collection, state, liveStates, events } = setup({ autoLives: false });
   state.ignoredGameChannels = ['twitch:alpha'];
+  state.accountIgnoredGameChannels = { main: { twitch: ['alpha'], kick: ['alpha'] }, alt: { twitch: ['alpha'] } };
 
   collection.addChannels('https://www.twitch.tv/Alpha, https://kick.com/Beta');
 
   assert.deepEqual(state.twitch, [{ id: 'id-1', channel: 'alpha', muted: true }]);
   assert.deepEqual(state.kick, [{ id: 'id-2', channel: 'beta', muted: true }]);
   assert.deepEqual(state.ignoredGameChannels, []);
+  assert.deepEqual(state.accountIgnoredGameChannels, { main: { kick: ['alpha'] } });
   assert.deepEqual([...liveStates], [
     ['id-1', { status: 'unknown', open: true }],
     ['id-2', { status: 'unknown', open: true }],
@@ -201,16 +206,17 @@ test('binds game live links to collection and preserves add/already-added feedba
   ]);
 });
 
-test('removes one channel from its platform, ignores it, persists, and reconciles tiles', () => {
+test('removes a channel only from the selected account and provider, preserving shared channel lists', () => {
   const { collection, state, events } = setup();
   state.kick = [{ id: 'k1', channel: 'alpha' }, { id: 'k2', channel: 'beta' }];
   state.twitch = [{ id: 't1', channel: 'alpha' }];
 
-  collection.removeChannel('k1');
+  collection.removeChannel('k1', 'main', 'kick');
 
-  assert.deepEqual(state.kick, [{ id: 'k2', channel: 'beta' }]);
+  assert.deepEqual(state.kick, [{ id: 'k1', channel: 'alpha' }, { id: 'k2', channel: 'beta' }]);
   assert.deepEqual(state.twitch, [{ id: 't1', channel: 'alpha' }]);
-  assert.deepEqual(state.ignoredGameChannels, ['kick:alpha']);
+  assert.deepEqual(state.ignoredGameChannels, []);
+  assert.deepEqual(state.accountIgnoredGameChannels, { main: { kick: ['alpha'] } });
   assert.deepEqual(events, ['persist', 'syncTiles']);
 });
 
@@ -219,6 +225,20 @@ test('removing an unknown channel keeps the existing persist and sync behavior',
   collection.removeChannel('missing');
   assert.deepEqual(state.ignoredGameChannels, []);
   assert.deepEqual(events, ['persist', 'syncTiles']);
+});
+
+test('removing a channel validates the provider and does not affect another account exclusion', () => {
+  const { collection, state } = setup();
+  state.kick = [{ id: 'k1', channel: 'alpha' }];
+  state.twitch = [{ id: 't1', channel: 'alpha' }];
+
+  collection.removeChannel('t1', 'main', 'kick');
+  assert.deepEqual(state.accountIgnoredGameChannels, {});
+  collection.removeChannel('t1', 'main', 'twitch');
+  collection.removeChannel('t1', 'alt', 'twitch');
+  assert.deepEqual(state.accountIgnoredGameChannels, {
+    main: { twitch: ['alpha'] }, alt: { twitch: ['alpha'] },
+  });
 });
 
 test('active renderer composes and packages the live channel collection module', () => {
@@ -231,7 +251,7 @@ test('active renderer composes and packages the live channel collection module',
   assert.match(html, /<script src="live-channel-collection\.js"><\/script>[\s\S]*?<script src="app\.js"><\/script>/);
   assert.match(app, /window\.PokeIdleLiveChannelCollection\.createLiveChannelCollection\(/);
   assert.match(app, /addChannels, importGameChannels, receiveGameChannels/);
-  assert.match(app, /removeChannel\(id\)/);
+  assert.match(app, /removeChannel\(id, accountId, provider\)/);
   assert.match(moduleSource, /queryAll\('\[data-clear\]'\)/);
   assert.doesNotMatch(app, /clearChannels\(button\.dataset\.clear\)/);
   assert.match(app, /onAddLive:\s*callback\s*=>\s*window\.pf\.onAddLive\(callback\)/);

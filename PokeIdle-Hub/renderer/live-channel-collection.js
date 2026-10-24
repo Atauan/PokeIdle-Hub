@@ -4,6 +4,7 @@
   function createLiveChannelCollection({
     state,
     policy,
+    preferences,
     uid,
     liveStates,
     nextLiveState,
@@ -24,8 +25,8 @@
       ];
     }
 
-    function findChannelById(id) {
-      return listAll().find(entry => entry.i.id === id);
+    function findChannelById(id, provider) {
+      return listAll().find(entry => entry.i.id === id && (!provider || entry.p === provider));
     }
 
     function importGameChannels() {
@@ -56,6 +57,11 @@
         const lower = raw.toLowerCase();
         const platform = lower.includes('twitch.tv') ? 'twitch' : (lower.includes('kick.com') ? 'kick' : state.target);
         state.ignoredGameChannels = state.ignoredGameChannels.filter(key => key !== `${platform}:${channel}`);
+        state.accountIgnoredGameChannels = preferences.clearChannelExclusionAcrossAccounts(
+          state.accountIgnoredGameChannels,
+          platform,
+          channel,
+        );
         if (!state[platform].some(item => item.channel === channel)) {
           state[platform].push({ id: uid(), channel, muted: true });
         }
@@ -79,16 +85,17 @@
       syncTiles();
     }
 
-    function removeChannel(id) {
-      const entry = findChannelById(id);
-      if (entry) {
-        state.ignoredGameChannels = [...new Set([
-          ...state.ignoredGameChannels,
-          `${entry.p}:${entry.i.channel}`,
-        ])];
+    function removeChannel(id, accountId, provider) {
+      const entry = findChannelById(id, provider);
+      if (entry && accountId) {
+        state.accountIgnoredGameChannels = preferences.setAccountChannelExcluded(
+          state.accountIgnoredGameChannels,
+          accountId,
+          entry.p,
+          entry.i.channel,
+          true,
+        );
       }
-      state.kick = state.kick.filter(item => item.id !== id);
-      state.twitch = state.twitch.filter(item => item.id !== id);
       persist();
       syncTiles();
     }

@@ -9,7 +9,7 @@ const preferences = require('../live-account-preferences');
 
 function setup() {
   const state = {
-    accountFavorites: { main: [], alt: [] },
+    accountFavorites: { main: { kick: [], twitch: [] }, alt: { kick: [], twitch: [] } },
     accounts: [{ id: 'main' }, { id: 'alt' }],
     accountLimits: {},
     universalLimits: { kick: 2, twitch: 3 },
@@ -21,9 +21,10 @@ function setup() {
     classList: { toggle: (...args) => events.push(['class', ...args]) },
   };
   const tiles = new Map([
-    ['main:alpha', { acc: { id: 'main' }, item: { channel: 'Alpha' }, favBtn: button }],
-    ['alt:alpha', { acc: { id: 'alt' }, item: { channel: 'alpha' }, favBtn: { ...button } }],
-    ['main:beta', { acc: { id: 'main' }, item: { channel: 'beta' }, favBtn: { ...button } }],
+    ['main:alpha', { acc: { id: 'main' }, item: { channel: 'Alpha' }, p: 'kick', favBtn: button }],
+    ['main:twitch-alpha', { acc: { id: 'main' }, item: { channel: 'alpha' }, p: 'twitch', favBtn: { ...button } }],
+    ['alt:alpha', { acc: { id: 'alt' }, item: { channel: 'alpha' }, p: 'kick', favBtn: { ...button } }],
+    ['main:beta', { acc: { id: 'main' }, item: { channel: 'beta' }, p: 'kick', favBtn: { ...button } }],
   ]);
   const controller = createLiveAccountPreferenceController({
     state,
@@ -38,14 +39,16 @@ function setup() {
 
 test('toggles a favorite and updates only matching tiles for the selected account', () => {
   const { button, controller, events, state, tiles } = setup();
-  assert.equal(controller.isAccountFavorite('alpha', 'main'), false);
-  controller.toggleAccountFavorite('Alpha', 'main');
+  assert.equal(controller.isAccountFavorite('alpha', 'main', 'kick'), false);
+  controller.toggleAccountFavorite('Alpha', 'main', 'kick');
 
-  assert.equal(controller.isAccountFavorite('ALPHA', 'main'), true);
-  assert.deepEqual(state.accountFavorites, { main: ['alpha'], alt: [] });
+  assert.equal(controller.isAccountFavorite('ALPHA', 'main', 'kick'), true);
+  assert.equal(controller.isAccountFavorite('alpha', 'main', 'twitch'), false);
+  assert.deepEqual(state.accountFavorites.main, { kick: ['alpha'], twitch: [] });
   assert.equal(button.classList.toggle instanceof Function, true);
   assert.match(button.innerHTML, /icon-star/);
   assert.equal(tiles.get('alt:alpha').favBtn.innerHTML, '');
+  assert.equal(tiles.get('main:twitch-alpha').favBtn.innerHTML, '');
   assert.equal(tiles.get('main:beta').favBtn.innerHTML, '');
   assert.deepEqual(events.filter(([type]) => type === 'persist' || type === 'sync').map(([type]) => type), ['persist', 'sync']);
   assert.match(events.find(([type]) => type === 'toast')[1], /adicionado aos favoritos/);
