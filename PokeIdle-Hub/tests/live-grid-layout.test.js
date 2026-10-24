@@ -84,3 +84,35 @@ test('hidden videos use compact tiles across account columns while retaining min
   assert.equal(tiles.get('main:one').root.style.height, '36px');
   assert.deepEqual(tiles.get('main:one').rect, { w: 260, h: 36 });
 });
+
+test('promotes favorites only for the matching account and provider', () => {
+  const tiles = new Map([
+    ['main:twitch', { acc: { id: 'main' }, p: 'twitch', item: { channel: 'same' }, root: { style: {} } }],
+    ['main:kick', { acc: { id: 'main' }, p: 'kick', item: { channel: 'same' }, root: { style: {} } }],
+    ['alt:kick', { acc: { id: 'alt' }, p: 'kick', item: { channel: 'same' }, root: { style: {} } }],
+  ]);
+  const context = setup({
+    accounts: [{ id: 'main' }, { id: 'alt' }],
+    tiles,
+    columnWidths: { main: 500, alt: 500 },
+  });
+  const favoriteCalls = [];
+  const favoriteKey = (channel, accountId, provider) => {
+    favoriteCalls.push([channel, accountId, provider]);
+    return accountId === 'main' && provider === 'kick' && channel === 'same';
+  };
+  const layout = createLiveGridLayout({
+    state: { showChat: true, columns: 0, hideVideos: false },
+    getGrid: () => context.grid,
+    getEmpty: () => context.empty,
+    getAccounts: () => [{ id: 'main' }, { id: 'alt' }],
+    getTiles: () => tiles,
+    getAccountColumns: () => context.columns,
+    isAccountFavorite: favoriteKey,
+  });
+
+  layout.layout();
+
+  assert.ok(favoriteCalls.some(([, accountId, provider]) => accountId === 'main' && provider === 'kick'));
+  assert.ok(favoriteCalls.some(([, accountId, provider]) => accountId === 'main' && provider === 'twitch'));
+});

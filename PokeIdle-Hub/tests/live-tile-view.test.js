@@ -36,7 +36,7 @@ function setup({ platform = 'twitch', favorite = false } = {}) {
     follow: (tile, button) => events.push(['follow', tile.key, button]),
     reload: tile => events.push(['reload', tile.key]),
     openExternal: url => events.push(['external', url]),
-    removeItem: id => events.push(['removeItem', id]),
+    removeItem: (...args) => events.push(['removeItem', ...args]),
     startDrag: (event, key) => events.push(['drag', key]),
     bringFront: key => events.push(['front', key]),
     applyMute: key => events.push(['applyMute', key]),
@@ -44,6 +44,7 @@ function setup({ platform = 'twitch', favorite = false } = {}) {
     applyChatMode: key => events.push(['applyChatMode', key]),
     expandChat: key => events.push(['expand', key]),
     checkTwitchChat: (key, ready) => events.push(['chatReady', key, ready]),
+    onKickPoints: report => events.push(['kickPoints', report]),
   });
   const find = (root, predicate) => {
     if (!root) return null;
@@ -91,12 +92,21 @@ test('creates separate Kick chat with the same account partition and preserves t
   ]);
   const chatClick = tile.chat.listeners.find(([name]) => name === 'ipc-message')[1];
   chatClick({ channel: 'chat-click' });
+  const pointsListener = tile.chat.listeners.find(([name, listener]) => name === 'ipc-message' && listener !== chatClick)[1];
+  pointsListener({ channel: 'kick-points', args: [{ channel: 'kickstream', points: 1234 }] });
+  pointsListener({ channel: 'kick-points', args: [{ channel: 'kickstream', points: null }] });
+  pointsListener({ channel: 'kick-points', args: [{ channel: 'other', points: 9999 }] });
+  pointsListener({ channel: 'kick-points', args: [{ channel: 'kickstream', points: -1 }] });
+  assert.deepEqual(context.events.filter(([type]) => type === 'kickPoints'), [
+    ['kickPoints', { accountId: 'alt', channel: 'kickstream', points: 1234 }],
+    ['kickPoints', { accountId: 'alt', channel: 'kickstream', points: null }],
+  ]);
   assert.ok(context.events.some(([type, key]) => type === 'expand' && key === tile.key));
   const favorite = tile.favBtn.props.onclick;
   let stopped = false;
   favorite({ stopPropagation() { stopped = true; } });
   assert.equal(stopped, true);
-  assert.ok(context.events.some(([type, channel, accountId]) => type === 'favorite' && channel === item.channel && accountId === 'alt'));
+  assert.ok(context.events.some(([type, channel, accountId, provider]) => type === 'favorite' && channel === item.channel && accountId === 'alt' && provider === 'kick'));
   await tile.followBtn.props.onclick({ stopPropagation() {} });
   assert.ok(context.events.some(([type, key]) => type === 'follow' && key === tile.key));
   tile.root.listeners.find(([name]) => name === 'pointerdown')[1]({});
@@ -111,11 +121,11 @@ test('uses current account fallback and retains per-tile external, reload and re
 
   context.find(tile.root, node => node.props?.title === 'Recarregar').props.onclick();
   context.find(tile.root, node => node.props?.title === 'Abrir no Edge').props.onclick();
-  context.find(tile.root, node => node.props?.title === 'Remover canal').props.onclick();
+  context.find(tile.root, node => node.props?.title === 'Remover canal desta conta').props.onclick();
   tile.muteBtn.props.onclick();
   assert.ok(context.events.some(([type, key]) => type === 'reload' && key === tile.key));
   assert.ok(context.events.some(([type, url]) => type === 'external' && url === 'https://twitch.tv/fallback'));
-  assert.ok(context.events.some(([type, id]) => type === 'removeItem' && id === 'live-3'));
+  assert.ok(context.events.some(([type, id, accountId, provider]) => type === 'removeItem' && id === 'live-3' && accountId === 'fallback' && provider === 'twitch'));
   assert.ok(context.events.some(([type, key]) => type === 'mute' && key === tile.key));
   tile.player.options.onReady(tile.player);
   assert.ok(context.events.some(([type, key]) => type === 'applyMute' && key === tile.key));

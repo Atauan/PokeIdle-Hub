@@ -47,8 +47,14 @@ function isIncludedByBuilder(relativeFile) {
 }
 
 test('electron-builder includes the local dependency closure of main and preload', () => {
-  const dependencies = getLocalDependencyClosure(['main.js', 'preload.js']);
+  const dependencies = getLocalDependencyClosure(['main.js', 'preload.js', 'webview-preload.js']);
   const missing = dependencies.filter(file => !isIncludedByBuilder(file));
 
   assert.deepEqual(missing, [], `unpackaged local dependencies: ${missing.join(', ')}`);
+});
+
+test('development and distribution commands rebuild the generated Rotom addon before launch or packaging', () => {
+  for (const name of ['start', 'dev', 'dev:reset', 'dist:mac', 'dist:win', 'dist:win:qa', 'dist:linux', 'dist']) {
+    assert.match(packageJson.scripts[name], /node tools\/build-rotom\.js/, `${name} should rebuild rotom-addon.js`);
+  }
 });

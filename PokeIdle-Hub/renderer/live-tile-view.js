@@ -22,6 +22,7 @@
     applyChatMode,
     expandChat,
     checkTwitchChat,
+    onKickPoints = () => {},
   }) {
     function createTile(provider, item, account) {
       const platform = getPlatform(provider);
@@ -31,14 +32,14 @@
 
       tile.muteBtn = el('button', { onclick: () => toggleMute(key) });
 
-      const favorite = isFavorite(item.channel, acc.id);
+      const favorite = isFavorite(item.channel, acc.id, provider);
       tile.favBtn = el('button', {
         class: `tile-fav-btn${favorite ? ' active' : ''}`,
-        title: favorite ? 'Remover dos favoritos desta conta' : 'Favoritar para esta conta (fixa no topo)',
+        title: favorite ? 'Remover dos favoritos desta conta e plataforma' : 'Favoritar nesta conta e plataforma (fixa no topo)',
         'aria-label': 'Favoritar canal',
         onclick: event => {
           event.stopPropagation();
-          toggleFavorite(item.channel, acc.id);
+          toggleFavorite(item.channel, acc.id, provider);
         },
       }, el('span', { class: `icon-svg ${favorite ? 'icon-star' : 'icon-star-outline'}` }));
 
@@ -64,7 +65,7 @@
           el('span', { class: 'icon-svg icon-reload' })),
         el('button', { title: 'Abrir no Edge', 'aria-label': 'Abrir no Edge', onclick: () => openExternal(`https://${platform.host}/${item.channel}`) },
           el('span', { class: 'icon-svg icon-edge' })),
-        el('button', { title: 'Remover canal', 'aria-label': 'Remover canal', onclick: () => removeItem(item.id) },
+        el('button', { title: 'Remover canal desta conta', 'aria-label': 'Remover canal desta conta', onclick: () => removeItem(item.id, acc.id, provider) },
           el('span', { class: 'icon-svg icon-trash' })),
       );
 
@@ -94,6 +95,18 @@
         tile.chat.addEventListener('ipc-message', event => {
           if (event.channel === 'chat-click') expandChat(key);
         });
+      }
+
+      if (provider === 'kick') {
+        const receivePoints = event => {
+          if (event.channel !== 'kick-points') return;
+          const report = event.args?.[0];
+          if (report?.channel !== item.channel.toLowerCase() ||
+              !(report.points === null || Number.isSafeInteger(report.points) && report.points >= 0)) return;
+          onKickPoints({ accountId: acc.id, channel: item.channel, points: report.points });
+        };
+        tile.player.addEventListener('ipc-message', receivePoints);
+        if (tile.chat !== tile.player) tile.chat.addEventListener('ipc-message', receivePoints);
       }
 
       tile.root = el('div', { class: 'tile' },

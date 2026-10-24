@@ -8,7 +8,10 @@ const {
   getAccountLimits,
   setUniversalLimit,
   changeAccountLimit,
+  isAccountFavorite,
   toggleAccountFavorite,
+  normalizeAccountFavorites,
+  normalizeAccountIgnoredGameChannels,
 } = require('../live-account-preferences');
 
 test('reads saved per-account limits and falls back to the current universal defaults', () => {
@@ -56,16 +59,45 @@ test('changes a per-account provider limit within the existing 0–99 bounds', (
   assert.equal(changeAccountLimit(state, '', 'kick', 1).changed, false);
 });
 
-test('toggles lowercase favorites within one account without mutating saved state', () => {
-  const state = { main: ['alpha'], alt: [] };
-  const added = toggleAccountFavorite(state, 'main', 'Beta');
-  const removed = toggleAccountFavorite(added.favorites, 'main', 'ALPHA');
-  const unchanged = toggleAccountFavorite(state, '', 'Gamma');
+test('toggles favorites independently by provider and account without mutating saved state', () => {
+  const state = normalizeAccountFavorites({ main: ['alpha'], alt: [] });
+  const added = toggleAccountFavorite(state, 'main', 'kick', 'Beta');
+  const removed = toggleAccountFavorite(added.favorites, 'main', 'twitch', 'ALPHA');
+  const unchanged = toggleAccountFavorite(state, '', 'kick', 'Gamma');
 
-  assert.deepEqual(added, { favorites: { main: ['alpha', 'beta'], alt: [] }, changed: true, favorite: true });
-  assert.deepEqual(removed, { favorites: { main: ['beta'], alt: [] }, changed: true, favorite: false });
+  assert.deepEqual(added, {
+    favorites: { main: { kick: ['alpha', 'beta'], twitch: ['alpha'] } }, changed: true, favorite: true,
+  });
+  assert.deepEqual(removed, {
+    favorites: { main: { kick: ['alpha', 'beta'], twitch: [] } }, changed: true, favorite: false,
+  });
   assert.deepEqual(unchanged, { favorites: state, changed: false, favorite: false });
-  assert.deepEqual(state, { main: ['alpha'], alt: [] });
+  assert.equal(isAccountFavorite(added.favorites, 'main', 'kick', 'alpha'), true);
+  assert.equal(isAccountFavorite(added.favorites, 'main', 'twitch', 'alpha'), true);
+  assert.equal(isAccountFavorite(added.favorites, 'alt', 'kick', 'alpha'), false);
+  assert.deepEqual(state.main, { kick: ['alpha'], twitch: ['alpha'] });
+});
+
+test('migrates legacy favorites to both providers and normalizes nested preferences idempotently', () => {
+  const legacy = { main: [' Alpha ', 'BETA', 'alpha', null], invalid: 'not-a-list' };
+  const migrated = normalizeAccountFavorites(legacy);
+
+  assert.deepEqual(migrated, {
+    main: { kick: ['alpha', 'beta'], twitch: ['alpha', 'beta'] },
+  });
+  assert.deepEqual(normalizeAccountFavorites(migrated), migrated);
+  assert.deepEqual(normalizeAccountFavorites({
+    main: { kick: ['ALPHA'], twitch: ['beta'], youtube: ['ignored'] },
+  }), { main: { kick: ['alpha'], twitch: ['beta'] } });
+  assert.deepEqual(legacy.main, [' Alpha ', 'BETA', 'alpha', null]);
+});
+
+test('normalizes account channel exclusions by provider and rejects invalid values', () => {
+  assert.deepEqual(normalizeAccountIgnoredGameChannels({
+    main: { kick: [' Alpha ', 'ALPHA', null], twitch: ['Beta'], youtube: ['ignored'] },
+    invalid: 'not-a-list',
+  }), { main: { kick: ['alpha'], twitch: ['beta'] } });
+  assert.deepEqual(normalizeAccountIgnoredGameChannels(null), {});
 });
 
 test('active renderer delegates account preference rules and loads the module before app.js', () => {
@@ -79,7 +111,7 @@ test('active renderer delegates account preference rules and loads the module be
   assert.match(app, /liveAccountPreferenceController\.getAccountLimits\(accId\)/);
   assert.match(app, /liveAccountPreferenceController\.applyUniversalLimit\(platform, val\)/);
   assert.match(app, /liveAccountPreferenceController\.changeAccountLimit\(accId, platform, delta\)/);
-  assert.match(app, /liveAccountPreferenceController\.toggleAccountFavorite\(channel, accId\)/);
+  assert.match(app, /liveAccountPreferenceController\.toggleAccountFavorite\(channel, accId, provider\)/);
   assert.ok(html.indexOf('<script src="../live-account-preferences.js"></script>') < html.indexOf('<script src="app.js"></script>'));
   assert.ok(html.indexOf('<script src="live-account-preference-controller.js"></script>') < html.indexOf('<script src="app.js"></script>'));
   assert.ok(packageJson.build.files.includes('live-account-preferences.js'));

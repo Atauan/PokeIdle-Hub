@@ -32,8 +32,8 @@
         if (!column) return;
 
         const accountTiles = [...tiles.values()].filter(tile => tile.acc.id === account.id).sort((left, right) => {
-          const leftFavorite = isAccountFavorite(left.item.channel, account.id) ? 1 : 0;
-          const rightFavorite = isAccountFavorite(right.item.channel, account.id) ? 1 : 0;
+          const leftFavorite = isAccountFavorite(left.item.channel, account.id, left.p) ? 1 : 0;
+          const rightFavorite = isAccountFavorite(right.item.channel, account.id, right.p) ? 1 : 0;
           return rightFavorite - leftFavorite;
         });
         const tileCount = accountTiles.length;

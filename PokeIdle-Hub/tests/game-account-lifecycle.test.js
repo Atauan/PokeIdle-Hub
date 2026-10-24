@@ -14,7 +14,8 @@ function setup({ accounts, selected = 'main', defaultAccount = 'main', confirmRe
     gameAccount: selected,
     defaultGameAccountId: defaultAccount,
     accountOrder: ['main', 'alt'],
-    accountFavorites: accountPreferences ? { alt: ['twitch:canal'] } : {},
+    accountFavorites: accountPreferences ? { alt: { kick: [], twitch: ['canal'] } } : {},
+    accountIgnoredGameChannels: accountPreferences ? { alt: { kick: ['canal'] } } : {},
     accountLimits: accountPreferences ? { alt: { kick: 2, twitch: 3 } } : {},
   };
   const events = [];
@@ -94,6 +95,7 @@ test('removing a secondary account persists state and reports successful session
   assert.deepEqual(state.accounts.map((account) => account.id), ['main']);
   assert.equal(state.gameAccount, 'main');
   assert.equal(state.accountFavorites.alt, undefined);
+  assert.equal(state.accountIgnoredGameChannels.alt, undefined);
   assert.equal(state.accountLimits.alt, undefined);
   assert.deepEqual(state.accountOrder, ['main']);
   assert.equal(state.defaultGameAccountId, 'main');

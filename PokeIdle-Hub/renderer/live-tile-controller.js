@@ -10,6 +10,7 @@
     getEligibleAccountIdsByProvider,
     getAccountLimits,
     getFavoriteChannelsByAccount,
+    getKickPointsByAccount = () => new Map(),
     isTwitchEconomyEnabled,
     policy,
     runtime,
@@ -36,6 +37,8 @@
         eligibleAccountIdsByProvider,
         accountLimitsById: Object.fromEntries(accounts.map(account => [account.id, getAccountLimits(account.id)])),
         favoriteChannelsByAccount: getFavoriteChannelsByAccount(),
+        kickPointsByAccount: getKickPointsByAccount(),
+        accountIgnoredGameChannels: state.accountIgnoredGameChannels,
         existingTileKeys: new Set(tiles.keys()),
         economyProviders: isTwitchEconomyEnabled() ? ['twitch'] : [],
       });

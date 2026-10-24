@@ -22,7 +22,12 @@ const liveFollowService = window.PokeIdleLiveFollow.createLiveFollowService();
 // ---------------- Estado ----------------
 
 const appState = window.PokeIdleAppState;
-const S = appState.createAppState({ load, normalizeGameChannels });
+const S = appState.createAppState({
+  load,
+  normalizeGameChannels,
+  normalizeAccountFavorites: liveAccountPreferences.normalizeAccountFavorites,
+  normalizeAccountIgnoredGameChannels: liveAccountPreferences.normalizeAccountIgnoredGameChannels,
+});
 function persist() {
   appState.persistAppState(S, save);
 }
@@ -65,7 +70,30 @@ const { disposeWebview, makeWebview, reloadWebview } = liveWebviewFactory;
 // ---------------- Blocos das lives ----------------
 
 const tiles = new Map();   // key -> { root, player, chat, muteBtn, rect, stalls, acc, item, p, key }
+const kickPointsByAccount = new Map();
 let zTop = 10;
+
+function updateKickPoints({ accountId, channel, points }) {
+  if (typeof accountId !== 'string' || !S.accounts.some(account => account.id === accountId) ||
+      typeof channel !== 'string' || !/^[a-z0-9_-]{2,40}$/i.test(channel)) return;
+  const normalizedChannel = channel.toLowerCase();
+  let balances = kickPointsByAccount.get(accountId);
+  const previous = balances?.get(normalizedChannel);
+  if (points === null) {
+    if (!balances?.has(normalizedChannel)) return;
+    balances.delete(normalizedChannel);
+    if (!balances.size) kickPointsByAccount.delete(accountId);
+    syncTiles();
+    return;
+  }
+  if (!Number.isSafeInteger(points) || points < 0 || previous === points) return;
+  if (!balances) {
+    balances = new Map();
+    kickPointsByAccount.set(accountId, balances);
+  }
+  balances.set(normalizedChannel, points);
+  syncTiles();
+}
 const liveAccountPreferenceController = window.PokeIdleLiveAccountPreferenceController.createLiveAccountPreferenceController({
   state: S,
   preferences: liveAccountPreferences,
@@ -135,8 +163,8 @@ function toggleMute(key) {
   liveMediaControls.toggleMute(key);
 }
 
-function removeItem(id) {
-  liveChannelCollection.removeChannel(id);
+function removeItem(id, accountId, provider) {
+  liveChannelCollection.removeChannel(id, accountId, provider);
 }
 
 function bringFront(key) {
@@ -165,12 +193,12 @@ function followAllOpenChannels() {
   return liveFollowBatch.followAllOpenChannels();
 }
 
-function isAccountFavorite(channel, accId) {
-  return liveAccountPreferenceController.isAccountFavorite(channel, accId);
+function isAccountFavorite(channel, accId, provider) {
+  return liveAccountPreferenceController.isAccountFavorite(channel, accId, provider);
 }
 
-function toggleAccountFavorite(channel, accId) {
-  liveAccountPreferenceController.toggleAccountFavorite(channel, accId);
+function toggleAccountFavorite(channel, accId, provider) {
+  liveAccountPreferenceController.toggleAccountFavorite(channel, accId, provider);
 }
 
 function getAccountLimits(accId) {
@@ -270,7 +298,7 @@ const liveGridLayout = window.PokeIdleLiveGridLayout.createLiveGridLayout({
     : [{ id: 'main', name: 'Conta 1', main: true }],
   getTiles: () => tiles,
   getAccountColumns: () => liveAccountColumns,
-  isAccountFavorite: (channel, accountId) => isAccountFavorite(channel, accountId),
+  isAccountFavorite: (channel, accountId, provider) => isAccountFavorite(channel, accountId, provider),
 });
 
 const liveToolbarControls = window.PokeIdleLiveToolbarControls.createLiveToolbarControls({
@@ -326,13 +354,13 @@ const liveTileView = window.PokeIdleLiveTileView.createLiveTileView({
   makeWebview,
   el,
   tiles,
-  isFavorite: (channel, accountId) => isAccountFavorite(channel, accountId),
-  toggleFavorite: (channel, accountId) => toggleAccountFavorite(channel, accountId),
+  isFavorite: (channel, accountId, provider) => isAccountFavorite(channel, accountId, provider),
+  toggleFavorite: (channel, accountId, provider) => toggleAccountFavorite(channel, accountId, provider),
   toggleMute: key => toggleMute(key),
   follow: (tile, button) => liveFollowController.followSingleTile(tile, button),
   reload: tile => liveMediaControls.reloadTile(tile),
   openExternal: url => window.pf.openEdge(url),
-  removeItem: id => removeItem(id),
+  removeItem: (id, accountId, provider) => removeItem(id, accountId, provider),
   startDrag: (event, key) => liveTileDragController.startDrag(event, key),
   bringFront: key => bringFront(key),
   applyMute: key => applyMute(key),
@@ -340,6 +368,7 @@ const liveTileView = window.PokeIdleLiveTileView.createLiveTileView({
   applyChatMode: key => applyChatMode(key),
   expandChat: key => expandChat(key),
   checkTwitchChat: (key, ready) => checkTwitchChat(key, ready),
+  onKickPoints: report => updateKickPoints(report),
 });
 
 const liveTileController = window.PokeIdleLiveTileController.createLiveTileController({
@@ -351,6 +380,7 @@ const liveTileController = window.PokeIdleLiveTileController.createLiveTileContr
   getEligibleAccountIdsByProvider: accounts => providerConnections.eligibleAccountIds(accounts),
   getAccountLimits,
   getFavoriteChannelsByAccount: () => S.accountFavorites,
+  getKickPointsByAccount: () => kickPointsByAccount,
   isTwitchEconomyEnabled: () => S.twitchEconomy,
   policy: PokeIdleLivePolicy,
   runtime: PokeIdleLiveRuntime,
@@ -375,6 +405,7 @@ const liveTileController = window.PokeIdleLiveTileController.createLiveTileContr
 const liveChannelCollection = window.PokeIdleLiveChannelCollection.createLiveChannelCollection({
   state: S,
   policy: window.PokeIdleLiveChannelPolicy,
+  preferences: liveAccountPreferences,
   uid,
   liveStates,
   nextLiveState,

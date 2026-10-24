@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const preferences = require('../live-account-preferences');
 const {
   createAppState,
   persistAppState,
@@ -20,6 +21,8 @@ function setup(values = {}) {
   const state = createAppState({
     load,
     normalizeGameChannels: channels => Array.isArray(channels) ? channels.map(channel => ({ ...channel, normalized: true })) : [],
+    normalizeAccountFavorites: preferences.normalizeAccountFavorites,
+    normalizeAccountIgnoredGameChannels: preferences.normalizeAccountIgnoredGameChannels,
   });
   return { state, reads };
 }
@@ -43,7 +46,7 @@ test('creates state with existing defaults, coercions, account fallback, and nor
     accounts: [{ id: 'main', name: 'Conta 1', main: true }],
     gameAccount: 'main', defaultGameAccountId: 'main', accountOrder: ['main'],
     gameMosaic: false, frames: {}, target: 'kick', hideVideos: false,
-    accountFavorites: {}, fpsForeground: 0, fpsBackground: 15, suspendBgVideos: true,
+    accountFavorites: {}, accountIgnoredGameChannels: {}, fpsForeground: 0, fpsBackground: 15, suspendBgVideos: true,
     accountLimits: {}, universalLimits: ['legacy'], gameActionsVisible: true,
     liveActionsVisible: true, accountZoom: {},
   });
@@ -54,7 +57,7 @@ test('creates state with existing defaults, coercions, account fallback, and nor
     'pf.kick', 'pf.twitch', 'pf.columns', 'pf.showChat', 'pf.quality', 'pf.autoLives',
     'pf.twitchEconomy', 'pf.kickEconomy', 'pf.gameChannels', 'pf.ignoredGameChannels',
     'pf.livePoll', 'pf.tab', 'pf.gameMosaic', 'pf.frames',
-    'pf.hideVideos', 'pf.accountFavorites', 'pf.fpsForeground', 'pf.fpsBackground',
+    'pf.hideVideos', 'pf.accountFavorites', 'pf.accountIgnoredGameChannels', 'pf.fpsForeground', 'pf.fpsBackground',
     'pf.suspendBgVideos', 'pf.accountLimits', 'pf.universalLimits', 'pf.gameActionsVisible',
     'pf.liveActionsVisible', 'pf.accountZoom',
   ]);
@@ -76,12 +79,29 @@ test('persists the same application keys in the established order and excludes t
     'pf.accounts', 'pf.gameAccount', 'pf.accountOrder', 'pf.defaultGameAccount', 'pf.gameMosaic',
     'pf.gameActionsVisible', 'pf.liveActionsVisible',
     'pf.accountZoom', 'pf.autoLives', 'pf.livePoll', 'pf.twitchEconomy', 'pf.kickEconomy',
-    'pf.gameChannels', 'pf.ignoredGameChannels', 'pf.hideVideos', 'pf.accountFavorites',
+    'pf.gameChannels', 'pf.ignoredGameChannels', 'pf.hideVideos', 'pf.accountFavorites', 'pf.accountIgnoredGameChannels',
     'pf.fpsForeground', 'pf.fpsBackground', 'pf.suspendBgVideos', 'pf.accountLimits', 'pf.universalLimits',
   ]);
   assert.equal(writes.some(([key]) => key === 'pf.target'), false);
   assert.equal(writes[0][1], state.kick);
   assert.equal(writes.at(-1)[1], state.universalLimits);
+});
+
+test('migrates legacy favorites and loads account exclusions without touching provider session keys', () => {
+  const { state, reads } = setup({
+    'pf.accountFavorites': { main: ['Alpha'] },
+    'pf.accountIgnoredGameChannels': { main: { kick: ['Beta'] } },
+    'pf.accounts': [{ id: 'main', name: 'Conta' }],
+    'pf.kick': [{ id: 'kick:alpha', channel: 'alpha' }],
+    'pf.twitch': [{ id: 'twitch:alpha', channel: 'alpha' }],
+  });
+
+  assert.deepEqual(state.accountFavorites, {
+    main: { kick: ['alpha'], twitch: ['alpha'] },
+  });
+  assert.deepEqual(state.accountIgnoredGameChannels, { main: { kick: ['beta'] } });
+  assert.ok(reads.some(([key]) => key === 'pf.kick'));
+  assert.ok(reads.some(([key]) => key === 'pf.twitch'));
 });
 
 test('normalizes saved display order by retaining valid unique IDs and appending new accounts', () => {

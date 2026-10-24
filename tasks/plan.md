@@ -1,65 +1,62 @@
-# Plano de Implementação: Botão de Reset de Dados Locais e Reinicialização
+# Plano de Implementação: Escopo de Lives por Conta e Plataforma
 
-- Spec de referência: [SPEC-app-data-reset.md](file:///g:/PokeIdle-Hub/SPEC-app-data-reset.md)
-- Status: Planejamento pronto para execução
+Especificação aprovada: `SPEC-live-account-platform-scope.md`.
 
-## 1. Visão Geral
+## Visão geral
 
-Adicionar um botão de reset na aba Configurações que permite ao usuário apagar completamente todos os dados locais mantidos pelo PokeIdle Hub (sessões, cookies, LocalStorage, histórico, contas cadastradas e caches) e reiniciar a aplicação como uma nova instalação, com confirmação prévia formal e garantias de segurança contra exclusão indevida.
+Favoritos e remoções de canais passam a respeitar conta e plataforma. Remover uma live de uma conta a oculta apenas naquela conta, sem remover o canal da fonte global do provedor ou afetar outro serviço com o mesmo nome. A descoberta e os controles globais existentes continuam globais.
 
-## 2. Decisões de Arquitetura
+## Decisões de implementação
 
-1. **Canal IPC e Serviço:**
-   - Registrar o canal `reset-app-data` em [session-maintenance-service.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/session-maintenance-service.js).
-   - Validar remetente autorizado via `isTrustedSender(event)`.
-   - Executar `session.clearStorageData()` em todas as partições conhecidas (`persist:pokeidlehub`, partições `persist:pokeidlehub-acc-*` e sessão default).
-   - Remover com segurança os arquivos e subdiretórios de `userData` (`getUserDataPath()`), preservando apenas os arquivos de exclusividade de runtime do Electron (`SingletonCookie`, `SingletonLock`, `SingletonSocket`, `lockfile`).
-   - Validar que o caminho a ser limpo é estritamente a pasta `userData` do app, impedindo symlinks ou caminhos externos.
-   - Invocar o callback de reinicialização (`relaunch()`).
-2. **Exposição no Preload:**
-   - Adicionar `resetAppData: () => ipcRenderer.invoke('reset-app-data')` em [preload.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/preload.js).
-3. **Interface e Interação:**
-   - Adicionar no [renderer/index.html](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/index.html) na seção de manutenção uma linha com título "Apagar todos os dados e reiniciar", aviso de impacto e botão `#cfg-reset-app-data-btn`.
-   - Adicionar classe de estilo `.btn-danger` em [renderer/styles.css](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/styles.css) para destacar a ação de risco.
-   - Em [renderer/settings-preferences.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/settings-preferences.js), conectar o evento de clique com chamada ao `confirm()` nativo, feedback visual e despacho para `resetAppData()`.
-   - Em [renderer/app.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/renderer/app.js), injetar `resetAppData` no factory de `createSettingsPreferences`.
-4. **Estratégia de Validação:**
-   - Testes unitários com mocks em [tests/session-maintenance-service.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/session-maintenance-service.test.js).
-   - Testes unitários da UI em [tests/settings-preferences.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/settings-preferences.test.js).
-   - Testes de contrato estático em [tests/session-maintenance-contract.test.js](file:///g:/PokeIdle-Hub/PokeIdle-Hub/tests/session-maintenance-contract.test.js).
-   - Execução completa da suíte de 449+ testes com `npm test`.
+1. Migrar favoritos legados por conta para uma estrutura por conta e plataforma. Como o estado antigo não guarda provedor, copiar cada favorito para Kick e Twitch preserva o comportamento que o usuário vê hoje; depois da migração, alternar em uma plataforma não altera a outra.
+2. Manter listas globais de canais por provedor e guardar as remoções individuais em exclusões por conta, provedor e canal normalizado. A política de recursos filtra essas exclusões antes de criar tiles.
+3. Uma adição manual continua global e limpa exclusões do canal em todas as contas. Os controles de limpar canais continuam globais por provedor.
+4. Remover uma conta também remove suas preferências e exclusões locais.
+5. Não alterar sessões, logins, cookies, conexão Twitch/Kick ou dependências.
 
-## 3. Ordem das Fases e Tarefas
+## Sequência de tarefas
 
-### Fase 1: Serviço e IPC no Processo Principal
-- **Tarefa 1:** Implementar o manipulador `reset-app-data` em `session-maintenance-service.js` e expor no `preload.js`.
-- **Tarefa 2:** Adicionar testes unitários em `tests/session-maintenance-service.test.js`.
+### Fase 1: Estado e migração
 
-### Ponto de Verificação 1: Processo Principal
-- [ ] Testes unitários do serviço de manutenção passando com cobertura de remetente não confiável, limpeza de dados e chamada a `relaunch`.
-- [ ] Sintaxe validada com `node --check`.
+- [x] Tarefa 1: migrar favoritos e persistir exclusões por conta.
 
-### Fase 2: Interface, Estilo e Interação no Renderer
-- **Tarefa 3:** Adicionar a linha e botão `#cfg-reset-app-data-btn` em `renderer/index.html` e estilização `.btn-danger` em `renderer/styles.css`.
-- **Tarefa 4:** Implementar o controlador em `renderer/settings-preferences.js`, injeção em `renderer/app.js` e testes em `tests/settings-preferences.test.js`.
+### Fase 2: Cards e política de recursos
 
-### Ponto de Verificação 2: Interface
-- [ ] Testes de `settings-preferences.test.js` passando (confirmação, cancelamento, feedback).
-- [ ] Sintaxe validada em todos os arquivos de renderer.
+- [x] Tarefa 2: aplicar favoritos por conta/plataforma nos cards.
+- [x] Tarefa 3: filtrar exclusões por conta antes de aplicar limites e criar tiles.
+- [x] Tarefa 4: ordenar visualmente favoritos pela conta e plataforma corretas.
 
-### Fase 3: Contrato, Validação Integrada e Documentação
-- **Tarefa 5:** Atualizar `tests/session-maintenance-contract.test.js` com o novo canal e elemento do DOM, e executar a suíte completa de testes.
-- **Tarefa 6:** Registrar a alteração em `docs/changes/YYYY-MM-DD-HHMM--botao-reset-dados-locais.md`.
+### Ponto de verificação: estado e planejamento
 
-### Ponto de Verificação Final
-- [ ] Suíte completa `npm test` verde (449+ testes passando).
-- [ ] `git diff` limpo e pontual.
-- [ ] Documentação registrada.
+- [x] Testes focados de estado, política e tiles passam.
+- [x] Remoção e favorito de mesmo nome em provedores diferentes ficam independentes.
 
-## 4. Riscos e Mitigações
+### Fase 3: Remoção e ciclo de vida da conta
+
+- [x] Tarefa 5: remover canais somente da conta selecionada e preservar a ação global de adicionar.
+- [x] Tarefa 6: limpar preferências e exclusões da conta removida.
+
+### Fase 4: Validação e registro
+
+- [x] Tarefa 7: executar testes focados, suíte completa, verificar sintaxe e registrar a alteração.
+- [ ] Confirmar manualmente na UI que remover uma tile preserva o mesmo canal nas outras contas e plataforma.
+
+## Riscos e mitigação
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| Apagar arquivos fora do diretório de dados do app | Alto | Validar rigorosamente o caminho retornado por `getUserDataPath()`, verificar `fs.realpathSync` e rejeitar qualquer link simbólico. |
-| Arquivos travados no Windows no momento da exclusão | Médio | Executar `session.clearStorageData()` primeiro para fechar bancos do Chromium; capturar erros de arquivos individuais e permitir que a reinicialização continue. |
-| Clique acidental do usuário | Alto | Caixa de diálogo de confirmação explícita (`confirm()`) com texto de alerta em caixa alta/enfático. |
+| Favoritos antigos não identificam a plataforma | Favorito pode sumir após atualização | Migrar para as duas plataformas, preservando o estado visual atual, e testar migração repetida |
+| Descoberta automática pode reintroduzir canal removido | Remoção por conta parece não funcionar | Persistir exclusão por conta e aplicar filtro antes do planejamento de recursos |
+| Alteração no planejamento de tiles pode interferir nos limites | Conta recebe tiles diferentes | Cobrir limites, favoritos, recursos e exclusões com testes unitários de política |
+| Adição manual global restaura canal em contas previamente excluídas | Pode ser inesperado | Preservar a semântica do botão global, explicitar em teste e revisar em smoke manual |
+
+## Verificação
+
+- Testes focados: `npm --prefix PokeIdle-Hub test -- tests/live-account-preferences.test.js tests/app-state.test.js tests/live-account-preference-controller.test.js tests/live-tile-view.test.js tests/live-policy.test.js tests/live-tile-controller.test.js tests/live-grid-layout.test.js tests/live-channel-collection.test.js tests/game-account-lifecycle.test.js`
+- Suíte completa: `npm --prefix PokeIdle-Hub test`
+- Sintaxe: `node --check` em cada arquivo JavaScript alterado.
+- Validação visual final em dev/build Windows; não reiniciar nem apagar o perfil real do usuário durante testes.
+
+## Lista de tarefas
+
+Detalhes e critérios de aceite: `tasks/todo.md`.

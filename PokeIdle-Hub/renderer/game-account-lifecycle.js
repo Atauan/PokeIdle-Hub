@@ -49,6 +49,9 @@
       if (state.accountFavorites && state.accountFavorites[account.id]) {
         delete state.accountFavorites[account.id];
       }
+      if (state.accountIgnoredGameChannels && state.accountIgnoredGameChannels[account.id]) {
+        delete state.accountIgnoredGameChannels[account.id];
+      }
       if (state.accountLimits && state.accountLimits[account.id]) {
         delete state.accountLimits[account.id];
       }
